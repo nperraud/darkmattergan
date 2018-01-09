@@ -7,95 +7,143 @@ def rprint(msg, reuse=False):
     if not reuse:
         print(msg)
 
-class gan_model(object):
-    def __init__(self, name='gan'):
+class WGanModel(object):
+    def __init__(self, params, X, z, name='wgan'):
         self.name = name
+        self.params = params
+        self.G_fake = self.generator(z, reuse=False)
+        self.D_real = self.discriminator(X, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, reuse=True) 
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        self._D_loss = D_loss_f - D_loss_r + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
-    def __call__(self, params, z, X):
-        self.params = params
-        G_fake = self.generator(z, reuse=False)
-        D_real = self.discriminator(X, reuse=False)
-        D_fake = self.discriminator(G_fake, reuse=True)       
-    
-        return G_fake, D_real, D_fake
-
-class gan12_model(object):
-    def __init__(self, name='wgan12'):
-        self.name = name
-    def generator(self, z, X, reuse):
-        return generator12(z, X, self.params['generator'], reuse=reuse)
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse)
-    def __call__(self, params, z, X):
-        self.params = params
-        X1, X2 = tf.split(X, 2, axis = params['generator']['border']['axis'])
-        G_fake = self.generator(z, X1, reuse=False)
-        D_real = self.discriminator(X, reuse=False)
-        D_fake = self.discriminator(G_fake, reuse=True)       
-    
-        return G_fake, D_real, D_fake
-
-
-class veegan_model(object):
-    def __init__(self, name='veegan'):
-        self.name = name
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-    def discriminator(self, X, z, reuse):
-        return discriminator(X, self.params['discriminator'], z=z, reuse=reuse)    
-    def encoder(self, X, reuse):
-        return encoder(X, self.params['encoder'], self.latent_dim, reuse=reuse)
-    def __call__(self, params, z, X):
-        self.params = params
-        self.latent_dim = params['generator']['latent_dim']
-        G_fake = self.generator(z=z, reuse=False)
-        z_real = self.encoder(X=X, reuse=False)
-        D_real = self.discriminator(X=X, z=z_real, reuse=False)
-        D_fake = self.discriminator(X=G_fake, z=z, reuse=True)    
-        z_fake = self.encoder(X=G_fake, reuse=True)
-
-        return G_fake, D_real, D_fake, z_real, z_fake
-
-
-class lapgan(object):
-    def __init__(self, name='lapgan'):
-        self.name = name
-    def generator(self, X, z, reuse):
-        return generator_up(X, z, self.params['generator'], reuse=reuse)
-    def discriminator(self, X, Xsu, reuse):
-        return discriminator(tf.concat([X,Xsu],axis=3), self.params['discriminator'], reuse=reuse)
-    def __call__(self, params, z, X):
-        self.params = params
-        self.upsampling = params['generator']['upsampling']
-        Xs = down_sampler(X, s=self.upsampling)
-        G_fake = self.generator(X=Xs, z=z, reuse=False)
-        Xsu = up_sampler(Xs, s=self.upsampling)
-        D_real = self.discriminator(X-Xsu, Xsu, reuse=False)
-        D_fake = self.discriminator(G_fake-Xsu, Xsu, reuse=True)       
+    @property
+    def D_loss(self):
+        return self._D_loss
+    @property
+    def G_loss(self):
+        return self._G_loss
         
-        return G_fake, D_real, D_fake, Xsu
+# class Gan12Model(object):
+#     def __init__(self, name='wgan12'):
+#         self.name = name
+#     def generator(self, z, X, reuse):
+#         return generator12(z, X, self.params['generator'], reuse=reuse)
+#     def discriminator(self, X, reuse):
+#         return discriminator(X, self.params['discriminator'], reuse=reuse)
+#     def __call__(self, params, z, X):
+#         self.params = params
+#         X1, X2 = tf.split(X, 2, axis = params['generator']['border']['axis'])
+#         G_fake = self.generator(z, X1, reuse=False)
+#         D_real = self.discriminator(X, reuse=False)
+#         D_fake = self.discriminator(G_fake, reuse=True)       
+    
+#         return G_fake, D_real, D_fake
 
 
-class gan_upsampler(object):
-    def __init__(self, name='gan_upsampler'):
-        self.name = name
-    def generator(self, X, z, reuse):
-        return generator_up(X, z, self.params['generator'], reuse=reuse)
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse)
-    def __call__(self, params, z, X):
-        self.params = params
-        self.upsampling = params['generator']['upsampling']
-        Xs = down_sampler(X, s=self.upsampling)
-        G_fake = self.generator(X=Xs, z=z, reuse=False)
-        G_fake_s = down_sampler(G_fake, s=self.upsampling)
-        D_real = self.discriminator(X, reuse=False)
-        D_fake = self.discriminator(G_fake, reuse=True)       
+# class VeeGanModel(object):
+#     def __init__(self, name='veegan'):
+#         self.name = name
+#     def generator(self, z, reuse):
+#         return generator(z, self.params['generator'], reuse=reuse)
+#     def discriminator(self, X, z, reuse):
+#         return discriminator(X, self.params['discriminator'], z=z, reuse=reuse)    
+#     def encoder(self, X, reuse):
+#         return encoder(X, self.params['encoder'], self.latent_dim, reuse=reuse)
+#     def __call__(self, params, z, X):
+#         self.params = params
+#         self.latent_dim = params['generator']['latent_dim']
+#         G_fake = self.generator(z=z, reuse=False)
+#         z_real = self.encoder(X=X, reuse=False)
+#         D_real = self.discriminator(X=X, z=z_real, reuse=False)
+#         D_fake = self.discriminator(X=G_fake, z=z, reuse=True)    
+#         z_fake = self.encoder(X=G_fake, reuse=True)
+
+#         return G_fake, D_real, D_fake, z_real, z_fake
+
+
+# class LapGanModel(object):
+#     def __init__(self, name='lapgan'):
+#         self.name = name
+#     def generator(self, X, z, reuse):
+#         return generator_up(X, z, self.params['generator'], reuse=reuse)
+#     def discriminator(self, X, Xsu, reuse):
+#         return discriminator(tf.concat([X,Xsu],axis=3), self.params['discriminator'], reuse=reuse)
+#     def __call__(self, params, z, X):
+#         self.params = params
+#         self.upsampling = params['generator']['upsampling']
+#         Xs = down_sampler(X, s=self.upsampling)
+#         G_fake = self.generator(X=Xs, z=z, reuse=False)
+#         Xsu = up_sampler(Xs, s=self.upsampling)
+#         D_real = self.discriminator(X-Xsu, Xsu, reuse=False)
+#         D_fake = self.discriminator(G_fake-Xsu, Xsu, reuse=True)       
         
-        return G_fake, D_real, D_fake, Xs, G_fake_s
+#         return G_fake, D_real, D_fake, Xsu
+
+
+# class GanUpSampler(object):
+#     def __init__(self, name='gan_upsampler'):
+#         self.name = name
+#     def generator(self, X, z, reuse):
+#         return generator_up(X, z, self.params['generator'], reuse=reuse)
+#     def discriminator(self, X, reuse):
+#         return discriminator(X, self.params['discriminator'], reuse=reuse)
+#     def __call__(self, params, z, X):
+#         self.params = params
+#         self.upsampling = params['generator']['upsampling']
+#         Xs = down_sampler(X, s=self.upsampling)
+#         G_fake = self.generator(X=Xs, z=z, reuse=False)
+#         G_fake_s = down_sampler(G_fake, s=self.upsampling)
+#         D_real = self.discriminator(X, reuse=False)
+#         D_fake = self.discriminator(G_fake, reuse=True)       
+        
+#         return G_fake, D_real, D_fake, Xs, G_fake_s
+
+def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r, D_gp):
+    tf.summary.scalar("Disc/Loss", D_loss, collections=["Training"])
+    tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
+    tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
+    tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
+    tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
+
+def wgan_regularization(gamma, discriminator, list_fake, list_real):
+        if not gamma:
+            # I am not sure this part or the code is still useful
+            t_vars = tf.trainable_variables()
+            d_vars = [var for var in t_vars if 'discriminator' in var.name]
+            D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
+            D_gp = tf.constant(0, dtype=tf.float32)
+            print(" [!] Using weight clipping")
+        else:
+            D_clip = tf.constant(0, dtype=tf.float32)
+            # calculate `x_hat`
+            assert(len(list_fake) == len(list_real))
+            bs = tf.shape(list_fake[0])[0]
+            print(bs)
+            eps = tf.random_uniform(shape=[bs, 1, 1, 1], minval=0, maxval=1)
+
+            x_hat = []
+            for fake, real in zip(list_fake, list_real):
+                x_hat.append(eps * real + (1.0 - eps) * fake)
+
+            D_x_hat = discriminator(*x_hat, reuse=True)
+
+            # gradient penalty
+            gradients = tf.gradients(D_x_hat, x_hat)
+
+            D_gp = gamma * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
+            tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
+        return D_gp
+
+
 
 
 def discriminator(x, params, z=None, reuse=True, scope="discriminator"):

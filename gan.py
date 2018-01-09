@@ -6,33 +6,55 @@ import os, sys
 import pickle
 
 class GAN(object):
-    def __init__(self, params, model):
-        self.params = params
-        self.savedir = params['save_dir']
-        self.sess = None
-        self.model = model
-        self.model_name = model.name
-        self.batch_size = self.params['optimization']['batch_size']
-
-
+    def __init__(self, params, model=None, name=None):
 
         tf.reset_default_graph()
+        self.params = params
+        if model is None:
+            model = params['model']
+        else:
+            params['model'] = model
+        self.model_class = model
+        self.savedir = params['save_dir']
+        self.sess = None
+        self.batch_size = self.params['optimization']['batch_size']
 
         self.z = tf.placeholder(tf.float32, shape=[None, self.params['generator']['latent_dim']], name = 'z')
         self.X = tf.placeholder(tf.float32, shape=[None, *self.params['image_size'], 1], name = 'X')
 
-        self._build_model(model)
+        self.model = model(params, self.X, self.z, name=name if name else None)
+        self.model_name = self.model.name
+        self.D_loss = self.model.D_loss
+        self.G_loss = self.model.G_loss
+        self.G_fake = self.model.G_fake
+        self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
+        self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
 
+        t_vars = tf.trainable_variables()
+        utils.show_all_variables()
 
+        d_vars = [var for var in t_vars if 'discriminator' in var.name]
+        g_vars = [var for var in t_vars if 'generator' in var.name]
+        global_step = tf.Variable(0, name="global_step", trainable=False)
+
+        optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
+
+        grads_and_vars_d = optimizer_D.compute_gradients(self.D_loss, var_list=d_vars)
+        grads_and_vars_g = optimizer_G.compute_gradients(self.G_loss, var_list=g_vars)
+
+        self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
+        self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
+
+        optimization.buid_opt_summaries(optimizer_D,
+                                        grads_and_vars_d,
+                                        optimizer_G,
+                                        grads_and_vars_g,
+                                        self.params['optimization'])
 
         # Summaries
-
         tf.summary.image("trainingBW/Real_Image", self.X , max_outputs=2, collections=['Images'])
         tf.summary.image("trainingBW/Fake_Image", self.G_fake, max_outputs=2, collections=['Images'])
-
         tf.summary.histogram('Prior/z', self.z, collections=['Images'])
-
-
 
         self.metr_dict = metrics.build_metrics_summaries(real=self.X, real_raw=self.X_raw, fake=self.G_fake, fake_raw=self.G_raw,
                                                     batch_size=self.batch_size)
@@ -41,7 +63,6 @@ class GAN(object):
         self.log_l2_psd = tf.placeholder(tf.float32, name = 'log_l2_psd')
         tf.summary.scalar("PSD/l2", self.l2_psd, collections=['metrics'])
         tf.summary.scalar("PSD/log_l2", self.log_l2_psd, collections=['metrics'])
-
 
         self.summary_op = tf.summary.merge(tf.get_collection("Training"))
         self.summary_op_img = tf.summary.merge(tf.get_collection("Images"))
@@ -165,8 +186,8 @@ class GAN(object):
 
         with open(self.params['save_dir']+'params.pkl', 'wb') as f:
             pickle.dump(self.params, f)        
-        with open(self.params['save_dir']+'model.pkl', 'wb') as f:
-            pickle.dump(self.model, f)
+        # with open(self.params['save_dir']+'model.pkl', 'wb') as f:
+        #     pickle.dump(self.model, f)
         # with open(self.params['save_dir']+'object.pkl', 'wb') as f:
         #     pickle.dump(self, f, -1)
 
@@ -207,284 +228,267 @@ class GAN(object):
                 y, y_raw = self.sess.run([self.G_fake, self.G_raw], feed_dict = {self.z:z})
             return y, y_raw
 
-class WGAN(GAN):
+# class WGAN(GAN):
 
-    def _build_model(self, model):
+#     def _build_model(self, model):
 
-        self.G_fake, self.D_real, self.D_fake = model(self.params, self.z, self.X)
+#         self.G_fake, self.D_real, self.D_fake = model(self.params, self.z, self.X)
 
-        self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
-        self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
+#         self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
+#         self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
         
-        t_vars = tf.trainable_variables()
-        utils.show_all_variables()
+#         t_vars = tf.trainable_variables()
+#         utils.show_all_variables()
 
-        d_vars = [var for var in t_vars if 'discriminator' in var.name]
-        g_vars = [var for var in t_vars if 'generator' in var.name]
+#         d_vars = [var for var in t_vars if 'discriminator' in var.name]
+#         g_vars = [var for var in t_vars if 'generator' in var.name]
 
-        gamma_gp = self.params['optimization']['gamma_gp']
-        if not gamma_gp:
-            D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
-            D_gp = tf.constant(0, dtype=tf.float32)
-            print(" [!] Using weight clipping")
-        else:
-            D_clip = tf.constant(0, dtype=tf.float32)
-            # calculate `x_hat`
-            epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
-            x_hat = epsilon * self.X + (1.0 - epsilon) * self.G_fake
+#         gamma_gp = self.params['optimization']['gamma_gp']
+#         if not gamma_gp:
+#             D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
+#             D_gp = tf.constant(0, dtype=tf.float32)
+#             print(" [!] Using weight clipping")
+#         else:
+#             D_clip = tf.constant(0, dtype=tf.float32)
+#             # calculate `x_hat`
+#             epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
+#             x_hat = epsilon * self.X + (1.0 - epsilon) * self.G_fake
 
-            D_x_hat = model.discriminator(x_hat, reuse=True)
+#             D_x_hat = model.discriminator(x_hat, reuse=True)
 
-            # gradient penalty
-            gradients = tf.gradients(D_x_hat, [x_hat])
+#             # gradient penalty
+#             gradients = tf.gradients(D_x_hat, [x_hat])
 
-            D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
+#             D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
 
-        # calculate discriminator's loss
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
+#         # calculate discriminator's loss
+#         D_loss_f = tf.reduce_mean(self.D_fake)
+#         D_loss_r = tf.reduce_mean(self.D_real)
 
-        self.D_loss = D_loss_f - D_loss_r + D_gp
-        self.G_loss = -D_loss_f
+#         self.D_loss = D_loss_f - D_loss_r + D_gp
+#         self.G_loss = -D_loss_f
 
-        tf.summary.scalar("Disc/Loss", self.D_loss, collections=["Training"])
-        tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
-        tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
-        tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss", self.D_loss, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
+#         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
 
-        tf.summary.scalar("Gen/Loss", self.G_loss, collections=["Training"])
-
-
-        global_step = tf.Variable(0, name="global_step", trainable=False)
+#         tf.summary.scalar("Gen/Loss", self.G_loss, collections=["Training"])
 
 
-        optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
+# class LAPWGAN(GAN):
 
-        grads_and_vars_d = optimizer_D.compute_gradients(self.D_loss, var_list=d_vars)
-        grads_and_vars_g = optimizer_G.compute_gradients(self.G_loss, var_list=g_vars)
+#     def _build_model(self, model):
 
-        self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
-        self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
+#         self.G_fake, self.D_real, self.D_fake, Xsu = model(self.params, self.z, self.X)
 
-        optimization.buid_opt_summaries(optimizer_D, 
-                                        grads_and_vars_d, 
-                                        optimizer_G, 
-                                        grads_and_vars_g, 
-                                        self.params['optimization'])
-
-class LAPWGAN(GAN):
-
-    def _build_model(self, model):
-
-        self.G_fake, self.D_real, self.D_fake, Xsu = model(self.params, self.z, self.X)
-
-        self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
-        self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
+#         self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
+#         self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
         
-        t_vars = tf.trainable_variables()
-        utils.show_all_variables()
+#         t_vars = tf.trainable_variables()
+#         utils.show_all_variables()
 
-        d_vars = [var for var in t_vars if 'discriminator' in var.name]
-        g_vars = [var for var in t_vars if 'generator' in var.name]
+#         d_vars = [var for var in t_vars if 'discriminator' in var.name]
+#         g_vars = [var for var in t_vars if 'generator' in var.name]
 
-        gamma_gp = self.params['optimization']['gamma_gp']
-        if not gamma_gp:
-            D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
-            D_gp = tf.constant(0, dtype=tf.float32)
-            print(" [!] Using weight clipping")
-        else:
-            D_clip = tf.constant(0, dtype=tf.float32)
-            # calculate `x_hat`
-            epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
-            x_hat = epsilon * self.X + (1.0 - epsilon) * self.G_fake
+#         gamma_gp = self.params['optimization']['gamma_gp']
+#         if not gamma_gp:
+#             D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
+#             D_gp = tf.constant(0, dtype=tf.float32)
+#             print(" [!] Using weight clipping")
+#         else:
+#             D_clip = tf.constant(0, dtype=tf.float32)
+#             # calculate `x_hat`
+#             epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
+#             x_hat = epsilon * self.X + (1.0 - epsilon) * self.G_fake
 
-            D_x_hat = model.discriminator(x_hat,Xsu, reuse=True)
+#             D_x_hat = model.discriminator(x_hat,Xsu, reuse=True)
 
-            # gradient penalty
-            gradients = tf.gradients(D_x_hat, [x_hat])
+#             # gradient penalty
+#             gradients = tf.gradients(D_x_hat, [x_hat])
 
-            D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
+#             D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
 
-        # calculate discriminator's loss
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
+#         # calculate discriminator's loss
+#         D_loss_f = tf.reduce_mean(self.D_fake)
+#         D_loss_r = tf.reduce_mean(self.D_real)
 
-        self.D_loss = D_loss_f - D_loss_r + D_gp
-        self.G_loss = -D_loss_f
+#         self.D_loss = D_loss_f - D_loss_r + D_gp
+#         self.G_loss = -D_loss_f
 
-        tf.summary.scalar("Disc/Loss", self.D_loss, collections=["Training"])
-        tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
-        tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
-        tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss", self.D_loss, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
+#         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
 
-        tf.summary.scalar("Gen/Loss", self.G_loss, collections=["Training"])
-
-
-        global_step = tf.Variable(0, name="global_step", trainable=False)
+#         tf.summary.scalar("Gen/Loss", self.G_loss, collections=["Training"])
 
 
-        optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
-
-        grads_and_vars_d = optimizer_D.compute_gradients(self.D_loss, var_list=d_vars)
-        grads_and_vars_g = optimizer_G.compute_gradients(self.G_loss, var_list=g_vars)
-
-        self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
-        self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
-
-        optimization.buid_opt_summaries(optimizer_D, 
-                                        grads_and_vars_d, 
-                                        optimizer_G, 
-                                        grads_and_vars_g, 
-                                        self.params['optimization'])
+#         global_step = tf.Variable(0, name="global_step", trainable=False)
 
 
-class WGAN_upsampler(GAN):
+#         optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
 
-    def _build_model(self, model):
+#         grads_and_vars_d = optimizer_D.compute_gradients(self.D_loss, var_list=d_vars)
+#         grads_and_vars_g = optimizer_G.compute_gradients(self.G_loss, var_list=g_vars)
 
-        self.G_fake, self.D_real, self.D_fake, Xs, G_fake_s = model(self.params, self.z, self.X)
+#         self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
+#         self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
 
-        self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
-        self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
+#         optimization.buid_opt_summaries(optimizer_D, 
+#                                         grads_and_vars_d, 
+#                                         optimizer_G, 
+#                                         grads_and_vars_g, 
+#                                         self.params['optimization'])
+
+
+# class WGAN_upsampler(GAN):
+
+#     def _build_model(self, model):
+
+#         self.G_fake, self.D_real, self.D_fake, Xs, G_fake_s = model(self.params, self.z, self.X)
+
+#         self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
+#         self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
         
-        t_vars = tf.trainable_variables()
-        utils.show_all_variables()
+#         t_vars = tf.trainable_variables()
+#         utils.show_all_variables()
 
-        d_vars = [var for var in t_vars if 'discriminator' in var.name]
-        g_vars = [var for var in t_vars if 'generator' in var.name]
+#         d_vars = [var for var in t_vars if 'discriminator' in var.name]
+#         g_vars = [var for var in t_vars if 'generator' in var.name]
 
-        gamma_gp = self.params['optimization']['gamma_gp']
-        if not gamma_gp:
-            D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
-            D_gp = tf.constant(0, dtype=tf.float32)
-            print(" [!] Using weight clipping")
-        else:
-            D_clip = tf.constant(0, dtype=tf.float32)
-            # calculate `x_hat`
-            epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
-            x_hat = epsilon * self.X + (1.0 - epsilon) * self.G_fake
+#         gamma_gp = self.params['optimization']['gamma_gp']
+#         if not gamma_gp:
+#             D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
+#             D_gp = tf.constant(0, dtype=tf.float32)
+#             print(" [!] Using weight clipping")
+#         else:
+#             D_clip = tf.constant(0, dtype=tf.float32)
+#             # calculate `x_hat`
+#             epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
+#             x_hat = epsilon * self.X + (1.0 - epsilon) * self.G_fake
 
-            D_x_hat = model.discriminator(x_hat, reuse=True)
+#             D_x_hat = model.discriminator(x_hat, reuse=True)
 
-            # gradient penalty
-            gradients = tf.gradients(D_x_hat, [x_hat])
+#             # gradient penalty
+#             gradients = tf.gradients(D_x_hat, [x_hat])
 
-            D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
+#             D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
 
-        # calculate discriminator's loss
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
+#         # calculate discriminator's loss
+#         D_loss_f = tf.reduce_mean(self.D_fake)
+#         D_loss_r = tf.reduce_mean(self.D_real)
 
-        e = (Xs -G_fake_s)
-        weight_l2 = self.params['optimization']['weight_l2']
-        reg_l2 = self.params['generator']['latent_dim'] * weight_l2
-        L2_loss = reg_l2 * tf.reduce_mean(e*e)
+#         e = (Xs -G_fake_s)
+#         weight_l2 = self.params['optimization']['weight_l2']
+#         reg_l2 = self.params['generator']['latent_dim'] * weight_l2
+#         L2_loss = reg_l2 * tf.reduce_mean(e*e)
 
-        self.D_loss = D_loss_f - D_loss_r + D_gp
-        self.G_loss = -D_loss_f + L2_loss
+#         self.D_loss = D_loss_f - D_loss_r + D_gp
+#         self.G_loss = -D_loss_f + L2_loss
 
-        tf.summary.scalar("Disc/Loss", self.D_loss, collections=["Training"])
-        tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
-        tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
-        tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss", self.D_loss, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
+#         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
 
-        tf.summary.scalar("Gen/Loss_fake", - D_loss_f, collections=["Training"])
-        tf.summary.scalar("Gen/Loss_l2", L2_loss, collections=["Training"])
-        tf.summary.scalar("Gen/Loss", self.G_loss, collections=["Training"])
+#         tf.summary.scalar("Gen/Loss_fake", - D_loss_f, collections=["Training"])
+#         tf.summary.scalar("Gen/Loss_l2", L2_loss, collections=["Training"])
+#         tf.summary.scalar("Gen/Loss", self.G_loss, collections=["Training"])
 
-        global_step = tf.Variable(0, name="global_step", trainable=False)
-
-
-        optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
-
-        grads_and_vars_d = optimizer_D.compute_gradients(self.D_loss, var_list=d_vars)
-        grads_and_vars_g = optimizer_G.compute_gradients(self.G_loss, var_list=g_vars)
-
-        self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
-        self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
-
-        optimization.buid_opt_summaries(optimizer_D, 
-                                        grads_and_vars_d, 
-                                        optimizer_G, 
-                                        grads_and_vars_g, 
-                                        self.params['optimization'])
+#         global_step = tf.Variable(0, name="global_step", trainable=False)
 
 
+#         optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
+
+#         grads_and_vars_d = optimizer_D.compute_gradients(self.D_loss, var_list=d_vars)
+#         grads_and_vars_g = optimizer_G.compute_gradients(self.G_loss, var_list=g_vars)
+
+#         self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
+#         self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
+
+#         optimization.buid_opt_summaries(optimizer_D, 
+#                                         grads_and_vars_d, 
+#                                         optimizer_G, 
+#                                         grads_and_vars_g, 
+#                                         self.params['optimization'])
 
 
-class WVEEGAN(GAN):
-
-    def _build_model(self, model):
-
-        self.G_fake, self.D_real, self.D_fake, z_real, z_fake = model(self.params, self.z, self.X)
 
 
-        self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
-        self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
+# class WVEEGAN(GAN):
+
+#     def _build_model(self, model):
+
+#         self.G_fake, self.D_real, self.D_fake, z_real, z_fake = model(self.params, self.z, self.X)
+
+
+#         self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
+#         self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
         
-        t_vars = tf.trainable_variables()
-        utils.show_all_variables()
+#         t_vars = tf.trainable_variables()
+#         utils.show_all_variables()
 
-        d_vars = [var for var in t_vars if 'discriminator' in var.name]
-        g_vars = [var for var in t_vars if 'generator' in var.name]
-        e_vars = [var for var in t_vars if 'encoder' in var.name]
+#         d_vars = [var for var in t_vars if 'discriminator' in var.name]
+#         g_vars = [var for var in t_vars if 'generator' in var.name]
+#         e_vars = [var for var in t_vars if 'encoder' in var.name]
 
-        gamma_gp = self.params['optimization']['gamma_gp']
-        if not gamma_gp:
-            D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
-            D_gp = tf.constant(0, dtype=tf.float32)
-            print(" [!] Using weight clipping")
-        else:
-            D_clip = tf.constant(0, dtype=tf.float32)
-            # calculate `x_hat`
-            epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
-            x_hat = epsilon * self.X + (1.0 - epsilon) * self.G_fake
-            epsilon = tf.reshape(epsilon,shape=[self.batch_size,1])
-            z_hat = epsilon * z_real + (1.0 - epsilon) * self.z
-            D_x_hat = model.discriminator(X=x_hat, z=z_hat, reuse=True)
+#         gamma_gp = self.params['optimization']['gamma_gp']
+#         if not gamma_gp:
+#             D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
+#             D_gp = tf.constant(0, dtype=tf.float32)
+#             print(" [!] Using weight clipping")
+#         else:
+#             D_clip = tf.constant(0, dtype=tf.float32)
+#             # calculate `x_hat`
+#             epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
+#             x_hat = epsilon * self.X + (1.0 - epsilon) * self.G_fake
+#             epsilon = tf.reshape(epsilon,shape=[self.batch_size,1])
+#             z_hat = epsilon * z_real + (1.0 - epsilon) * self.z
+#             D_x_hat = model.discriminator(X=x_hat, z=z_hat, reuse=True)
 
-            # gradient penalty
-            gradients = tf.gradients(D_x_hat, [x_hat])
+#             # gradient penalty
+#             gradients = tf.gradients(D_x_hat, [x_hat])
 
-            D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
+#             D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
 
-        # calculate discriminator's loss
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
+#         # calculate discriminator's loss
+#         D_loss_f = tf.reduce_mean(self.D_fake)
+#         D_loss_r = tf.reduce_mean(self.D_real)
         
-        e = (self.z - z_fake)
-        weight_l2 = self.params['optimization']['weight_l2']
-        reg_l2 = self.params['generator']['latent_dim'] * weight_l2
-        L2_loss = reg_l2 * tf.reduce_mean(e*e)
+#         e = (self.z - z_fake)
+#         weight_l2 = self.params['optimization']['weight_l2']
+#         reg_l2 = self.params['generator']['latent_dim'] * weight_l2
+#         L2_loss = reg_l2 * tf.reduce_mean(e*e)
 
 
-        self.D_loss = D_loss_f - D_loss_r + D_gp
-        self.G_loss = - D_loss_f + L2_loss
+#         self.D_loss = D_loss_f - D_loss_r + D_gp
+#         self.G_loss = - D_loss_f + L2_loss
 
-        tf.summary.scalar("Disc/Loss", self.D_loss, collections=["Training"])
-        tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
-        tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
-        tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss", self.D_loss, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
+#         tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
+#         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
 
-        tf.summary.scalar("Gen/Loss_fake", - D_loss_f, collections=["Training"])
-        tf.summary.scalar("Gen/Loss_l2", L2_loss, collections=["Training"])
-        tf.summary.scalar("Gen/Loss", self.G_loss, collections=["Training"])
-
-
-        global_step = tf.Variable(0, name="global_step", trainable=False)
+#         tf.summary.scalar("Gen/Loss_fake", - D_loss_f, collections=["Training"])
+#         tf.summary.scalar("Gen/Loss_l2", L2_loss, collections=["Training"])
+#         tf.summary.scalar("Gen/Loss", self.G_loss, collections=["Training"])
 
 
-        optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
+#         global_step = tf.Variable(0, name="global_step", trainable=False)
 
-        grads_and_vars_d = optimizer_D.compute_gradients(self.D_loss, var_list=d_vars)
-        grads_and_vars_g = optimizer_G.compute_gradients(self.G_loss, var_list=g_vars+e_vars)
 
-        self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
-        self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
+#         optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
 
-        optimization.buid_opt_summaries(optimizer_D, 
-                                        grads_and_vars_d, 
-                                        optimizer_G, 
-                                        grads_and_vars_g, 
-                                        self.params['optimization'])
+#         grads_and_vars_d = optimizer_D.compute_gradients(self.D_loss, var_list=d_vars)
+#         grads_and_vars_g = optimizer_G.compute_gradients(self.G_loss, var_list=g_vars+e_vars)
+
+#         self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
+#         self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
+
+#         optimization.buid_opt_summaries(optimizer_D, 
+#                                         grads_and_vars_d, 
+#                                         optimizer_G, 
+#                                         grads_and_vars_g, 
+#                                         self.params['optimization'])
 

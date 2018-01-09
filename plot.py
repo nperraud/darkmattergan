@@ -43,7 +43,7 @@ def plot_with_shade(ax, x, y, label, color, **linestyle):
 
 
 
-def plot_array_plt(x, sub_plot=111, cmap='planck', color='black', simple_k = 10):
+def plot_array_plt(x, ax=None, cmap='planck', color='black', simple_k = 10):
     if cmap == 'planck':
         cmap = planck_cmap()
         plt.register_cmap(cmap=cmap)
@@ -54,9 +54,9 @@ def plot_array_plt(x, sub_plot=111, cmap='planck', color='black', simple_k = 10)
 
     log_x = utils.forward_map(x, simple_k)
     lims = [-1, 1]
-
-
-    ax = plt.subplot(sub_plot)
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1,1,1)
     ax.set_aspect('equal')
     plt.axis([0, size, 0, size])
     plt.tick_params(axis='both',  # changes apply to the x-axis
@@ -126,8 +126,8 @@ def plot_images_psd(images, title, filename = None, sigma_smooth = None):
         ps_real, k = metrics.power_spectrum_batch_phys(X1=images1)
 
         ## PLOTING THE IMAGE
-        plot_array_plt(ndimage.gaussian_filter(images[1],sigma=sigma_smooth[i]), sub_plot=gs[j], color = 'white')
         ax = plt.subplot(gs[j])
+        plot_array_plt(ndimage.gaussian_filter(images[1],sigma=sigma_smooth[i]), ax=ax, color = 'white')
         ax.set_ylabel('$\sigma_{{smooth}} = {}$'.format(sigma_smooth[i]),fontsize=10)
         linestyle = {"linewidth": 1, "markeredgewidth": 0, "markersize": 3, "marker": "o", "linestyle": "-"}
 

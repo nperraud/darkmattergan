@@ -199,19 +199,19 @@ def calculate_metrics(fake, real,params, tensorboard=True, box_l=100/0.7):
     return m
 
 
-## Functions with Power Spectrum
-def power_spectrum_old(X, Y=None):
-    # FFT on 2D and shift so that low spatial frequencies are in the center.
-    Fx = fftpack.fftshift(fftpack.fft2(X))
-    if Y is None:
-        psd2D = np.abs(Fx **2)
-    else:
-        Fy = fftpack.fftshift(fftpack.fft2(Y))
-        psd2D = np.real(Fx * np.conj(Fy))
+# ## Functions with Power Spectrum
+# def power_spectrum_old(X, Y=None):
+#     # FFT on 2D and shift so that low spatial frequencies are in the center.
+#     Fx = fftpack.fftshift(fftpack.fft2(X))
+#     if Y is None:
+#         psd2D = np.abs(Fx **2)
+#     else:
+#         Fy = fftpack.fftshift(fftpack.fft2(Y))
+#         psd2D = np.real(Fx * np.conj(Fy))
 
-    # Calculate the azimuthally averaged 1D power spectrum
-    psd1D = radialprofile.azimuthalAverage(psd2D)
-    return psd2D, psd1D
+#     # Calculate the azimuthally averaged 1D power spectrum
+#     psd1D = radialprofile.azimuthalAverage(psd2D)
+#     return psd2D, psd1D
 
 
 def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
@@ -254,36 +254,36 @@ def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
 
     return result[:, freq_index], k[freq_index]
 
-def power_spectrum_batch(X1, X2=None, mean=True, log=False):
-    '''
-    Calculates the 1-D PSD of a batch of variable size
-    :param batch:
-    :param size_image:
-    :return:
-    '''
-    s = X1[0].shape[0]
+# def power_spectrum_batch(X1, X2=None, mean=True, log=False):
+#     '''
+#     Calculates the 1-D PSD of a batch of variable size
+#     :param batch:
+#     :param size_image:
+#     :return:
+#     '''
+#     s = X1[0].shape[0]
 
-    if X2 is None:
-        ps_ = np.array([power_spectrum_old(x.reshape(s, s))[1] for x in X1])
-    else:
-        self_comp = np.all(X2 == X1)
-        result = []
-        for inx, x in enumerate(X1):
-            for iny, y in enumerate(X2):
-                if (self_comp and (
-                    inx < iny)) or not self_comp:  # if it is a comparison with it self only do the low triangular matrix
-                    result.append(power_spectrum_old(x.reshape(s, s), y.reshape(s, s))[1])
-        ps_ = np.array(result)
+#     if X2 is None:
+#         ps_ = np.array([power_spectrum_old(x.reshape(s, s))[1] for x in X1])
+#     else:
+#         self_comp = np.all(X2 == X1)
+#         result = []
+#         for inx, x in enumerate(X1):
+#             for iny, y in enumerate(X2):
+#                 if (self_comp and (
+#                     inx < iny)) or not self_comp:  # if it is a comparison with it self only do the low triangular matrix
+#                     result.append(power_spectrum_old(x.reshape(s, s), y.reshape(s, s))[1])
+#         ps_ = np.array(result)
 
-    ps = ps_[:, ~np.isnan(ps_).any(axis=0)]  # Some frequencies are not defined, remove them
+#     ps = ps_[:, ~np.isnan(ps_).any(axis=0)]  # Some frequencies are not defined, remove them
 
-    if log:
-        ps = np.log(ps)
+#     if log:
+#         ps = np.log(ps)
 
-    if mean:
-        return np.mean(ps, 0)  # Average per frequency not per sample
-    else:
-        return ps  # check
+#     if mean:
+#         return np.mean(ps, 0)  # Average per frequency not per sample
+#     else:
+#         return ps  # check
 
 
 def histogram(x, bins, probability=True):
