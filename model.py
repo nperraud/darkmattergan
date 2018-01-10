@@ -7,13 +7,14 @@ def rprint(msg, reuse=False):
     if not reuse:
         print(msg)
 
+
 class WGanModel(object):
     def __init__(self, params, X, z, name='wgan'):
         self.name = name
         self.params = params
         self.G_fake = self.generator(z, reuse=False)
         self.D_real = self.discriminator(X, reuse=False)
-        self.D_fake = self.discriminator(self.G_fake, reuse=True) 
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
@@ -21,13 +22,17 @@ class WGanModel(object):
         self._D_loss = D_loss_f - D_loss_r + D_gp
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
+
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
+
     @property
     def D_loss(self):
         return self._D_loss
+
     @property
     def G_loss(self):
         return self._G_loss

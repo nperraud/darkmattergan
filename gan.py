@@ -6,7 +6,7 @@ import os, sys
 import pickle
 
 class GAN(object):
-    def __init__(self, params, model=None, name=None):
+    def __init__(self, params, model=None):
 
         tf.reset_default_graph()
         self.params = params
@@ -21,7 +21,7 @@ class GAN(object):
 
         self.z = tf.placeholder(tf.float32, shape=[None, self.params['generator']['latent_dim']], name = 'z')
         self.X = tf.placeholder(tf.float32, shape=[None, *self.params['image_size'], 1], name = 'X')
-
+        name = params['name']
         self.model = model(params, self.X, self.z, name=name if name else None)
         self.model_name = self.model.name
         self.D_loss = self.model.D_loss
