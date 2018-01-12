@@ -1,0 +1,8 @@
+stride=2,2,2,2,1
+latent_dim=100
+nfilter=64,128,64,32,1
+shape= 3,3;3,3;5,5;5,5;5,5
+batch_norm=True,True,True,True
+full=4096
+summary=True
+non_lin=tanh
