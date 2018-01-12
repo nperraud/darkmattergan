@@ -159,3 +159,36 @@ def makeit_square(x):
     else:
         new_x = x
     return new_x
+
+
+
+# def make_batches(bs, *args):
+#     """
+#     Slide data with a size bs
+
+#     Parameters
+#     ----------
+#     bs : batch size
+#     *args : different pieces of data of the same size
+
+#     """
+
+#     ndata = len(args)
+#     s0 = len(args[0])
+#     for d in args:
+#         if len(d) != s0:
+#             raise ValueError("First dimensions differ!")
+
+#     return itertools.zip_longest(
+#         *(grouper(itertools.cycle(arg), bs) for arg in args))
+
+
+
+# def grouper(iterable, n, fillvalue=None):
+#     """
+#     Collect data into fixed-length chunks or blocks. This function commes
+#     from itertools
+#     """
+#     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
+#     args = [iter(iterable)] * n
+#     return itertools.zip_longest(fillvalue=fillvalue, *args)

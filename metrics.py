@@ -232,6 +232,7 @@ def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
 
     if X2 is None:
 
+        # Make it multicore...
         over_dens = [ps.dens2overdens(x.reshape(s,s), np.mean(x)) for x in X1]
         result = np.array([ps.power_spectrum(field_x= x, box_l=box_l, bin_k = bin_k )[0] for x in over_dens])
         del over_dens

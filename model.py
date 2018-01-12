@@ -36,7 +36,59 @@ class WGanModel(object):
     @property
     def G_loss(self):
         return self._G_loss
-        
+
+
+class WVeeGanModel(object):
+    def __init__(self, params, X, z, name='veegan'):
+        self.name = name
+        self.params = params
+        self.latent_dim = params['generator']['latent_dim']
+        self.G_fake = self.generator(z, reuse=False)
+        self.z_real = self.encoder(X=X, reuse=False)
+        self.D_real = self.discriminator(X=X, z=self.z_real, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, z=z, reuse=True)
+        self.z_fake = self.encoder(X=self.G_fake, reuse=True)
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.z_fake], [X, self.z_real])
+
+        e = (z - self.z_fake)
+        weight_l2 = self.params['optimization']['weight_l2']
+        reg_l2 = self.latent_dim * weight_l2
+        L2_loss = reg_l2 * tf.reduce_mean(tf.square(e))
+
+        self._D_loss = D_loss_f - D_loss_r + D_gp
+        self._G_loss = -D_loss_f + L2_loss
+        self._E_loss = L2_loss
+
+        tf.summary.scalar("Enc/Loss_l2", self._E_loss, collections=["Training"])
+        tf.summary.scalar("Gen/Loss_f", -D_loss_f, collections=["Training"])
+
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, z, reuse):
+        return discriminator(X, self.params['discriminator'], z=z, reuse=reuse)
+
+    def encoder(self, X, reuse):
+        return encoder(X, self.params['encoder'], self.latent_dim, reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
+    @property
+    def E_loss(self):
+        return self._E_loss
+    
 # class Gan12Model(object):
 #     def __init__(self, name='wgan12'):
 #         self.name = name
@@ -54,25 +106,7 @@ class WGanModel(object):
 #         return G_fake, D_real, D_fake
 
 
-# class VeeGanModel(object):
-#     def __init__(self, name='veegan'):
-#         self.name = name
-#     def generator(self, z, reuse):
-#         return generator(z, self.params['generator'], reuse=reuse)
-#     def discriminator(self, X, z, reuse):
-#         return discriminator(X, self.params['discriminator'], z=z, reuse=reuse)    
-#     def encoder(self, X, reuse):
-#         return encoder(X, self.params['encoder'], self.latent_dim, reuse=reuse)
-#     def __call__(self, params, z, X):
-#         self.params = params
-#         self.latent_dim = params['generator']['latent_dim']
-#         G_fake = self.generator(z=z, reuse=False)
-#         z_real = self.encoder(X=X, reuse=False)
-#         D_real = self.discriminator(X=X, z=z_real, reuse=False)
-#         D_fake = self.discriminator(X=G_fake, z=z, reuse=True)    
-#         z_fake = self.encoder(X=G_fake, reuse=True)
 
-#         return G_fake, D_real, D_fake, z_real, z_fake
 
 
 # class LapGanModel(object):
@@ -132,11 +166,12 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
             # calculate `x_hat`
             assert(len(list_fake) == len(list_real))
             bs = tf.shape(list_fake[0])[0]
-            print(bs)
-            eps = tf.random_uniform(shape=[bs, 1, 1, 1], minval=0, maxval=1)
+            eps = tf.random_uniform(shape=[bs], minval=0, maxval=1)
 
             x_hat = []
             for fake, real in zip(list_fake, list_real):
+                singledim = [1]* (len(fake.shape.as_list())-1)
+                eps = tf.reshape(eps, shape=[bs,*singledim])
                 x_hat.append(eps * real + (1.0 - eps) * fake)
 
             D_x_hat = discriminator(*x_hat, reuse=True)

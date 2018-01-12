@@ -35,9 +35,16 @@ class GAN(object):
 
         d_vars = [var for var in t_vars if 'discriminator' in var.name]
         g_vars = [var for var in t_vars if 'generator' in var.name]
+        e_vars = [var for var in t_vars if 'encoder' in var.name]
+
+        if len(e_vars) and ('enc_learning_rate' in params['optimization'].keys()):
+            self._has_encoder = True
+        else:
+            self._has_encoder = False
+
         global_step = tf.Variable(0, name="global_step", trainable=False)
 
-        optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
+        optimizer_D, optimizer_G, optimizer_E = optimization.build_optmizer(self.params['optimization'], self.has_encoder)
 
         grads_and_vars_d = optimizer_D.compute_gradients(self.D_loss, var_list=d_vars)
         grads_and_vars_g = optimizer_G.compute_gradients(self.G_loss, var_list=g_vars)
@@ -45,10 +52,17 @@ class GAN(object):
         self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
         self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
 
+        if self.has_encoder:
+            self.E_loss = self.model.E_loss
+            grads_and_vars_e = optimizer_E.compute_gradients(self.E_loss, var_list=e_vars)
+            self.E_solver = optimizer_E.apply_gradients(grads_and_vars_e, global_step=global_step)
+
+
         optimization.buid_opt_summaries(optimizer_D,
                                         grads_and_vars_d,
                                         optimizer_G,
                                         grads_and_vars_g,
+                                        optimizer_E,
                                         self.params['optimization'])
 
         # Summaries
@@ -93,6 +107,7 @@ class GAN(object):
         sum_every = self.params['sum_every']
         viz_every = self.params['viz_every']
         self.best_psd = 1e10
+        self.best_log_psd = 10000
         # ngen = 100
         self.total_iter =  self.n_epoch * (n_data // self.batch_size) - 1
         self.n_batch = n_data // self.batch_size
@@ -113,6 +128,9 @@ class GAN(object):
                     for _ in range(5):
                         sample_z =  utils.sample_latent(self.batch_size, self.params['generator']['latent_dim'])
                         _, loss_d = self.sess.run([self.D_solver, self.D_loss], feed_dict={self.z: sample_z, self.X: X_real})
+                        if self.has_encoder:
+                            _, loss_e = self.sess.run([self.E_solver, self.E_loss], feed_dict={self.z: sample_z, self.X: X_real})
+
                     sample_z =  utils.sample_latent(self.batch_size, self.params['generator']['latent_dim'])
                     _, loss_g = self.sess.run([self.G_solver, self.G_loss], feed_dict={self.z: sample_z, self.X: X_real})
 
@@ -146,8 +164,7 @@ class GAN(object):
                             feed_dict[self.metr_dict[key]] = m[key]
 
                         sample_z_large =  utils.sample_latent(N, self.params['generator']['latent_dim'])
-                        fake_sample_large = self.sess.run(self.G_raw, 
-                            feed_dict = {self.z:sample_z_large, self.X: X[:N].reshape([N,X.shape[1],X.shape[2],1])})
+                        _, fake_sample_large = self._generate_sample_safe(sample_z_large, X[:N].reshape([N,X.shape[1],X.shape[2],1]))
                         fake_sample_large.resize([N,X.shape[1],X.shape[2]])
                         psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake_sample_large)
                         psd_gen = np.mean(psd_gen, axis=0)  
@@ -162,9 +179,12 @@ class GAN(object):
                         summary_str = self.sess.run(self.summary_op_metrics, feed_dict=feed_dict)
                         summary_writer.add_summary(summary_str, self.counter)
                         # Save a summary if a new minimum of PSD is achieved
-                        if m['ps_comp'] < self.best_psd:
-                            print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(m['ps_comp'],self.best_psd))
-                            self.best_psd, save_current_step = m['ps_comp'], True
+                        if l2 < self.best_psd:
+                            print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(l2,self.best_psd))
+                            self.best_psd, save_current_step = l2, True
+                        if logel2 < self.best_log_psd:
+                            print(' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(logel2,self.best_log_psd))
+                            self.best_log_psd, save_current_step = logel2, True
 
                     if (np.mod(self.counter, self.params['save_every']) == 0) | (self.counter == self.total_iter) | save_current_step:
                         self._save(self.savedir, self.counter)
@@ -215,66 +235,45 @@ class GAN(object):
             return self._generate_sample(N=N, z=z, X=X, file_name=file_name)
 
 
-    def _generate_sample(self,N=None , z=None, X=None, file_name=None):
-            self._load(self.savedir, file_name=file_name)
-            if z is None:
-                if N is None:
-                    N = self.batch_size
-                z = utils.sample_latent(N, self.params['generator']['latent_dim'])
+    def _generate_sample(self, N=None , z=None, X=None, file_name=None):
+        self._load(self.savedir, file_name=file_name)
+        if z is None:
+            if N is None:
+                N = self.batch_size
+        z = utils.sample_latent(N, self.params['generator']['latent_dim'])
 
-            if X is not None:
-                y, y_raw = self.sess.run([self.G_fake, self.G_raw], feed_dict = {self.z:z, self.X: X})
-            else:
-                y, y_raw = self.sess.run([self.G_fake, self.G_raw], feed_dict = {self.z:z})
-            return y, y_raw
+        y, y_raw = self._generate_sample_safe(z, X)
+        return y, y_raw
 
-# class WGAN(GAN):
+    def _generate_sample_safe(self, z, X):
 
-#     def _build_model(self, model):
+        y = []
+        y_raw =[]
+        N = len(z)
+        sind = 0
+        bs = self.batch_size
+        if N > bs:
+            nb = (N-1) // bs
+            for i in range(nb):
+                if X is not None:
+                    y_t, y_raw_t = self.sess.run([self.G_fake, self.G_raw], feed_dict = {self.z:z[sind:sind+bs], self.X: X[sind:sind+bs]})
+                else:
+                    y_t, y_raw_t = self.sess.run([self.G_fake, self.G_raw], feed_dict = {self.z:z[sind:sind+bs]})
+                y.append(y_t)
+                y_raw.append(y_raw_t)
+                sind = sind + bs
+        if X is not None:
+            y_t, y_raw_t = self.sess.run([self.G_fake, self.G_raw], feed_dict = {self.z:z[sind:], self.X: X[sind:]})
+        else:
+            y_t, y_raw_t = self.sess.run([self.G_fake, self.G_raw], feed_dict = {self.z:z[sind:]})
+        y.append(y_t)
+        y_raw.append(y_raw_t)
 
-#         self.G_fake, self.D_real, self.D_fake = model(self.params, self.z, self.X)
+        return np.vstack(y), np.vstack(y_raw)
 
-#         self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
-#         self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
-        
-#         t_vars = tf.trainable_variables()
-#         utils.show_all_variables()
-
-#         d_vars = [var for var in t_vars if 'discriminator' in var.name]
-#         g_vars = [var for var in t_vars if 'generator' in var.name]
-
-#         gamma_gp = self.params['optimization']['gamma_gp']
-#         if not gamma_gp:
-#             D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
-#             D_gp = tf.constant(0, dtype=tf.float32)
-#             print(" [!] Using weight clipping")
-#         else:
-#             D_clip = tf.constant(0, dtype=tf.float32)
-#             # calculate `x_hat`
-#             epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
-#             x_hat = epsilon * self.X + (1.0 - epsilon) * self.G_fake
-
-#             D_x_hat = model.discriminator(x_hat, reuse=True)
-
-#             # gradient penalty
-#             gradients = tf.gradients(D_x_hat, [x_hat])
-
-#             D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
-
-#         # calculate discriminator's loss
-#         D_loss_f = tf.reduce_mean(self.D_fake)
-#         D_loss_r = tf.reduce_mean(self.D_real)
-
-#         self.D_loss = D_loss_f - D_loss_r + D_gp
-#         self.G_loss = -D_loss_f
-
-#         tf.summary.scalar("Disc/Loss", self.D_loss, collections=["Training"])
-#         tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
-#         tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
-#         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
-
-#         tf.summary.scalar("Gen/Loss", self.G_loss, collections=["Training"])
-
+    @property
+    def has_encoder(self):
+        return self._has_encoder
 
 # class LAPWGAN(GAN):
 
