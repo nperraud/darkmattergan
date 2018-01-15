@@ -88,7 +88,40 @@ class WVeeGanModel(object):
     @property
     def E_loss(self):
         return self._E_loss
-    
+
+
+class LapGanModel(object):
+    def __init__(self, params, X, z, name='lapgan'):
+        self.name = name
+        self.params = params
+        self.upsampling = params['generator']['upsampling']
+        self.Xs = down_sampler(X, s=self.upsampling)
+        self.Xsu = up_sampler(self.Xs, s=self.upsampling)
+        self.G_fake = self.generator(X=self.Xs, z=z, reuse=False)
+        self.D_real = self.discriminator(X-self.Xsu, self.Xsu, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake-self.Xsu, self.Xsu, reuse=True)
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
+        self._D_loss = D_loss_f - D_loss_r + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+
+    def generator(self, X, z, reuse):
+        return generator_up(X, z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, Xsu, reuse):
+        return discriminator(tf.concat([X, Xsu], axis=3), self.params['discriminator'], reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss   
+       
 # class Gan12Model(object):
 #     def __init__(self, name='wgan12'):
 #         self.name = name
@@ -101,31 +134,8 @@ class WVeeGanModel(object):
 #         X1, X2 = tf.split(X, 2, axis = params['generator']['border']['axis'])
 #         G_fake = self.generator(z, X1, reuse=False)
 #         D_real = self.discriminator(X, reuse=False)
-#         D_fake = self.discriminator(G_fake, reuse=True)       
-    
+#         D_fake = self.discriminator(G_fake, reuse=True)
 #         return G_fake, D_real, D_fake
-
-
-
-
-
-# class LapGanModel(object):
-#     def __init__(self, name='lapgan'):
-#         self.name = name
-#     def generator(self, X, z, reuse):
-#         return generator_up(X, z, self.params['generator'], reuse=reuse)
-#     def discriminator(self, X, Xsu, reuse):
-#         return discriminator(tf.concat([X,Xsu],axis=3), self.params['discriminator'], reuse=reuse)
-#     def __call__(self, params, z, X):
-#         self.params = params
-#         self.upsampling = params['generator']['upsampling']
-#         Xs = down_sampler(X, s=self.upsampling)
-#         G_fake = self.generator(X=Xs, z=z, reuse=False)
-#         Xsu = up_sampler(Xs, s=self.upsampling)
-#         D_real = self.discriminator(X-Xsu, Xsu, reuse=False)
-#         D_fake = self.discriminator(G_fake-Xsu, Xsu, reuse=True)       
-        
-#         return G_fake, D_real, D_fake, Xsu
 
 
 # class GanUpSampler(object):

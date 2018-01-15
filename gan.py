@@ -27,6 +27,7 @@ class GAN(object):
         self.D_loss = self.model.D_loss
         self.G_loss = self.model.G_loss
         self.G_fake = self.model.G_fake
+        assert(self.params['k']>0)
         self.G_raw = utils.inv_pre_process(self.G_fake, self.params['k'])
         self.X_raw = utils.inv_pre_process(self.X, self.params['k'])
 
@@ -185,7 +186,7 @@ class GAN(object):
                         if logel2 < self.best_log_psd:
                             print(' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(logel2,self.best_log_psd))
                             self.best_log_psd, save_current_step = logel2, True
-
+                        print(' {} current PSD L2 {}, logL2 {}'.format(self.counter, l2, logel2))
                     if (np.mod(self.counter, self.params['save_every']) == 0) | (self.counter == self.total_iter) | save_current_step:
                         self._save(self.savedir, self.counter)
                         save_current_step = False    
