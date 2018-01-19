@@ -92,14 +92,17 @@ class WVeeGanModel(object):
 
 class LapGanModel(object):
     def __init__(self, params, X, z, name='lapgan'):
+        ''' z must have the same dimension as X'''
         self.name = name
         self.params = params
         self.upsampling = params['generator']['upsampling']
         self.Xs = down_sampler(X, s=self.upsampling)
         self.Xsu = up_sampler(self.Xs, s=self.upsampling)
         self.G_fake = self.generator(X=self.Xs, z=z, reuse=False)
-        self.D_real = self.discriminator(X-self.Xsu, self.Xsu, reuse=False)
-        self.D_fake = self.discriminator(self.G_fake-self.Xsu, self.Xsu, reuse=True)
+        # self.D_real = self.discriminator(X-self.Xsu, self.Xsu, reuse=False)
+        # self.D_fake = self.discriminator(self.G_fake-self.Xsu, self.Xsu, reuse=True)
+        self.D_real = self.discriminator(X, self.Xsu, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, self.Xsu, reuse=True)
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
@@ -107,6 +110,10 @@ class LapGanModel(object):
         self._D_loss = D_loss_f - D_loss_r + D_gp
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        tf.summary.image("trainingBW/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
+        tf.summary.image("trainingBW/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("trainingBW/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
+
 
     def generator(self, X, z, reuse):
         return generator_up(X, z, self.params['generator'], reuse=reuse)
@@ -164,34 +171,34 @@ def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r, D_gp):
     tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
 
 def wgan_regularization(gamma, discriminator, list_fake, list_real):
-        if not gamma:
-            # I am not sure this part or the code is still useful
-            t_vars = tf.trainable_variables()
-            d_vars = [var for var in t_vars if 'discriminator' in var.name]
-            D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
-            D_gp = tf.constant(0, dtype=tf.float32)
-            print(" [!] Using weight clipping")
-        else:
-            D_clip = tf.constant(0, dtype=tf.float32)
-            # calculate `x_hat`
-            assert(len(list_fake) == len(list_real))
-            bs = tf.shape(list_fake[0])[0]
-            eps = tf.random_uniform(shape=[bs], minval=0, maxval=1)
+    if not gamma:
+        # I am not sure this part or the code is still useful
+        t_vars = tf.trainable_variables()
+        d_vars = [var for var in t_vars if 'discriminator' in var.name]
+        D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
+        D_gp = tf.constant(0, dtype=tf.float32)
+        print(" [!] Using weight clipping")
+    else:
+        D_clip = tf.constant(0, dtype=tf.float32)
+        # calculate `x_hat`
+        assert(len(list_fake) == len(list_real))
+        bs = tf.shape(list_fake[0])[0]
+        eps = tf.random_uniform(shape=[bs], minval=0, maxval=1)
 
-            x_hat = []
-            for fake, real in zip(list_fake, list_real):
-                singledim = [1]* (len(fake.shape.as_list())-1)
-                eps = tf.reshape(eps, shape=[bs,*singledim])
-                x_hat.append(eps * real + (1.0 - eps) * fake)
+        x_hat = []
+        for fake, real in zip(list_fake, list_real):
+            singledim = [1]* (len(fake.shape.as_list())-1)
+            eps = tf.reshape(eps, shape=[bs,*singledim])
+            x_hat.append(eps * real + (1.0 - eps) * fake)
 
-            D_x_hat = discriminator(*x_hat, reuse=True)
+        D_x_hat = discriminator(*x_hat, reuse=True)
 
-            # gradient penalty
-            gradients = tf.gradients(D_x_hat, x_hat)
+        # gradient penalty
+        gradients = tf.gradients(D_x_hat, x_hat)
 
-            D_gp = gamma * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
-            tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
-        return D_gp
+        D_gp = gamma * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
+        tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
+    return D_gp
 
 
 
@@ -298,56 +305,112 @@ def generator(x, params, reuse=True, scope="generator"):
         rprint('------------------------------------------------------------\n', reuse)
     return x
 
-
 def generator_up(X, z, params, reuse=True, scope="generator_up"):
 
-    assert(len(params['stride']) ==
-           len(params['nfilter']) ==
-           len(params['batch_norm'])+1)
+    assert(len(params['stride']) == len(params['nfilter'])
+           == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
-    nfull = len(params['full'])
 
-    params_encoder = params['encoder']
-    assert(len(params_encoder['stride']) == len(params_encoder['nfilter'])
-           == len(params_encoder['batch_norm']))
-    nconv_encoder = len(params_encoder['stride'])
     with tf.variable_scope(scope):
-        rprint('Encoder block \n------------------------------------------------------------', reuse)
+        rprint('Generator \n------------------------------------------------------------', reuse)
+        rprint('     The input X is of size {}'.format(X.shape), reuse)
 
-        rprint('     ENCODER:  The input is of size {}'.format(X.shape), reuse)
-        imgt = X
-        for i in range(nconv_encoder):
-            imgt = conv2d(imgt,
-                       nf_out=params_encoder['nfilter'][i],
-                       shape=params_encoder['shape'][i],
-                       stride=params_encoder['stride'][i],
-                       name='{}_conv'.format(i),
-                       summary=params['summary'])
-            rprint('     ENCODER: {} Conv layer with {} channels'.format(i, params_encoder['nfilter'][i]), reuse)
-            if params_encoder['batch_norm'][i]:
-                imgt = batch_norm(imgt, name='{}_border_bn'.format(i), train=True)
+        rprint('     The input z is of size {}'.format(z.shape), reuse)
+        bs = tf.shape(X)[0]  # Batch size
+        sx = X.shape.as_list()[1]
+        sy = X.shape.as_list()[2]
+        z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img')        
+        rprint('     Reshape z to {}'.format(z.shape), reuse)
+
+        x = tf.concat([X, z], axis=3)
+        rprint('     Concat x and z to {}'.format(x.shape), reuse)      
+
+        for i in range(nconv):
+            sx = sx * params['stride'][i]
+            x = deconv2d(x,
+                         output_shape=[bs, sx, sx, params['nfilter'][i]],
+                         shape=params['shape'][i],
+                         stride=params['stride'][i],
+                         name='{}_deconv'.format(i),
+                         summary=params['summary'])
+            rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+            if i < nconv-1:
+                if params['batch_norm'][i]:
+                    x = batch_norm(x, name='{}_bn'.format(i), train=True)
+                x = lrelu(x)
                 rprint('         Batch norm', reuse)
-            rprint('         ENCODER:  Size of the conv variables: {}'.format(imgt.shape), reuse)
-        imgt = reshape2d(imgt, name='border_conv2vec')
-        
-        rprint('     ENCODER:  Size of the conv variables: {}'.format(imgt.shape), reuse)
-        rprint('     Latent:  Size of the Z variables: {}'.format(z.shape), reuse)
+            rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
-        x = tf.concat([z, imgt], axis=1)
+
+        if params['non_lin']:
+            non_lin_f = getattr(tf, params['non_lin'])
+            x = non_lin_f(x)
+            rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+        # Xu = up_sampler(X, params['upsampling'])
+        # x = x + Xu
+        rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint('------------------------------------------------------------\n', reuse)
+    return x
 
 
 
-        x  =  generator(x, params, reuse=reuse, scope="generator") 
+# def generator_up(X, z, params, reuse=True, scope="generator_up"):
 
-        rprint('     Output of the generator {}'.format(x.shape), reuse)
+#     assert(len(params['stride']) ==
+#            len(params['nfilter']) ==
+#            len(params['batch_norm'])+1)
+#     nconv = len(params['stride'])
+#     nfull = len(params['full'])
+
+#     params_encoder = params['encoder']
+#     assert(len(params_encoder['stride']) == len(params_encoder['nfilter'])
+#            == len(params_encoder['batch_norm']))
+#     nconv_encoder = len(params_encoder['stride'])
+#     with tf.variable_scope(scope):
+#         rprint('Encoder block \n------------------------------------------------------------', reuse)
+
+#         rprint('     ENCODER:  The input is of size {}'.format(X.shape), reuse)
+#         imgt = X
+#         for i in range(nconv_encoder):
+#             imgt = conv2d(imgt,
+#                        nf_out=params_encoder['nfilter'][i],
+#                        shape=params_encoder['shape'][i],
+#                        stride=params_encoder['stride'][i],
+#                        name='{}_conv'.format(i),
+#                        summary=params['summary'])
+#             rprint('     ENCODER: {} Conv layer with {} channels'.format(i, params_encoder['nfilter'][i]), reuse)
+#             if params_encoder['batch_norm'][i]:
+#                 imgt = batch_norm(imgt, name='{}_border_bn'.format(i), train=True)
+#                 rprint('         Batch norm', reuse)
+#             rprint('         ENCODER:  Size of the conv variables: {}'.format(imgt.shape), reuse)
+#         imgt = reshape2d(imgt, name='border_conv2vec')
         
-        x = x + up_sampler(X, params['upsampling'])
-        rprint('     Adding the interpolated output {}'.format(x.shape), reuse)
+#         rprint('     ENCODER:  Size of the conv variables: {}'.format(imgt.shape), reuse)
+#         rprint('     Latent:  Size of the Z variables: {}'.format(z.shape), reuse)
 
-        rprint('------------------------------------------------------------\n', reuse)
+#         x = tf.concat([z, imgt], axis=1)
+#         rprint('------------------------------------------------------------\n', reuse)
 
-        return x
+
+
+#         x  =  generator(x, params, reuse=reuse, scope="generator") 
+
+#         rprint('     Output of the generator {}'.format(x.shape), reuse)
+#         rprint('     Adding the interpolated output {}'.format(x.shape), reuse)
+        
+#         Xu = up_sampler(X, params['upsampling'])
+#         if params['non_lin']:
+#             non_lin_f = getattr(tf, params['non_lin'])
+#             x = non_lin_f(x) + Xu
+#             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+#             # x = tf.tanh(x + tf.atanh(Xu))
+#             # rprint('    Non lienarity: tanh', reuse)
+#         else:
+#             x = x + Xu
+
+#         rprint('------------------------------------------------------------\n', reuse)
+
+#         return x
 
 def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
 

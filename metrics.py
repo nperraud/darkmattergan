@@ -1,12 +1,14 @@
 import numpy as np
-from scipy import fftpack
 from scipy import stats
-import radialprofile
 import power_spectrum_phys as ps
 import scipy.ndimage.filters as filters
 from scipy import ndimage
 import tensorflow as tf
 import utils
+import functools
+import multiprocessing as mp
+
+
 
 def build_metrics_summaries(fake, fake_raw, real, real_raw, batch_size):
     m = dict()
@@ -214,6 +216,10 @@ def calculate_metrics(fake, real,params, tensorboard=True, box_l=100/0.7):
 #     return psd2D, psd1D
 
 
+
+def wrapper_func(x, bin_k = 50, box_l = 100/0.7):
+    return ps.power_spectrum(field_x=ps.dens2overdens(np.squeeze(x), np.mean(x)), box_l=box_l, bin_k=bin_k)[0]
+
 def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
     '''
     Calculates the 1-D PSD of a batch of variable size
@@ -232,10 +238,14 @@ def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
 
     if X2 is None:
 
+        # # Pythonic version
+        # over_dens = [ps.dens2overdens(x.reshape(s,s), np.mean(x)) for x in X1]
+        # result = np.array([ps.power_spectrum(field_x= x, box_l=box_l, bin_k = bin_k )[0] for x in over_dens])
+        # del over_dens
         # Make it multicore...
-        over_dens = [ps.dens2overdens(x.reshape(s,s), np.mean(x)) for x in X1]
-        result = np.array([ps.power_spectrum(field_x= x, box_l=box_l, bin_k = bin_k )[0] for x in over_dens])
-        del over_dens
+        with mp.Pool(processes=mp.cpu_count()) as pool:
+            # over_dens = pool.map(funcA, X1)
+            result = np.array(pool.map(functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k), X1))
     else:
         if not(sx == sy):
             X2 = utils.makeit_square(X2)
@@ -378,12 +388,12 @@ def distance_rms(im1, im2):
 
 
 def psd_metric(gen_sample_raw, real_sample_raw):
-    psd_gen, _ = metrics.power_spectrum_batch_phys(X1=gen_sample_raw)
-    psd_real, _ = metrics.power_spectrum_batch_phys(X1=real_sample_raw)
+    psd_gen, _ = power_spectrum_batch_phys(X1=gen_sample_raw)
+    psd_real, _ = power_spectrum_batch_phys(X1=real_sample_raw)
     psd_gen = np.mean(psd_gen, axis=0)    
     psd_real = np.mean(psd_real, axis=0)
     e = psd_real - psd_gen
     l2 = np.mean(e*e)
-    loge = 10*(log10(psd_real) - log10(psd_gen))
+    loge = 10*(np.log10(psd_real) - np.log10(psd_gen))
     logel2 = np.mean(loge*loge)
     return l2, logel2

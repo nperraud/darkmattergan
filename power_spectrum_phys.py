@@ -38,10 +38,15 @@ def dens2overdens(density, mean_density=None):
     :return: overdensity field
     """
     #assert np.ndim(density) == 3, 'density is not 3D'
+
     if mean_density:
         delta = (density - np.mean(density)) / mean_density
     else:
-        delta = density / np.mean(density) - 1.
+        mean_density = np.mean(density)
+        if mean_density == 0.:
+            delta = np.zeros(shape=density.shape)
+        else:
+            delta = density / mean_density - 1.
     return delta
 
 

@@ -162,6 +162,9 @@ def makeit_square(x):
 
 
 
+
+
+
 # def make_batches(bs, *args):
 #     """
 #     Slide data with a size bs
