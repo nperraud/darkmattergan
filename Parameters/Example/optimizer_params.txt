@@ -1,5 +1,5 @@
 gamma_gp=10
-batch_size=16
+batch_size=8
 optimizer=adam
 disc_learning_rate=1e-5
 gen_learning_rate=1e-5
