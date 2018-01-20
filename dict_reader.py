@@ -4,6 +4,7 @@ import numpy as np
 def string_no_newline(val):
     return val.rstrip()
 
+
 # unfortunately the bool() function doesn't do what we need
 def boolean(val):
     return 'True' == val
@@ -57,7 +58,12 @@ parse_dict = {
     'clip_max_real': boolean,
     'log_clip': float,
     'sigma_smooth': float,
-    'k': int
+    'k': int,
+    # reader parameters
+    'generator_params_path': string_no_newline,
+    'discriminator_params_path': string_no_newline,
+    'optimizer_params_path': string_no_newline,
+    'params_path': string_no_newline,
 }
 
 
@@ -68,3 +74,15 @@ def read_dict(path):
             args = line.split('=')
             param_dict[args[0]] = parse_dict[args[0]](args[1])
     return param_dict
+
+
+def read_gan_dict(path):
+    paths = read_dict(path)
+    gen_params = read_dict(paths['generator_params_path'])
+    disc_params = read_dict(paths['discriminator_params_path'])
+    opt_params = read_dict(paths['optimizer_params_path'])
+    params = read_dict(paths['params_path'])
+    params['generator'] = gen_params
+    params['discriminator'] = disc_params
+    params['optimization'] = opt_params
+    return params
