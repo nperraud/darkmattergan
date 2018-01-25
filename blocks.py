@@ -60,6 +60,7 @@ def downsample(imgs, s):
         img_d = sess.run(xd, feed_dict={x: imgs})
     return np.squeeze(img_d)
 
+
 def down_sampler(x, s=2):
     filt = tf.constant(1/(s*s), dtype=tf.float32, shape=[s, s, 1, 1])
     return tf.nn.conv2d(x, filt, strides=[1, s, s, 1], padding='SAME')
@@ -112,7 +113,6 @@ def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
                             w,
                             strides=[1, stride, stride, 1],
                             padding='SAME')
-
 
         biases = _variable_on_cpu('biases', [nf_out], initializer=const)
         conv =tf.nn.bias_add(conv, biases)#  tf.reshape(, conv.get_shape())

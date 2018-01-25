@@ -5,6 +5,7 @@ import time
 import os, sys
 import pickle
 
+
 class GAN(object):
     def __init__(self, params, model=None):
 
@@ -23,7 +24,6 @@ class GAN(object):
 
         self._z = tf.placeholder(tf.float32, shape=[None, self.params['generator']['latent_dim']], name='z')
         self._X = tf.placeholder(tf.float32, shape=[None, *self.params['image_size'], 1], name='X')
-
 
         name = params['name']
         self._model = model(params, self._normalize(self._X), self._z, name=name if name else None)
@@ -62,7 +62,6 @@ class GAN(object):
             grads_and_vars_e = optimizer_E.compute_gradients(self.E_loss, var_list=e_vars)
             self.E_solver = optimizer_E.apply_gradients(grads_and_vars_e, global_step=global_step)
 
-
         optimization.buid_opt_summaries(optimizer_D,
                                         grads_and_vars_d,
                                         optimizer_G,
@@ -99,10 +98,7 @@ class GAN(object):
         else:
             self._prior_distribution = 'uniform'
 
-        
-        
     def train(self, X):
-    
 
         N = 500
         # Compute the real PSD on all data! May take some time
@@ -150,7 +146,7 @@ class GAN(object):
                     X_real = X[idx*self.batch_size:(idx+1)*self.batch_size]
                     X_real.resize([*X_real.shape,1])
                     for _ in range(5):
-                        sample_z =  self._sample_latent(self.batch_size)
+                        sample_z = self._sample_latent(self.batch_size)
                         _, loss_d = self._sess.run([self.D_solver, self._D_loss], feed_dict={self._z: sample_z, self._X: X_real})
                         if self.has_encoder:
                             _, loss_e = self._sess.run([self.E_solver, self.E_loss], feed_dict={self._z: sample_z, self._X: X_real})
@@ -229,7 +225,6 @@ class GAN(object):
             
         self._saver.save(self._sess, os.path.join(checkpoint_dir, self._model_name), global_step=step)
         self._save_obj()
-
         
     def _save_obj(self):
         # Saving the objects:
@@ -242,7 +237,6 @@ class GAN(object):
         #     pickle.dump(self._model, f)
         # with open(self.params['save_dir']+'object.pkl', 'wb') as f:
         #     pickle.dump(self, f, -1)
-
 
     def _load(self, checkpoint_dir, file_name = None):
         print(" [*] Reading checkpoints...")
@@ -265,7 +259,6 @@ class GAN(object):
             return self._generate_sample(N=N, z=z, X=X, file_name=file_name)
         with tf.Session() as self._sess:
             return self._generate_sample(N=N, z=z, X=X, file_name=file_name)
-
 
     def _generate_sample(self, N=None , z=None, X=None, file_name=None):
         self._load(self._savedir, file_name=file_name)
@@ -308,7 +301,6 @@ class GAN(object):
 
     def _unnormalize(self, x):
         return x * self._var + self._mean
-
 
     @property
     def has_encoder(self):
@@ -455,8 +447,6 @@ class GAN(object):
 #                                         optimizer_G, 
 #                                         grads_and_vars_g, 
 #                                         self.params['optimization'])
-
-
 
 
 # class WVEEGAN(GAN):

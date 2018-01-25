@@ -3,6 +3,7 @@ import numpy as np
 from blocks import conv2d, deconv2d, linear, lrelu, batch_norm, reshape2d
 from blocks import down_sampler, up_sampler
 
+
 def rprint(msg, reuse=False):
     if not reuse:
         print(msg)
@@ -67,7 +68,6 @@ class WVeeGanModel(object):
 
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
 
-
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
 
@@ -113,7 +113,6 @@ class LapGanModel(object):
         tf.summary.image("trainingBW/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
         tf.summary.image("trainingBW/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
         tf.summary.image("trainingBW/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
-
 
     def generator(self, X, z, reuse):
         return generator_up(X, z, self.params['generator'], reuse=reuse)
@@ -170,6 +169,7 @@ def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r, D_gp):
     tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
     tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
 
+
 def wgan_regularization(gamma, discriminator, list_fake, list_real):
     if not gamma:
         # I am not sure this part or the code is still useful
@@ -199,8 +199,6 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
         D_gp = gamma * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
     return D_gp
-
-
 
 
 def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
@@ -296,7 +294,6 @@ def generator(x, params, reuse=True, scope="generator"):
                 rprint('         Batch norm', reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
-
         if params['non_lin']:
             non_lin_f = getattr(tf, params['non_lin'])
             x = non_lin_f(x)
@@ -304,6 +301,7 @@ def generator(x, params, reuse=True, scope="generator"):
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint('------------------------------------------------------------\n', reuse)
     return x
+
 
 def generator_up(X, z, params, reuse=True, scope="generator_up"):
 
@@ -341,7 +339,6 @@ def generator_up(X, z, params, reuse=True, scope="generator_up"):
                 rprint('         Batch norm', reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
-
         if params['non_lin']:
             non_lin_f = getattr(tf, params['non_lin'])
             x = non_lin_f(x)
@@ -351,7 +348,6 @@ def generator_up(X, z, params, reuse=True, scope="generator_up"):
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint('------------------------------------------------------------\n', reuse)
     return x
-
 
 
 # def generator_up(X, z, params, reuse=True, scope="generator_up"):
@@ -390,7 +386,6 @@ def generator_up(X, z, params, reuse=True, scope="generator_up"):
 
 #         x = tf.concat([z, imgt], axis=1)
 #         rprint('------------------------------------------------------------\n', reuse)
-
 
 
 #         x  =  generator(x, params, reuse=reuse, scope="generator") 
@@ -456,6 +451,7 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
         rprint('------------------------------------------------------------\n', reuse)
     return x
 
+
 def generator12(x, img, params, reuse=True, scope="generator12"):
 
     assert(len(params['stride']) ==
@@ -497,7 +493,7 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
         x = tf.concat([x, imgt, border], axis=1)
         rprint('------------------------------------------------------------\n', reuse)
 
-        x  =  generator(x, params, reuse=reuse, scope="generator")
+        x = generator(x, params, reuse=reuse, scope="generator")
 
         x = tf.concat([img, x], axis=1)
 
