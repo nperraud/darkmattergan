@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -195,3 +196,16 @@ def makeit_square(x):
 #     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
 #     args = [iter(iterable)] * n
 #     return itertools.zip_longest(fillvalue=fillvalue, *args)
+
+
+def save_hdf5(data, filename, dataset_name = 'data'):
+    h5f = h5py.File(filename, 'w')
+    h5f.create_dataset(dataset_name, data=data)
+    h5f.close()
+
+
+def load_hdf5(filename, dataset_name = 'data'):
+    h5f = h5py.File(filename, 'r')
+    data = h5f[dataset_name][:]
+    h5f.close()
+    return data
