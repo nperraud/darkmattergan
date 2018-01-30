@@ -1,8 +1,6 @@
-
 import tensorflow as tf
 
 from tensorflow.python.ops import math_ops
-
 
 
 def build_optmizer(params, has_encoder=False):
@@ -30,6 +28,7 @@ def build_optmizer(params, has_encoder=False):
 
     return optimizer_D, optimizer_G, optimizer_E
 
+
 def buid_opt_summaries(optimizer_D, grads_and_vars_d, optimizer_G, grads_and_vars_g, optimizer_E, params):
 
     grad_norms_d = [tf.sqrt(tf.nn.l2_loss(g[0]) * 2) for g in grads_and_vars_d]
@@ -42,7 +41,6 @@ def buid_opt_summaries(optimizer_D, grads_and_vars_d, optimizer_G, grads_and_var
     final_grad_g = tf.reduce_sum(grad_norm_g)
     tf.summary.scalar("Gen/Gradient_Norm", final_grad_g, collections=["Training"])
 
-
     if params['optimizer'] == "adam":
         optim_learning_rate_D = tf.log(get_lr_ADAM(optimizer_D, params['disc_learning_rate']))
         tf.summary.scalar('Disc/Log_of_ADAM_learning_rate', optim_learning_rate_D, collections=["Training"])
@@ -53,6 +51,7 @@ def buid_opt_summaries(optimizer_D, grads_and_vars_d, optimizer_G, grads_and_var
         if optimizer_E is not None:
             optim_learning_rate_E = tf.log(get_lr_ADAM(optimizer_E, params['enc_learning_rate']))
             tf.summary.scalar('Gen/Log_of_ADAM_learning_rate', optim_learning_rate_E, collections=["Training"])          
+
 
 def get_lr_ADAM(optimizer, learning_rate):
     beta1_power, beta2_power = optimizer._get_beta_accumulators()

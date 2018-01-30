@@ -5,6 +5,7 @@ import time
 import os, sys
 import pickle
 
+
 class GAN(object):
     def __init__(self, params, model=None):
 
@@ -23,7 +24,6 @@ class GAN(object):
 
         self._z = tf.placeholder(tf.float32, shape=[None, self.params['generator']['latent_dim']], name='z')
         self._X = tf.placeholder(tf.float32, shape=[None, *self.params['image_size'], 1], name='X')
-
 
         name = params['name']
         self._model = model(params, self._normalize(self._X), self._z, name=name if name else None)
@@ -62,7 +62,6 @@ class GAN(object):
             grads_and_vars_e = optimizer_E.compute_gradients(self.E_loss, var_list=e_vars)
             self.E_solver = optimizer_E.apply_gradients(grads_and_vars_e, global_step=global_step)
 
-
         optimization.buid_opt_summaries(optimizer_D,
                                         grads_and_vars_d,
                                         optimizer_G,
@@ -71,8 +70,8 @@ class GAN(object):
                                         self.params['optimization'])
 
         # Summaries
-        tf.summary.image("trainingBW/Real_Image", self._X , max_outputs=2, collections=['Images'])
-        tf.summary.image("trainingBW/Fake_Image", self._G_fake, max_outputs=2, collections=['Images'])
+        tf.summary.image("trainingBW/Real_Image", self._X , max_outputs=4, collections=['Images'])
+        tf.summary.image("trainingBW/Fake_Image", self._G_fake, max_outputs=4, collections=['Images'])
         tf.summary.histogram('Prior/z', self._z, collections=['Images'])
 
         # To improve...
@@ -99,10 +98,7 @@ class GAN(object):
         else:
             self._prior_distribution = 'uniform'
 
-        
-        
     def train(self, X):
-    
 
         N = 500
         # Compute the real PSD on all data! May take some time
@@ -131,10 +127,10 @@ class GAN(object):
         save_current_step = False
 
         utils.saferm(summary_dir)
-
         run_config = tf.ConfigProto()
         with tf.Session(config=run_config) as self._sess:
             self._sess.run(tf.global_variables_initializer())
+            y_vec = self._get_classes(self.batch_size)
             if 'normalize' in self.params.keys() and self.params['normalize']:
                 m = np.mean(X)
                 v = np.var(X-m)
@@ -145,17 +141,16 @@ class GAN(object):
             summary_writer = tf.summary.FileWriter(summary_dir, self._sess.graph)
 
             for epoch in range(self.n_epoch):
-                
                 for idx in range(self.n_batch):
                     X_real = X[idx*self.batch_size:(idx+1)*self.batch_size]
                     X_real.resize([*X_real.shape,1])
                     for _ in range(5):
-                        sample_z =  self._sample_latent(self.batch_size)
-                        _, loss_d = self._sess.run([self.D_solver, self._D_loss], feed_dict={self._z: sample_z, self._X: X_real})
+                        sample_z = self._sample_latent(self.batch_size)
+                        _, loss_d = self._sess.run([self.D_solver, self._D_loss], feed_dict=self._get_dict(sample_z, X_real, y_vec))
                         if self.has_encoder:
-                            _, loss_e = self._sess.run([self.E_solver, self.E_loss], feed_dict={self._z: sample_z, self._X: X_real})
+                            _, loss_e = self._sess.run([self.E_solver, self.E_loss], feed_dict=self._get_dict(sample_z, X_real, y_vec))
                     sample_z = self._sample_latent(self.batch_size)
-                    _, loss_g, v, m = self._sess.run([self.G_solver, self._G_loss, self._var, self._mean], feed_dict={self._z: sample_z, self._X: X_real})
+                    _, loss_g, v, m = self._sess.run([self.G_solver, self._G_loss, self._var, self._mean], feed_dict=self._get_dict(sample_z, X_real, y_vec))
                     if np.mod(self.counter, 100) == 0:
                         current_time = time.time()
                         print(
@@ -166,13 +161,11 @@ class GAN(object):
                         prev_iter_time = current_time
 
                     if np.mod(self.counter, self.params['sum_every']) == 0:
-                        summary_str = self._sess.run(self.summary_op, feed_dict={self._z: sample_z, self._X: X_real})
-                        summary_writer.add_summary(summary_str, self.counter)            
-                    
+                        summary_str = self._sess.run(self.summary_op, feed_dict=self._get_dict(sample_z, X_real, y_vec))
+                        summary_writer.add_summary(summary_str, self.counter)
+
                     if np.mod(self.counter, self.params['viz_every']) == 0:
-                        feed_dict = {}
-                        feed_dict[self._z] = sample_z
-                        feed_dict[self._X] = X_real
+                        feed_dict = self._get_dict(sample_z, X_real, y_vec)
 
                         # BW Images
                         summary_str = self._sess.run(self.summary_op_img, feed_dict=feed_dict)
@@ -189,7 +182,7 @@ class GAN(object):
                         _, fake_sample_large = self._generate_sample_safe(sample_z_large, X[:N].reshape([N,X.shape[1],X.shape[2],1]))
                         fake_sample_large.resize([N,X.shape[1],X.shape[2]])
                         psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake_sample_large)
-                        psd_gen = np.mean(psd_gen, axis=0)  
+                        psd_gen = np.mean(psd_gen, axis=0)
 
                         e = psd_real - psd_gen
                         l2 = np.mean(e*e)
@@ -214,7 +207,7 @@ class GAN(object):
                         print(' {} current PSD L2 {}, logL2 {}'.format(self.counter, l2, logel2))
                     if (np.mod(self.counter, self.params['save_every']) == 0) | (self.counter == self.total_iter) | save_current_step:
                         self._save(self._savedir, self.counter)
-                        save_current_step = False    
+                        save_current_step = False
                     self.counter += 1
 
     def _sample_latent(self, bs=None):
@@ -222,27 +215,42 @@ class GAN(object):
             bs = self.batch_size
         latent_dim = self.params['generator']['latent_dim']
         return utils.sample_latent(bs, latent_dim, self._prior_distribution)
-    
+
+    def _get_classes(self, bs=None):
+        if bs is None:
+            bs = self.batch_size
+        if 'num_classes' not in self.params or self.params['num_classes'] <= 1:
+            return None
+        return np.resize(np.arange(self.params['num_classes']), (bs, 1)) / (self.params['num_classes'] - 1.0)
+
+    def _get_dict(self, z, X, y=None):
+        feed_dict = dict()
+        if z is not None:
+            feed_dict[self._z] = z
+        if X is not None:
+            feed_dict[self._X] = X
+        if y is not None:
+            feed_dict[self._model.y] = y
+        return feed_dict
+
     def _save(self, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
-            
+
         self._saver.save(self._sess, os.path.join(checkpoint_dir, self._model_name), global_step=step)
         self._save_obj()
 
-        
     def _save_obj(self):
         # Saving the objects:
         if not os.path.exists(self.params['save_dir']):
             os.makedirs(self.params['save_dir'], exist_ok=True)
 
         with open(self.params['save_dir']+'params.pkl', 'wb') as f:
-            pickle.dump(self.params, f)        
+            pickle.dump(self.params, f)
         # with open(self.params['save_dir']+'model.pkl', 'wb') as f:
         #     pickle.dump(self._model, f)
         # with open(self.params['save_dir']+'object.pkl', 'wb') as f:
         #     pickle.dump(self, f, -1)
-
 
     def _load(self, checkpoint_dir, file_name = None):
         print(" [*] Reading checkpoints...")
@@ -266,7 +274,6 @@ class GAN(object):
         with tf.Session() as self._sess:
             return self._generate_sample(N=N, z=z, X=X, file_name=file_name)
 
-
     def _generate_sample(self, N=None , z=None, X=None, file_name=None):
         self._load(self._savedir, file_name=file_name)
         if z is None:
@@ -284,20 +291,25 @@ class GAN(object):
         N = len(z)
         sind = 0
         bs = self.batch_size
+        y_vec = self._get_classes(self.batch_size)
         if N > bs:
             nb = (N-1) // bs
             for i in range(nb):
                 if X is not None:
-                    y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict = {self._z:z[sind:sind+bs], self._X: X[sind:sind+bs]})
+                    y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict = self._get_dict(z[sind:sind+bs], X[sind:sind+bs], y_vec))
                 else:
-                    y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict = {self._z:z[sind:sind+bs]})
+                    y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict = self._get_dict(z[sind:sind+bs], None, y_vec))
                 y.append(y_t)
                 y_raw.append(y_raw_t)
                 sind = sind + bs
-        if X is not None:
-            y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict = {self._z:z[sind:], self._X: X[sind:]})
+        if y_vec is None:
+            y_sub_vec = None
         else:
-            y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict = {self._z:z[sind:]})
+            y_sub_vec = y_vec[:N-sind]
+        if X is not None:
+            y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict=self._get_dict(z[sind:], X[sind:], y_sub_vec))
+        else:
+            y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict=self._get_dict(z[sind:], None, y_sub_vec))
         y.append(y_t)
         y_raw.append(y_raw_t)
 
@@ -308,7 +320,6 @@ class GAN(object):
 
     def _unnormalize(self, x):
         return x * self._var + self._mean
-
 
     @property
     def has_encoder(self):
@@ -389,8 +400,6 @@ class GAN(object):
 #                                         optimizer_G, 
 #                                         grads_and_vars_g, 
 #                                         self.params['optimization'])
-
-
 
 
 # class WVEEGAN(GAN):
