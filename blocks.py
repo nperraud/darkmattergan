@@ -53,6 +53,7 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
 
 
 def downsample(imgs, s):
+    # To be rewritten in numpy
     imgs = np.expand_dims(imgs, axis=3)
     x = tf.placeholder(tf.float32, shape=imgs.shape, name='x')
     xd = down_sampler(x, s=s)
@@ -172,26 +173,22 @@ def linear(input_, output_size, scope=None, summary=True):
         return tf.matmul(input_, matrix) + bias
 
 
-# class minibatch_discrimination(pt.VarStoreMethod):
-#     def __call__(self, input_layer, num_kernels, dim_per_kernel=5, name='minibatch_discrim'):
-#         batch_size = input_layer.shape[0]
-#         num_features = input_layer.shape[1]
-#         W = self.variable('W', [num_features, num_kernels*dim_per_kernel],
-#                           init=tf.contrib.layers.xavier_initializer())
-#         b = self.variable('b', [num_kernels], init=tf.constant_initializer(0.0))
-#         activation = tf.matmul(input_layer, W)
-#         activation = tf.reshape(activation, [batch_size, num_kernels, dim_per_kernel])
-#         tmp1 = tf.expand_dims(activation, 3)
-#         tmp2 = tf.transpose(activation, perm=[1,2,0])
-#         tmp2 = tf.expand_dims(tmp2, 0)
-#         abs_diff = tf.reduce_sum(tf.abs(tmp1 - tmp2), reduction_indices=[2])
-#         f = tf.reduce_sum(tf.exp(-abs_diff), reduction_indices=[2])
-#         f = f + b
-#         return f
+def mini_batch_reg(xin, batch_size, n_kernels=300, dim_per_kernel=50):
+    x = linear(xin, n_kernels * dim_per_kernel, scope="minibatch_reg")
+    activation = tf.reshape(x, [tf.shape(x)[0], n_kernels, dim_per_kernel])
+    abs_dif = tf.reduce_sum(tf.abs(tf.expand_dims(activation, 3) - tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0)), 2)
+    C = tf.exp(-abs_dif) 
+    minibatch_features = (tf.reduce_sum(C, 2) - 1) / (tf.subtract(tf.cast(tf.shape(x)[0],tf.float32), 1.0))
+    x = tf.concat([xin, minibatch_features], axis=1)
 
+    return x
+
+
+# def tff(x, a=2.0):
+#     return tf.sign(x)*(2*tf.sqrt(tf.abs(x*a)+1)-2) + tf.nn.relu(x*a)
 
 # def mini_batch_reg(xin, batch_size, n_kernels=300, dim_per_kernel=50):
-#     x = linear(xin, n_kernels * dim_per_kernel, scope="d_h")
+#     x = linear(xin, n_kernels * dim_per_kernel, scope="minibatch_reg")
 
 #     activation = tf.reshape(x, (batch_size, n_kernels, dim_per_kernel))
 
@@ -203,17 +200,21 @@ def linear(input_, output_size, scope=None, summary=True):
 #     mask = 1. - big
 #     masked = tf.exp(-abs_dif) * mask
 
-#     def half(tens, second):
-#         m, n, _ = tens.get_shape()
-#         m = int(m)
-#         n = int(n)
-#         return tf.slice(tens, [0, 0, second * batch_size], [m, n, batch_size])
-#     # TODO: speedup by allocating the denominator directly instead of constructing it by sum
-#     #       (current version makes it easier to play with the mask and not need to rederive
-#     #        the denominator)
-#     f1 = tf.reduce_sum(half(masked, 0), 2) / tf.reduce_sum(half(mask, 0))
-#     f2 = tf.reduce_sum(half(masked, 1), 2) / tf.reduce_sum(half(mask, 1))
+#     # def half(tens, second):
+#     #     m, n, _ = tens.get_shape()
+#     #     m = int(m)
+#     #     n = int(n)
+#     #     return tf.slice(tens, [0, 0, second * batch_size], [m, n, batch_size])
+#     # # TODO: speedup by allocating the denominator directly instead of constructing it by sum
+#     # #       (current version makes it easier to play with the mask and not need to rederive
+#     # #        the denominator)
+#     # f1 = tf.reduce_sum(half(masked, 0), 2) / tf.reduce_sum(half(mask, 0))
+#     # f2 = tf.reduce_sum(half(masked, 1), 2) / tf.reduce_sum(half(mask, 1))
+#     # minibatch_features = [f1, f2]
+#     # x = tf.concat([xin] + minibatch_features, axis=1)
 
-#     minibatch_features = [f1, f2]
-#     x = tf.concat(1, [xin] + minibatch_features)
+#     minibatch_features = tf.reduce_sum(masked, 2) / tf.reduce_sum(mask)
+#     print(minibatch_features.shape)
+#     x = tf.concat([xin, minibatch_features], axis=1)
+
 #     return x

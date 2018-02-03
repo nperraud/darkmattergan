@@ -392,8 +392,17 @@ def psd_metric(gen_sample_raw, real_sample_raw):
     psd_real, _ = power_spectrum_batch_phys(X1=real_sample_raw)
     psd_gen = np.mean(psd_gen, axis=0)    
     psd_real = np.mean(psd_real, axis=0)
-    e = psd_real - psd_gen
+    # e = psd_real - psd_gen
+    # l2 = np.mean(e*e)
+    # loge = 10*(np.log10(psd_real) - np.log10(psd_gen))
+    # logel2 = np.mean(loge*loge)
+    return diff_psd(psd_real, psd_gen)
+
+def diff_psd(psd_real_mean, psd_gen_mean):
+    e = psd_real_mean - psd_gen_mean
     l2 = np.mean(e*e)
-    loge = 10*(np.log10(psd_real) - np.log10(psd_gen))
+    l1 = np.mean(np.abs(e))
+    loge = 10*(np.log10(psd_real_mean+1e-5) - np.log10(psd_gen_mean+1e-5))
     logel2 = np.mean(loge*loge)
-    return l2, logel2
+    logel1 = np.mean(np.abs(loge))
+    return l2, logel2, l1, logel1

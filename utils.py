@@ -8,11 +8,15 @@ import tensorflow.contrib.slim as slim
 
 
 
-def sample_latent(m, n, prior = "uniform"):
+def sample_latent(m, n, prior = "uniform", normalize=False):
     if prior == "uniform":
         return np.random.uniform(-1., 1., size=[m, n])
     elif prior == "gaussian":
-        return np.random.normal(0,1, size=[m,n])
+        z =  np.random.normal(0,1, size=[m,n])
+        if normalize:
+            # Sample on the sphere
+            z = (z.T * np.sqrt(n/np.sum(z*z,axis=1))).T
+        return z
     elif prior.startswith('student'):
         prior_ = prior.split('-')
         if len(prior_) == 2:
@@ -68,7 +72,7 @@ def inv_pre_process(X, k=10.):
     return X_raw
 
 
-def draw_images(images, nx=1, ny=1, px=None, py=None, axes=None):
+def draw_images(images, nx=1, ny=1, px=None, py=None, axes=None, *args, **kwargs):
     r"""
     Draw multiple images. This function conveniently draw multiple images side
     by side.
@@ -113,9 +117,9 @@ def draw_images(images, nx=1, ny=1, px=None, py=None, axes=None):
                 break
             mat[i * px: (i + 1) * px, j * py: (j + 1) * py] = images_tmp[i + j * nx, ]
     if axes:
-        axes.imshow(mat)
+        axes.imshow(mat, *args, **kwargs)
     else:
-        plt.imshow(mat)
+        plt.imshow(mat, *args, **kwargs)
 
 
 def show_all_variables():

@@ -4,13 +4,14 @@ import utils, metrics, optimization
 import time
 import os, sys
 import pickle
-
+from default import default_params
 
 class GAN(object):
     def __init__(self, params, model=None):
 
         tf.reset_default_graph()
-        self.params = params
+
+        self.params = default_params(params)
         if model is None:
             model = params['model']
         else:
@@ -72,6 +73,9 @@ class GAN(object):
         # Summaries
         tf.summary.image("trainingBW/Real_Image", self._X , max_outputs=4, collections=['Images'])
         tf.summary.image("trainingBW/Fake_Image", self._G_fake, max_outputs=4, collections=['Images'])
+        if self.normalized():
+            tf.summary.image("trainingBW/Real_Image_normalized", self._normalize(self._X), max_outputs=4, collections=['Images'])
+            tf.summary.image("trainingBW/Fake_Image_normalized", self._normalize(self._G_fake), max_outputs=4, collections=['Images'])
         tf.summary.histogram('Prior/z', self._z, collections=['Images'])
 
         # To improve...
@@ -110,7 +114,7 @@ class GAN(object):
         with open(self.params['save_dir']+'params.pkl', 'wb') as f:
             pickle.dump(self.params, f)
 
-        n_data  = len(X)
+        n_data = len(X)
         self.counter = 1
         start_time = time.time()
         prev_iter_time = start_time
@@ -131,7 +135,7 @@ class GAN(object):
         with tf.Session(config=run_config) as self._sess:
             self._sess.run(tf.global_variables_initializer())
             y_vec = self._get_classes(self.batch_size)
-            if 'normalize' in self.params.keys() and self.params['normalize']:
+            if self.normalized():
                 m = np.mean(X)
                 v = np.var(X-m)
                 self._mean.assign([m]).eval()
@@ -217,20 +221,31 @@ class GAN(object):
         return utils.sample_latent(bs, latent_dim, self._prior_distribution)
 
     def _get_classes(self, bs=None):
+        # To be moved somewhere else...
         if bs is None:
             bs = self.batch_size
         if 'num_classes' not in self.params or self.params['num_classes'] <= 1:
             return None
         return np.resize(np.arange(self.params['num_classes']), (bs, 1)) / (self.params['num_classes'] - 1.0)
 
-    def _get_dict(self, z, X, y=None):
+    def _get_dict(self, z=None, X=None, y=None, index=None):
         feed_dict = dict()
         if z is not None:
-            feed_dict[self._z] = z
+            if index is not None:
+                feed_dict[self._z] = z[index]
+            else:
+                feed_dict[self._z] = z
         if X is not None:
-            feed_dict[self._X] = X
+            if index is not None:
+                feed_dict[self._X] = X[index]
+            else:
+                feed_dict[self._X] = X
         if y is not None:
-            feed_dict[self._model.y] = y
+            if index is not None:
+                feed_dict[self._model.y] = y[index]
+            else:
+                feed_dict[self._model.y] = y
+
         return feed_dict
 
     def _save(self, checkpoint_dir, step):
@@ -265,61 +280,52 @@ class GAN(object):
 
         return False
 
-    def generate(self, N=None, z=None, X=None, sess=None, file_name = None):
+    def generate(self, N=None, z=None, X=None, y=None, sess=None, file_name=None):
         if N and z:
             ValueError('Please choose between N and z')
         if sess is not None:
             self._sess = sess
-            return self._generate_sample(N=N, z=z, X=X, file_name=file_name)
+            return self._generate_sample(N=N, z=z, X=X, y=y, file_name=file_name)
         with tf.Session() as self._sess:
-            return self._generate_sample(N=N, z=z, X=X, file_name=file_name)
+            return self._generate_sample(N=N, z=z, X=X, y=y, file_name=file_name)
 
-    def _generate_sample(self, N=None , z=None, X=None, file_name=None):
+    def _generate_sample(self, N=None, z=None, X=None, y=None, file_name=None):
         self._load(self._savedir, file_name=file_name)
         if z is None:
             if N is None:
                 N = self.batch_size
         z = self._sample_latent(N)
 
-        y, y_raw = self._generate_sample_safe(z, X)
-        return y, y_raw
+        gen_images, gen_images_raw = self._generate_sample_safe(z, X, y)
+        return gen_images, gen_images_raw
 
-    def _generate_sample_safe(self, z, X):
-
-        y = []
-        y_raw =[]
+    def _generate_sample_safe(self, z=None, X=None, y=None):
+        gen_images = []
+        gen_images_raw =[]
         N = len(z)
         sind = 0
         bs = self.batch_size
-        y_vec = self._get_classes(self.batch_size)
         if N > bs:
             nb = (N-1) // bs
             for i in range(nb):
-                if X is not None:
-                    y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict = self._get_dict(z[sind:sind+bs], X[sind:sind+bs], y_vec))
-                else:
-                    y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict = self._get_dict(z[sind:sind+bs], None, y_vec))
-                y.append(y_t)
-                y_raw.append(y_raw_t)
+                gi, gi_raw = self._sess.run([self._G_fake, self._G_raw], feed_dict = self._get_dict(z, X, y, slice(sind,sind+bs)))
+                gen_images.append(gi)
+                gen_images_raw.append(gi_raw)
                 sind = sind + bs
-        if y_vec is None:
-            y_sub_vec = None
-        else:
-            y_sub_vec = y_vec[:N-sind]
-        if X is not None:
-            y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict=self._get_dict(z[sind:], X[sind:], y_sub_vec))
-        else:
-            y_t, y_raw_t = self._sess.run([self._G_fake, self._G_raw], feed_dict=self._get_dict(z[sind:], None, y_sub_vec))
-        y.append(y_t)
-        y_raw.append(y_raw_t)
+        gi, gi_raw = self._sess.run([self._G_fake, self._G_raw], feed_dict=self._get_dict(z, X, y, slice(sind,N)))
+        gen_images.append(gi)
+        gen_images_raw.append(gi_raw)
 
-        return np.vstack(y), np.vstack(y_raw)
+        return np.vstack(gen_images), np.vstack(gen_images_raw)
 
     def _normalize(self, x):
         return (x - self._mean)/self._var
 
     def _unnormalize(self, x):
         return x * self._var + self._mean
+
+    def normalized(self):
+        return 'normalize' in self.params.keys() and self.params['normalize']
 
     @property
     def has_encoder(self):

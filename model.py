@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from blocks import conv2d, deconv2d, linear, lrelu, batch_norm, reshape2d
-from blocks import down_sampler, up_sampler
+from blocks import *
 
 
 def rprint(msg, reuse=False):
@@ -127,18 +126,21 @@ class LapGanModel(object):
         self.params = params
         self.upsampling = params['generator']['upsampling']
         self.Xs = down_sampler(X, s=self.upsampling)
+        inshape = self.Xs.shape.as_list()[1:]
+        self.y = tf.placeholder_with_default(self.Xs, shape=[None, *inshape], name='y')       
         self.Xsu = up_sampler(self.Xs, s=self.upsampling)
-        self.G_fake = self.generator(X=self.Xs, z=z, reuse=False)
+        self.G_fake = self.generator(X=self.y, z=z, reuse=False)
         # self.D_real = self.discriminator(X-self.Xsu, self.Xsu, reuse=False)
         # self.D_fake = self.discriminator(self.G_fake-self.Xsu, self.Xsu, reuse=True)
-        self.D_real = self.discriminator(X, self.Xsu, reuse=False)
+        self.D_real = -self.discriminator(X, self.Xsu, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, self.Xsu, reuse=True)
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
-        self._D_loss = D_loss_f - D_loss_r + D_gp
-        self._G_loss = -D_loss_f
+        #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
+        self._D_loss = D_loss_f + D_loss_r + D_gp
+        self._G_loss = - tf.reduce_mean(self.D_fake)
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
         tf.summary.image("trainingBW/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
         tf.summary.image("trainingBW/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
@@ -148,7 +150,7 @@ class LapGanModel(object):
         return generator_up(X, z, self.params['generator'], reuse=reuse)
 
     def discriminator(self, X, Xsu, reuse):
-        return discriminator(tf.concat([X, Xsu], axis=3), self.params['discriminator'], reuse=reuse)
+        return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
     @property
     def D_loss(self):
@@ -199,6 +201,23 @@ def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r, D_gp):
     tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
     tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
 
+def fisher_gan_regularization(D_real, D_fake, rho=1):
+    with tf.variable_scope("discriminator", reuse=False):
+        phi = tf.get_variable('lambda', shape=[],
+            initializer=tf.initializers.constant(value=1.0, dtype=tf.float32))
+        D_real2 = tf.reduce_mean(tf.square(D_real))
+        D_fake2 = tf.reduce_mean(tf.square(D_fake))
+        constraint = 1.0 - 0.5 * (D_real2 + D_fake2)
+
+        # Here phi should be updated using another opotimization scheme
+        reg_term = phi * constraint + 0.5 * rho * tf.square(constraint)
+        print(D_real.shape)
+        print(D_real2.shape)        
+        print(constraint.shape)
+        print(reg_term.shape)
+    tf.summary.scalar("Disc/constraint", reg_term, collections=["Training"])
+    tf.summary.scalar("Disc/reg_term", reg_term, collections=["Training"])
+    return reg_term
 
 def wgan_regularization(gamma, discriminator, list_fake, list_real):
     if not gamma:
@@ -272,7 +291,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             x = lrelu(x)
             rprint('     {} Full layer with {} outputs'.format(nconv+i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
-
+        if params['minibatch_reg']:
+            x = mini_batch_reg(x, 16, n_kernels=100, dim_per_kernel=30)
         x = linear(x, 1, 'out', summary=params['summary'])
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
