@@ -243,7 +243,13 @@ def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
         # result = np.array([ps.power_spectrum(field_x= x, box_l=box_l, bin_k = bin_k )[0] for x in over_dens])
         # del over_dens
         # Make it multicore...
-        with mp.Pool(processes=mp.cpu_count()) as pool:
+        # num_cores = pathos.pp.cpu_count()
+        # with pathos.pools.ProcessPool(processes=num_cores-1) as pool:
+        #     result = np.array(pool.map(functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k), X1))
+        # num_workers = mp.cpu_count()-1
+        num_workers = 4
+        print('Pool with {} workers'.format(num_workers))
+        with mp.Pool(processes=num_workers) as pool:
             # over_dens = pool.map(funcA, X1)
             result = np.array(pool.map(functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k), X1))
     else:
