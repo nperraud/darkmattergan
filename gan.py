@@ -183,7 +183,8 @@ class GAN(object):
                             feed_dict[self.metr_dict[key]] = m[key]
 
                         sample_z_large = self._sample_latent(N)
-                        _, fake_sample_large = self._generate_sample_safe(sample_z_large, X[:N].reshape([N,X.shape[1],X.shape[2],1]))
+                        _, fake_sample_large = self._generate_sample_safe(sample_z_large, X[:N].reshape([N,X.shape[1],X.shape[2],1]),
+                                                                          self._get_classes(N))
                         fake_sample_large.resize([N,X.shape[1],X.shape[2]])
                         psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake_sample_large)
                         psd_gen = np.mean(psd_gen, axis=0)
@@ -218,6 +219,10 @@ class GAN(object):
         if bs is None:
             bs = self.batch_size
         latent_dim = self.params['generator']['latent_dim']
+        if 'num_classes' in self.params and self.params['num_classes'] > 1:
+            latent = utils.sample_latent(int(np.ceil(bs/self.params['num_classes'])),
+                                         latent_dim, self._prior_distribution)
+            return np.repeat(latent, self.params['num_classes'], axis=0)[:bs]
         return utils.sample_latent(bs, latent_dim, self._prior_distribution)
 
     def _get_classes(self, bs=None):
@@ -226,7 +231,7 @@ class GAN(object):
             bs = self.batch_size
         if 'num_classes' not in self.params or self.params['num_classes'] <= 1:
             return None
-        return np.resize(np.arange(self.params['num_classes']), (bs, 1)) / (self.params['num_classes'] - 1.0)
+        return np.resize(np.arange(self.params['num_classes']) + 1, (bs, 1)) / (self.params['num_classes'])
 
     def _get_dict(self, z=None, X=None, y=None, index=None):
         feed_dict = dict()
