@@ -173,7 +173,7 @@ def linear(input_, output_size, scope=None, summary=True):
         return tf.matmul(input_, matrix) + bias
 
 
-def mini_batch_reg(xin, batch_size, n_kernels=300, dim_per_kernel=50):
+def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
     x = linear(xin, n_kernels * dim_per_kernel, scope="minibatch_reg")
     activation = tf.reshape(x, [tf.shape(x)[0], n_kernels, dim_per_kernel])
     abs_dif = tf.reduce_sum(tf.abs(tf.expand_dims(activation, 3) - tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0)), 2)

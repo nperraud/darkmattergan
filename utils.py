@@ -5,6 +5,7 @@ import os
 import shutil
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+import warnings
 
 
 
@@ -116,10 +117,24 @@ def draw_images(images, nx=1, ny=1, px=None, py=None, axes=None, *args, **kwargs
                 warnings.warn("Not enough images to tile the entire area!")
                 break
             mat[i * px: (i + 1) * px, j * py: (j + 1) * py] = images_tmp[i + j * nx, ]
-    if axes:
+    # make lines to separate the different images
+    xx = []
+    yy = []
+    for j in range(1, ny):
+        xx.append([py*j, py*j])
+        yy.append([0, nx*px-1])
+    for j in range(1, nx):
+        xx.append([0, ny*py-1])
+        yy.append([px*j, px*j])
+
+    if axes is None:
+        axes = plt.gca()
         axes.imshow(mat, *args, **kwargs)
-    else:
-        plt.imshow(mat, *args, **kwargs)
+        for x, y in zip(xx,yy):
+            axes.plot(x, y, color='r', linestyle='-', linewidth=2)
+        axes.get_xaxis().set_visible(False)
+        axes.get_yaxis().set_visible(False)
+
 
 
 def show_all_variables():

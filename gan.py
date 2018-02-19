@@ -102,7 +102,7 @@ class GAN(object):
         else:
             self._prior_distribution = 'uniform'
 
-    def train(self, X):
+    def train(self, X, restart=True):
 
         N = 500
         # Compute the real PSD on all data! May take some time
@@ -133,7 +133,11 @@ class GAN(object):
         utils.saferm(summary_dir)
         run_config = tf.ConfigProto()
         with tf.Session(config=run_config) as self._sess:
-            self._sess.run(tf.global_variables_initializer())
+            if restart:
+                self._sess.run(tf.global_variables_initializer())
+            else:
+                self._load()
+                print('Load weight')
             y_vec = self._get_classes(self.batch_size)
             if self.normalized():
                 m = np.mean(X)
@@ -143,76 +147,97 @@ class GAN(object):
             self._var.eval()
             self._mean.eval()
             summary_writer = tf.summary.FileWriter(summary_dir, self._sess.graph)
-
-            for epoch in range(self.n_epoch):
-                for idx in range(self.n_batch):
-                    X_real = X[idx*self.batch_size:(idx+1)*self.batch_size]
-                    X_real.resize([*X_real.shape,1])
-                    for _ in range(5):
+            try:
+                epoch = 0
+                while epoch < self.n_epoch:
+                    idx = 0
+                    while idx < self.n_batch:
+                        if restart:
+                            self.params['curr_epochs'] = epoch
+                            self.params['curr_idx'] = idx
+                            self.params['curr_counter'] = self.counter
+                            self.params['best_psd'] = self.best_psd
+                            self.params['best_log_psd'] = self.best_log_psd
+                        else:
+                            epoch = self.params['curr_epochs']
+                            idx = self.params['curr_idx']
+                            self.counter = self.params['curr_counter']
+                            self.best_psd = self.params['best_psd']
+                            self.best_log_psd = self.params['best_log_psd']
+                            print('Load values for epoch,idx,counter,psd,logpsd')
+                            restart = True
+                        X_real = X[idx*self.batch_size:(idx+1)*self.batch_size]
+                        X_real.resize([*X_real.shape,1])
+                        for _ in range(5):
+                            sample_z = self._sample_latent(self.batch_size)
+                            _, loss_d = self._sess.run([self.D_solver, self._D_loss], feed_dict=self._get_dict(sample_z, X_real, y_vec))
+                            if self.has_encoder:
+                                _, loss_e = self._sess.run([self.E_solver, self.E_loss], feed_dict=self._get_dict(sample_z, X_real, y_vec))
                         sample_z = self._sample_latent(self.batch_size)
-                        _, loss_d = self._sess.run([self.D_solver, self._D_loss], feed_dict=self._get_dict(sample_z, X_real, y_vec))
-                        if self.has_encoder:
-                            _, loss_e = self._sess.run([self.E_solver, self.E_loss], feed_dict=self._get_dict(sample_z, X_real, y_vec))
-                    sample_z = self._sample_latent(self.batch_size)
-                    _, loss_g, v, m = self._sess.run([self.G_solver, self._G_loss, self._var, self._mean], feed_dict=self._get_dict(sample_z, X_real, y_vec))
-                    if np.mod(self.counter, 100) == 0:
-                        current_time = time.time()
-                        print(
-                            "Epoch: [{:2d}] [{:4d}/{:4d}] Counter:{:2d}\t({:4.1f} min\t{:4.2f} examples/sec\t{:4.3f} sec/batch)\tL_Disc:{:.8f}\tL_Gen:{:.8f}".format(
-                                epoch, idx, self.n_batch, self.counter, (current_time - start_time) / 60,
-                                                                 100.0 * self.batch_size / (current_time - prev_iter_time),
-                                                                 (current_time - prev_iter_time) / 100, loss_d, loss_g))
-                        prev_iter_time = current_time
+                        _, loss_g, v, m = self._sess.run([self.G_solver, self._G_loss, self._var, self._mean], feed_dict=self._get_dict(sample_z, X_real, y_vec))
+                        if np.mod(self.counter, 100) == 0:
+                            current_time = time.time()
+                            print(
+                                "Epoch: [{:2d}] [{:4d}/{:4d}] Counter:{:2d}\t({:4.1f} min\t{:4.2f} examples/sec\t{:4.3f} sec/batch)\tL_Disc:{:.8f}\tL_Gen:{:.8f}".format(
+                                    epoch, idx, self.n_batch, self.counter, (current_time - start_time) / 60,
+                                                                     100.0 * self.batch_size / (current_time - prev_iter_time),
+                                                                     (current_time - prev_iter_time) / 100, loss_d, loss_g))
+                            prev_iter_time = current_time
 
-                    if np.mod(self.counter, self.params['sum_every']) == 0:
-                        summary_str = self._sess.run(self.summary_op, feed_dict=self._get_dict(sample_z, X_real, y_vec))
-                        summary_writer.add_summary(summary_str, self.counter)
+                        if np.mod(self.counter, self.params['viz_every']) == 0:
+                            feed_dict = self._get_dict(sample_z, X_real, y_vec)
+                            # BW Images
+                            summary_str = self._sess.run(self.summary_op_img, feed_dict=feed_dict)
+                            summary_writer.add_summary(summary_str, self.counter)
 
-                    if np.mod(self.counter, self.params['viz_every']) == 0:
-                        feed_dict = self._get_dict(sample_z, X_real, y_vec)
+                        if np.mod(self.counter, self.params['sum_every']) == 0:
+                            feed_dict = self._get_dict(sample_z, X_real, y_vec)
+                            summary_str = self._sess.run(self.summary_op, feed_dict=self._get_dict(sample_z, X_real, y_vec))
+                            summary_writer.add_summary(summary_str, self.counter)
 
-                        # BW Images
-                        summary_str = self._sess.run(self.summary_op_img, feed_dict=feed_dict)
-                        summary_writer.add_summary(summary_str, self.counter)
+                            # RAW Images for metrics
+                            fake, real = self._sess.run([self._G_raw, self._X_raw], feed_dict= feed_dict)
 
-                        # RAW Images for metrics and color images
-                        fake, real = self._sess.run([self._G_raw, self._X_raw], feed_dict= feed_dict)
+                            m = metrics.calculate_metrics(fake, real, self.params)
+                            for key in self.metr_dict:
+                                feed_dict[self.metr_dict[key]] = m[key]
 
-                        m = metrics.calculate_metrics(fake, real, self.params)
-                        for key in self.metr_dict:
-                            feed_dict[self.metr_dict[key]] = m[key]
+                            sample_z_large = self._sample_latent(N)
+                            _, fake_sample_large = self._generate_sample_safe(sample_z_large, X[:N].reshape([N,X.shape[1],X.shape[2],1]))
+                            fake_sample_large.resize([N,X.shape[1],X.shape[2]])
+                            psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake_sample_large)
+                            psd_gen = np.mean(psd_gen, axis=0)
 
-                        sample_z_large = self._sample_latent(N)
-                        _, fake_sample_large = self._generate_sample_safe(sample_z_large, X[:N].reshape([N,X.shape[1],X.shape[2],1]))
-                        fake_sample_large.resize([N,X.shape[1],X.shape[2]])
-                        psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake_sample_large)
-                        psd_gen = np.mean(psd_gen, axis=0)
+                            e = psd_real - psd_gen
+                            l2 = np.mean(e*e)
+                            l1 = np.mean(np.abs(e))
+                            loge = 10*(np.log10(psd_real+1e-5) - np.log10(psd_gen+1e-5))
+                            logel2 = np.mean(loge*loge)
+                            logel1 = np.mean(np.abs(loge))
+                            feed_dict[self.l2_psd] = l2
+                            feed_dict[self.log_l2_psd] = logel2
+                            feed_dict[self.l1_psd] = l1
+                            feed_dict[self.log_l1_psd] = logel1
 
-                        e = psd_real - psd_gen
-                        l2 = np.mean(e*e)
-                        l1 = np.mean(np.abs(e))
-                        loge = 10*(np.log10(psd_real+1e-5) - np.log10(psd_gen+1e-5))
-                        logel2 = np.mean(loge*loge)
-                        logel1 = np.mean(np.abs(loge))
-                        feed_dict[self.l2_psd] = l2
-                        feed_dict[self.log_l2_psd] = logel2
-                        feed_dict[self.l1_psd] = l1
-                        feed_dict[self.log_l1_psd] = logel1
-
-                        summary_str = self._sess.run(self.summary_op_metrics, feed_dict=feed_dict)
-                        summary_writer.add_summary(summary_str, self.counter)
-                        # Save a summary if a new minimum of PSD is achieved
-                        if l2 < self.best_psd:
-                            print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(l2,self.best_psd))
-                            self.best_psd, save_current_step = l2, True
-                        if logel2 < self.best_log_psd:
-                            print(' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(logel2,self.best_log_psd))
-                            self.best_log_psd, save_current_step = logel2, True
-                        print(' {} current PSD L2 {}, logL2 {}'.format(self.counter, l2, logel2))
-                    if (np.mod(self.counter, self.params['save_every']) == 0) | (self.counter == self.total_iter) | save_current_step:
-                        self._save(self._savedir, self.counter)
-                        save_current_step = False
-                    self.counter += 1
+                            summary_str = self._sess.run(self.summary_op_metrics, feed_dict=feed_dict)
+                            summary_writer.add_summary(summary_str, self.counter)
+                            # Save a summary if a new minimum of PSD is achieved
+                            if l2 < self.best_psd:
+                                print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(l2,self.best_psd))
+                                self.best_psd, save_current_step = l2, True
+                            if logel2 < self.best_log_psd:
+                                print(' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(logel2,self.best_log_psd))
+                                self.best_log_psd, save_current_step = logel2, True
+                            print(' {} current PSD L2 {}, logL2 {}'.format(self.counter, l2, logel2))
+                        if (np.mod(self.counter, self.params['save_every']) == 0) | save_current_step:
+                            self._save(self._savedir, self.counter)
+                            save_current_step = False
+                        self.counter += 1
+                        idx += 1
+                    epoch += 1
+            except KeyboardInterrupt:
+                pass
+            self._save(self._savedir, self.counter)
 
     def _sample_latent(self, bs=None):
         if bs is None:
@@ -254,6 +279,7 @@ class GAN(object):
 
         self._saver.save(self._sess, os.path.join(checkpoint_dir, self._model_name), global_step=step)
         self._save_obj()
+        print('Model saved!')
 
     def _save_obj(self):
         # Saving the objects:
@@ -267,13 +293,17 @@ class GAN(object):
         # with open(self.params['save_dir']+'object.pkl', 'wb') as f:
         #     pickle.dump(self, f, -1)
 
-    def _load(self, checkpoint_dir, file_name = None):
+
+
+
+    def _load(self, file_name = None):       
         print(" [*] Reading checkpoints...")
         if file_name:
             self._saver.restore(self._sess, file_name)
             return True
 
-        ckpt = tf.train.get_checkpoint_state(checkpoint_dir, latest_filename=file_name)
+        checkpoint_dir = self._savedir
+        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
         if ckpt and ckpt.model_checkpoint_path:
             self._saver.restore(self._sess, ckpt.model_checkpoint_path)
             return True
@@ -290,7 +320,7 @@ class GAN(object):
             return self._generate_sample(N=N, z=z, X=X, y=y, file_name=file_name)
 
     def _generate_sample(self, N=None, z=None, X=None, y=None, file_name=None):
-        self._load(self._savedir, file_name=file_name)
+        self._load(file_name=file_name)
         if z is None:
             if N is None:
                 N = self.batch_size

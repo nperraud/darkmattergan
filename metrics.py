@@ -7,7 +7,7 @@ import tensorflow as tf
 import utils
 import functools
 import multiprocessing as mp
-
+import pathos
 
 
 def build_metrics_summaries(fake, fake_raw, real, real_raw, batch_size):
@@ -125,7 +125,7 @@ def calculate_metrics(fake, real,params, tensorboard=True, box_l=100/0.7):
         print(' PIXELS chi2dist real-fake {:.3f}'.format(chi2_distance(real, fake)))
 
         del real_t, fake_t
-
+    # To be merged with the other stats
     ps_fake, k = power_spectrum_batch_phys(X1=fake, box_l=box_l)
     ps_real, _ = power_spectrum_batch_phys(X1=real, box_l=box_l)
 
@@ -201,7 +201,8 @@ def calculate_metrics(fake, real,params, tensorboard=True, box_l=100/0.7):
     return m
 
 
-# ## Functions with Power Spectrum
+## Functions with Power Spectrum
+
 # def power_spectrum_old(X, Y=None):
 #     # FFT on 2D and shift so that low spatial frequencies are in the center.
 #     Fx = fftpack.fftshift(fftpack.fft2(X))
@@ -216,9 +217,20 @@ def calculate_metrics(fake, real,params, tensorboard=True, box_l=100/0.7):
 #     return psd2D, psd1D
 
 
+# def myParallelProcess(ahugearray):
+#     from multiprocessing import Pool, cpu_count
+#     from contextlib import closing
+#     with closing(Pool(cpu_count()-1)) as p:
+#         res = p.imap_unordered(functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k), X1, 100)
+#     return res
+
 
 def wrapper_func(x, bin_k = 50, box_l = 100/0.7):
     return ps.power_spectrum(field_x=ps.dens2overdens(np.squeeze(x), np.mean(x)), box_l=box_l, bin_k=bin_k)[0]
+
+def npgen(x):
+    for e in x:
+        yield e
 
 def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
     '''
@@ -246,12 +258,20 @@ def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
         # num_cores = pathos.pp.cpu_count()
         # with pathos.pools.ProcessPool(processes=num_cores-1) as pool:
         #     result = np.array(pool.map(functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k), X1))
-        # num_workers = mp.cpu_count()-1
-        num_workers = 4
+        num_workers = mp.cpu_count()-1
+        if num_workers == 23:
+            # Small hack for CSCS
+            num_workers = 2
+            print('CSCS: Pool reduced!')
+
+        # print('Before')
         print('Pool with {} workers'.format(num_workers))
         with mp.Pool(processes=num_workers) as pool:
             # over_dens = pool.map(funcA, X1)
             result = np.array(pool.map(functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k), X1))
+        # print('Finish processes')
+
+
     else:
         if not(sx == sy):
             X2 = utils.makeit_square(X2)
