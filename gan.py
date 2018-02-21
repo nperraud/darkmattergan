@@ -102,7 +102,7 @@ class GAN(object):
         else:
             self._prior_distribution = 'uniform'
 
-    def train(self, X, restart=True):
+    def train(self, X, resume=False):
 
         N = 500
         # Compute the real PSD on all data! May take some time
@@ -130,14 +130,15 @@ class GAN(object):
         self.n_batch = n_data // self.batch_size
         save_current_step = False
 
-        utils.saferm(summary_dir)
         run_config = tf.ConfigProto()
         with tf.Session(config=run_config) as self._sess:
-            if restart:
-                self._sess.run(tf.global_variables_initializer())
-            else:
+            if resume:
+                print('Load weights in the nework')
                 self._load()
-                print('Load weight')
+            else:
+                self._sess.run(tf.global_variables_initializer())
+                utils.saferm(summary_dir)
+            # The next line should be removed!
             y_vec = self._get_classes(self.batch_size)
             if self.normalized():
                 m = np.mean(X)
@@ -152,20 +153,21 @@ class GAN(object):
                 while epoch < self.n_epoch:
                     idx = 0
                     while idx < self.n_batch:
-                        if restart:
-                            self.params['curr_epochs'] = epoch
-                            self.params['curr_idx'] = idx
-                            self.params['curr_counter'] = self.counter
-                            self.params['best_psd'] = self.best_psd
-                            self.params['best_log_psd'] = self.best_log_psd
-                        else:
+                        if resume:
                             epoch = self.params['curr_epochs']
                             idx = self.params['curr_idx']
                             self.counter = self.params['curr_counter']
                             self.best_psd = self.params['best_psd']
                             self.best_log_psd = self.params['best_log_psd']
                             print('Load values for epoch,idx,counter,psd,logpsd')
-                            restart = True
+                            resume = False
+                        else:
+                            self.params['curr_epochs'] = epoch
+                            self.params['curr_idx'] = idx
+                            self.params['curr_counter'] = self.counter
+                            self.params['best_psd'] = self.best_psd
+                            self.params['best_log_psd'] = self.best_log_psd
+     
                         X_real = X[idx*self.batch_size:(idx+1)*self.batch_size]
                         X_real.resize([*X_real.shape,1])
                         for _ in range(5):
