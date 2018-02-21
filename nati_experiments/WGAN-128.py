@@ -22,9 +22,7 @@ nsamples = 7500
 k = 10
 try_restart = True
 
-images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)
-images = data.make_smaller_samples(images, ns)
-raw_images = data.make_smaller_samples(raw_images, ns)   
+
 
 # def current_time_str():
 #     import time, datetime
@@ -39,6 +37,7 @@ global_path = '../../../saved_result/'
 name = 'WGAN{}'.format(ns)
 
 restart = True
+bn = False
 
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 2, 1]
@@ -82,7 +81,7 @@ params['prior_distribution'] = 'gaussian'
 params['sum_every'] = 200
 params['viz_every'] = 1000
 params['save_every'] = 5000
-params['name'] = 'WGAN{}'.format(ns)
+params['name'] = name
 params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
 params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
 
@@ -99,11 +98,16 @@ if try_restart:
             params = pickle.load(f)
         restart = False
     except:
-        print('Start training from the begining')
+       print('No restart!')
 
 # Build the model
 
 wgan = GAN(params, WGanModel)
+
+# Load data
+images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)
+images = data.make_smaller_samples(images, ns)
+raw_images = data.make_smaller_samples(raw_images, ns)   
 
 # Train the model
 wgan.train(images, restart=restart)

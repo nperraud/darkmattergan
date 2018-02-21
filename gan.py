@@ -1,10 +1,14 @@
 import tensorflow as tf
 import numpy as np
-import utils, metrics, optimization
+import utils, metrics
 import time
 import os, sys
 import pickle
-from default import default_params
+from default import default_params, default_params_cosmology
+
+import scipy.ndimage.filters as filters
+from scipy import ndimage
+
 
 class GAN(object):
     def __init__(self, params, model=None):
@@ -18,8 +22,8 @@ class GAN(object):
             params['model'] = model
         self._savedir = params['save_dir']
         self._sess = None
-        self.batch_size = self.params['optimization']['batch_size']
-        
+        self.batch_size = self.params['optimization']['batch_size'] 
+        self._prior_distribution = self.params['prior_distribution']        
         self._mean = tf.get_variable(name="mean", dtype=tf.float32, shape=[1], trainable=False, initializer = tf.constant_initializer(0.))
         self._var = tf.get_variable(name="var", dtype=tf.float32, shape=[1], trainable=False, initializer = tf.constant_initializer(1.))
 
@@ -32,9 +36,6 @@ class GAN(object):
         self._D_loss = self._model.D_loss
         self._G_loss = self._model.G_loss
         self._G_fake = self._unnormalize(self._model.G_fake)
-        assert(self.params['k']>0)
-        self._G_raw = utils.inv_pre_process(self._G_fake, self.params['k'])
-        self._X_raw = utils.inv_pre_process(self._X, self.params['k'])
 
         t_vars = tf.trainable_variables()
         utils.show_all_variables()
@@ -50,86 +51,132 @@ class GAN(object):
 
         global_step = tf.Variable(0, name="global_step", trainable=False)
 
-        optimizer_D, optimizer_G, optimizer_E = optimization.build_optmizer(self.params['optimization'], self.has_encoder)
+        optimizer_D, optimizer_G, optimizer_E = self._build_optmizer()
 
         grads_and_vars_d = optimizer_D.compute_gradients(self._D_loss, var_list=d_vars)
         grads_and_vars_g = optimizer_G.compute_gradients(self._G_loss, var_list=g_vars)
 
-        self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
-        self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
+        self._D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
+        self._G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
 
         if self.has_encoder:
-            self.E_loss = self._model.E_loss
-            grads_and_vars_e = optimizer_E.compute_gradients(self.E_loss, var_list=e_vars)
-            self.E_solver = optimizer_E.apply_gradients(grads_and_vars_e, global_step=global_step)
+            self._E_loss = self._model.E_loss
+            grads_and_vars_e = optimizer_E.compute_gradients(self._E_loss, var_list=e_vars)
+            self._E_solver = optimizer_E.apply_gradients(grads_and_vars_e, global_step=global_step)
 
-        optimization.buid_opt_summaries(optimizer_D,
-                                        grads_and_vars_d,
-                                        optimizer_G,
-                                        grads_and_vars_g,
-                                        optimizer_E,
-                                        self.params['optimization'])
+        self._buid_opt_summaries(optimizer_D,grads_and_vars_d,optimizer_G,grads_and_vars_g,optimizer_E)
 
         # Summaries
-        tf.summary.image("trainingBW/Real_Image", self._X , max_outputs=4, collections=['Images'])
-        tf.summary.image("trainingBW/Fake_Image", self._G_fake, max_outputs=4, collections=['Images'])
+        tf.summary.image("training/Real_Image", self._X , max_outputs=4, collections=['Images'])
+        tf.summary.image("training/Fake_Image", self._G_fake, max_outputs=4, collections=['Images'])
         if self.normalized():
-            tf.summary.image("trainingBW/Real_Image_normalized", self._normalize(self._X), max_outputs=4, collections=['Images'])
-            tf.summary.image("trainingBW/Fake_Image_normalized", self._normalize(self._G_fake), max_outputs=4, collections=['Images'])
+            tf.summary.image("training/Real_Image_normalized", self._normalize(self._X), max_outputs=4, collections=['Images'])
+            tf.summary.image("training/Fake_Image_normalized", self._normalize(self._G_fake), max_outputs=4, collections=['Images'])
         tf.summary.histogram('Prior/z', self._z, collections=['Images'])
 
-        # To improve...
-        self.metr_dict = metrics.build_metrics_summaries(real=self._X, real_raw=self._X_raw, fake=self._G_fake, fake_raw=self._G_raw,
-                                                    batch_size=self.batch_size)
-
-        self.l2_psd = tf.placeholder(tf.float32, name = 'l2_psd')
-        self.log_l2_psd = tf.placeholder(tf.float32, name = 'log_l2_psd')
-        self.l1_psd = tf.placeholder(tf.float32, name = 'l1_psd')
-        self.log_l1_psd = tf.placeholder(tf.float32, name = 'log_l1_psd')
-        tf.summary.scalar("PSD/l2", self.l2_psd, collections=['metrics'])
-        tf.summary.scalar("PSD/log_l2", self.log_l2_psd, collections=['metrics'])
-        tf.summary.scalar("PSD/l1", self.l1_psd, collections=['metrics'])
-        tf.summary.scalar("PSD/log_l1", self.log_l1_psd, collections=['metrics'])
 
         self.summary_op = tf.summary.merge(tf.get_collection("Training"))
         self.summary_op_img = tf.summary.merge(tf.get_collection("Images"))
-        self.summary_op_metrics = tf.summary.merge(tf.get_collection("metrics"))
         
         self._saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
 
-        if 'prior_distribution' in self.params.keys():
-            self._prior_distribution = self.params['prior_distribution']
+
+    def _build_optmizer(self):
+
+        gen_learning_rate = self.params['optimization']['gen_learning_rate']
+        enc_learning_rate = self.params['optimization']['enc_learning_rate']
+        disc_learning_rate = self.params['optimization']['disc_learning_rate']
+        gen_optimizer = self.params['optimization']['gen_optimizer']
+        disc_optimizer = self.params['optimization']['disc_optimizer']
+        beta1 = self.params['optimization']['beta1']
+        beta2 = self.params['optimization']['beta2']
+        epsilon = self.params['optimization']['epsilon']
+
+        if gen_optimizer == "adam":
+            optimizer_G = tf.train.AdamOptimizer(learning_rate=gen_learning_rate, beta1=beta1,
+                                                 beta2=beta2, epsilon=epsilon)
+            if self.has_encoder:
+                optimizer_E = tf.train.AdamOptimizer(learning_rate=enc_learning_rate, beta1=beta1,
+                                                 beta2=beta2, epsilon=epsilon)
+            else:
+                optimizer_E = None
+        elif gen_optimizer == "rmsprop":
+            optimizer_G = tf.train.RMSPropOptimizer(learning_rate=gen_learning_rate)
+            if self.has_encoder:
+                optimizer_E = tf.train.RMSPropOptimizer(learning_rate=enc_learning_rate)
+            else:
+                optimizer_E = None
+        elif gen_optimizer == "sgd":
+            optimizer_G = tf.train.GradientDescentOptimizer(learning_rate=gen_learning_rate)
+            if self.has_encoder:
+                optimizer_E = tf.train.GradientDescentOptimizer(learning_rate=enc_learning_rate)
+            else:
+                optimizer_E = None       
         else:
-            self._prior_distribution = 'uniform'
+            raise Exception(" [!] Choose optimizer between [adam,rmsprop,sgd]")
+
+        if disc_optimizer == "adam":
+            optimizer_D = tf.train.AdamOptimizer(learning_rate=disc_learning_rate, beta1=beta1,
+                                                 beta2=beta2, epsilon=epsilon)
+        elif disc_optimizer == "rmsprop":
+            optimizer_D = tf.train.RMSPropOptimizer(learning_rate=disc_learning_rate)
+        elif disc_optimizer == "sgd":
+            optimizer_D = tf.train.GradientDescentOptimizer(learning_rate=disc_learning_rate)
+        else:
+            raise Exception(" [!] Choose optimizer between [adam,rmsprop]")
+
+        return optimizer_D, optimizer_G, optimizer_E
+
+
+    def _buid_opt_summaries(self, optimizer_D, grads_and_vars_d, optimizer_G, grads_and_vars_g, optimizer_E):
+
+        grad_norms_d = [tf.sqrt(tf.nn.l2_loss(g[0]) * 2) for g in grads_and_vars_d]
+        grad_norm_d = [tf.reduce_sum(grads) for grads in grad_norms_d]
+        final_grad_d = tf.reduce_sum(grad_norm_d)
+        tf.summary.scalar("Disc/Gradient_Norm", final_grad_d, collections=["Training"])
+
+        grad_norms_g = [tf.sqrt(tf.nn.l2_loss(g[0]) * 2) for g in grads_and_vars_g]
+        grad_norm_g = [tf.reduce_sum(grads) for grads in grad_norms_g]
+        final_grad_g = tf.reduce_sum(grad_norm_g)
+        tf.summary.scalar("Gen/Gradient_Norm", final_grad_g, collections=["Training"])
+
+        gen_learning_rate = self.params['optimization']['gen_learning_rate']
+        enc_learning_rate = self.params['optimization']['enc_learning_rate']
+        disc_learning_rate = self.params['optimization']['disc_learning_rate']
+        gen_optimizer = self.params['optimization']['gen_optimizer']
+        disc_optimizer = self.params['optimization']['disc_optimizer']
+
+        def get_lr_ADAM(optimizer, learning_rate):
+            beta1_power, beta2_power = optimizer._get_beta_accumulators()
+            optim_learning_rate = (learning_rate * math_ops.sqrt(1 - beta2_power) / (1 - beta1_power))
+
+            return optim_learning_rate
+
+        if gen_optimizer == "adam":
+            optim_learning_rate_G = tf.log(get_lr_ADAM(optimizer_G, gen_learning_rate))
+            tf.summary.scalar('Gen/Log_of_ADAM_learning_rate', optim_learning_rate_G, collections=["Training"])
+
+            if optimizer_E is not None:
+                optim_learning_rate_E = tf.log(get_lr_ADAM(optimizer_E, enc_learning_rate))
+                tf.summary.scalar('Gen/Log_of_ADAM_learning_rate', optim_learning_rate_E, collections=["Training"])
+
+        if disc_optimizer == "adam":   
+            optim_learning_rate_D = tf.log(get_lr_ADAM(optimizer_D, disc_learning_rate))
+            tf.summary.scalar('Disc/Log_of_ADAM_learning_rate', optim_learning_rate_D, collections=["Training"])
+
 
     def train(self, X, resume=False):
 
-        N = 500
-        # Compute the real PSD on all data! May take some time
-        psd_real, _ = metrics.power_spectrum_batch_phys(X1=utils.backward_map(X, self.params['k']))
-        psd_real = np.mean(psd_real, axis=0)
-
-        # Saving the objects:
-        os.makedirs(self.params['save_dir'], exist_ok=True)
-        with open(self.params['save_dir']+'params.pkl', 'wb') as f:
-            pickle.dump(self.params, f)
-
         n_data = len(X)
-        self.counter = 1
-        start_time = time.time()
-        prev_iter_time = start_time
+        self._counter = 1
+        self._n_epoch = self.params['optimization']['epoch']
+        self._total_iter = self._n_epoch * (n_data // self.batch_size) - 1
+        self._n_batch = n_data // self.batch_size
 
-        self.n_epoch = self.params['optimization']['epoch']
-        summary_dir = self.params['summary_dir'] 
-        sum_every = self.params['sum_every']
-        viz_every = self.params['viz_every']
-        self.best_psd = 1e10
-        self.best_log_psd = 10000
-        # ngen = 100
-        self.total_iter =  self.n_epoch * (n_data // self.batch_size) - 1
-        self.n_batch = n_data // self.batch_size
-        save_current_step = False
-
+        self._save_current_step = False
+    
+        # Create the save diretory if it does not exist
+        os.makedirs(self.params['save_dir'], exist_ok=True)
         run_config = tf.ConfigProto()
         with tf.Session(config=run_config) as self._sess:
             if resume:
@@ -137,9 +184,8 @@ class GAN(object):
                 self._load()
             else:
                 self._sess.run(tf.global_variables_initializer())
-                utils.saferm(summary_dir)
-            # The next line should be removed!
-            y_vec = self._get_classes(self.batch_size)
+                utils.saferm(self.params['summary_dir'] )
+                utils.saferm(self.params['save_dir'] )
             if self.normalized():
                 m = np.mean(X)
                 v = np.var(X-m)
@@ -147,113 +193,71 @@ class GAN(object):
                 self._var.assign([v]).eval()
             self._var.eval()
             self._mean.eval()
-            summary_writer = tf.summary.FileWriter(summary_dir, self._sess.graph)
+            self._summary_writer = tf.summary.FileWriter(self.params['summary_dir'] , self._sess.graph)
             try:
                 epoch = 0
-                while epoch < self.n_epoch:
+                start_time = time.time()
+                prev_iter_time = start_time
+
+                while epoch < self._n_epoch:
                     idx = 0
-                    while idx < self.n_batch:
+                    while idx < self._n_batch:
                         if resume:
                             epoch = self.params['curr_epochs']
                             idx = self.params['curr_idx']
-                            self.counter = self.params['curr_counter']
-                            self.best_psd = self.params['best_psd']
-                            self.best_log_psd = self.params['best_log_psd']
-                            print('Load values for epoch,idx,counter,psd,logpsd')
+                            self._counter = self.params['curr_counter']
                             resume = False
                         else:
                             self.params['curr_epochs'] = epoch
                             self.params['curr_idx'] = idx
-                            self.params['curr_counter'] = self.counter
-                            self.params['best_psd'] = self.best_psd
-                            self.params['best_log_psd'] = self.best_log_psd
+                            self.params['curr_counter'] = self._counter
+
      
                         X_real = X[idx*self.batch_size:(idx+1)*self.batch_size]
                         X_real.resize([*X_real.shape,1])
                         for _ in range(5):
                             sample_z = self._sample_latent(self.batch_size)
-                            _, loss_d = self._sess.run([self.D_solver, self._D_loss], feed_dict=self._get_dict(sample_z, X_real, y_vec))
+                            _, loss_d = self._sess.run([self._D_solver, self._D_loss], feed_dict=self._get_dict(sample_z, X_real))
                             if self.has_encoder:
-                                _, loss_e = self._sess.run([self.E_solver, self.E_loss], feed_dict=self._get_dict(sample_z, X_real, y_vec))
+                                _, loss_e = self._sess.run([self._E_solver, self._E_loss], feed_dict=self._get_dict(sample_z, X_real))
                         sample_z = self._sample_latent(self.batch_size)
-                        _, loss_g, v, m = self._sess.run([self.G_solver, self._G_loss, self._var, self._mean], feed_dict=self._get_dict(sample_z, X_real, y_vec))
-                        if np.mod(self.counter, 100) == 0:
+                        _, loss_g, v, m = self._sess.run([self._G_solver, self._G_loss, self._var, self._mean], feed_dict=self._get_dict(sample_z, X_real))
+
+                        if np.mod(self._counter, 100) == 0:
                             current_time = time.time()
                             print(
                                 "Epoch: [{:2d}] [{:4d}/{:4d}] Counter:{:2d}\t({:4.1f} min\t{:4.2f} examples/sec\t{:4.3f} sec/batch)\tL_Disc:{:.8f}\tL_Gen:{:.8f}".format(
-                                    epoch, idx, self.n_batch, self.counter, (current_time - start_time) / 60,
+                                    epoch, idx, self._n_batch, self._counter, (current_time - start_time) / 60,
                                                                      100.0 * self.batch_size / (current_time - prev_iter_time),
                                                                      (current_time - prev_iter_time) / 100, loss_d, loss_g))
                             prev_iter_time = current_time
 
-                        if np.mod(self.counter, self.params['viz_every']) == 0:
-                            feed_dict = self._get_dict(sample_z, X_real, y_vec)
-                            # BW Images
-                            summary_str = self._sess.run(self.summary_op_img, feed_dict=feed_dict)
-                            summary_writer.add_summary(summary_str, self.counter)
+                        self._train_log(self._get_dict(sample_z, X_real), X)
 
-                        if np.mod(self.counter, self.params['sum_every']) == 0:
-                            feed_dict = self._get_dict(sample_z, X_real, y_vec)
-                            summary_str = self._sess.run(self.summary_op, feed_dict=self._get_dict(sample_z, X_real, y_vec))
-                            summary_writer.add_summary(summary_str, self.counter)
-
-                            # RAW Images for metrics
-                            fake, real = self._sess.run([self._G_raw, self._X_raw], feed_dict= feed_dict)
-
-                            m = metrics.calculate_metrics(fake, real, self.params)
-                            for key in self.metr_dict:
-                                feed_dict[self.metr_dict[key]] = m[key]
-
-                            sample_z_large = self._sample_latent(N)
-                            _, fake_sample_large = self._generate_sample_safe(sample_z_large, X[:N].reshape([N,X.shape[1],X.shape[2],1]))
-                            fake_sample_large.resize([N,X.shape[1],X.shape[2]])
-                            psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake_sample_large)
-                            psd_gen = np.mean(psd_gen, axis=0)
-
-                            e = psd_real - psd_gen
-                            l2 = np.mean(e*e)
-                            l1 = np.mean(np.abs(e))
-                            loge = 10*(np.log10(psd_real+1e-5) - np.log10(psd_gen+1e-5))
-                            logel2 = np.mean(loge*loge)
-                            logel1 = np.mean(np.abs(loge))
-                            feed_dict[self.l2_psd] = l2
-                            feed_dict[self.log_l2_psd] = logel2
-                            feed_dict[self.l1_psd] = l1
-                            feed_dict[self.log_l1_psd] = logel1
-
-                            summary_str = self._sess.run(self.summary_op_metrics, feed_dict=feed_dict)
-                            summary_writer.add_summary(summary_str, self.counter)
-                            # Save a summary if a new minimum of PSD is achieved
-                            if l2 < self.best_psd:
-                                print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(l2,self.best_psd))
-                                self.best_psd, save_current_step = l2, True
-                            if logel2 < self.best_log_psd:
-                                print(' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(logel2,self.best_log_psd))
-                                self.best_log_psd, save_current_step = logel2, True
-                            print(' {} current PSD L2 {}, logL2 {}'.format(self.counter, l2, logel2))
-                        if (np.mod(self.counter, self.params['save_every']) == 0) | save_current_step:
-                            self._save(self._savedir, self.counter)
-                            save_current_step = False
-                        self.counter += 1
+                        if (np.mod(self._counter, self.params['save_every']) == 0) | self._save_current_step:
+                            self._save(self._savedir, self._counter)
+                            self._save_current_step = False
+                        self._counter += 1
                         idx += 1
                     epoch += 1
             except KeyboardInterrupt:
                 pass
-            self._save(self._savedir, self.counter)
+            self._save(self._savedir, self._counter)
+
+    def _train_log(self, feed_dict, X):
+        if np.mod(self._counter, self.params['viz_every']) == 0:
+            summary_str = self._sess.run(self.summary_op_img, feed_dict=feed_dict)
+            self._summary_writer.add_summary(summary_str, self._counter)
+
+        if np.mod(self._counter, self.params['sum_every']) == 0:
+            summary_str = self._sess.run(self.summary_op, feed_dict=feed_dict)
+            self._summary_writer.add_summary(summary_str, self._counter)
 
     def _sample_latent(self, bs=None):
         if bs is None:
             bs = self.batch_size
         latent_dim = self.params['generator']['latent_dim']
         return utils.sample_latent(bs, latent_dim, self._prior_distribution)
-
-    def _get_classes(self, bs=None):
-        # To be moved somewhere else...
-        if bs is None:
-            bs = self.batch_size
-        if 'num_classes' not in self.params or self.params['num_classes'] <= 1:
-            return None
-        return np.resize(np.arange(self.params['num_classes']), (bs, 1)) / (self.params['num_classes'] - 1.0)
 
     def _get_dict(self, z=None, X=None, y=None, index=None):
         feed_dict = dict()
@@ -290,11 +294,6 @@ class GAN(object):
 
         with open(self.params['save_dir']+'params.pkl', 'wb') as f:
             pickle.dump(self.params, f)
-        # with open(self.params['save_dir']+'model.pkl', 'wb') as f:
-        #     pickle.dump(self._model, f)
-        # with open(self.params['save_dir']+'object.pkl', 'wb') as f:
-        #     pickle.dump(self, f, -1)
-
 
 
 
@@ -323,15 +322,236 @@ class GAN(object):
 
     def _generate_sample(self, N=None, z=None, X=None, y=None, file_name=None):
         self._load(file_name=file_name)
+
         if z is None:
             if N is None:
                 N = self.batch_size
         z = self._sample_latent(N)
-
-        gen_images, gen_images_raw = self._generate_sample_safe(z, X, y)
-        return gen_images, gen_images_raw
+        return self._generate_sample_safe(z, X, y)
 
     def _generate_sample_safe(self, z=None, X=None, y=None):
+        gen_images = []
+        N = len(z)
+        sind = 0
+        bs = self.batch_size
+        if N > bs:
+            nb = (N-1) // bs
+            for i in range(nb):
+                gi = self._sess.run(self._G_fake, feed_dict = self._get_dict(z, X, y, slice(sind,sind+bs)))
+                gen_images.append(gi)
+                sind = sind + bs
+        gi = self._sess.run(self._G_fake, feed_dict=self._get_dict(z, X, y, slice(sind,N)))
+        gen_images.append(gi)
+
+        return np.vstack(gen_images)
+
+    def _normalize(self, x):
+        return (x - self._mean)/self._var
+
+    def _unnormalize(self, x):
+        return x * self._var + self._mean
+
+    def normalized(self):
+        return self.params['normalize']
+
+    @property
+    def has_encoder(self):
+        return self._has_encoder
+
+    @property
+    def model_name(self):
+        return self._model_name
+
+
+
+
+class CosmoGAN(GAN):
+    def __init__(self, params, model=None):
+        super().__init__(params=params, model=model)
+        
+        self.params = default_params_cosmology(self.params)
+        assert(self.params['cosmology']['k']>0)
+        self._G_raw = utils.inv_pre_process(self._G_fake, self.params['cosmology']['k'])
+        self._X_raw = utils.inv_pre_process(self._X, self.params['cosmology']['k'])
+
+        self._md = dict()
+
+        self._md['descriptives'] = tf.placeholder(tf.float64, shape=[2, 5], name="DescriptiveStatistics")
+
+        tf.summary.scalar("descriptives/mean_Fake", self._md['descriptives'][0, 0], collections=['Metrics'])
+        tf.summary.scalar("descriptives/var_Fake", self._md['descriptives'][0, 1], collections=['Metrics'])
+        tf.summary.scalar("descriptives/min_Fake", self._md['descriptives'][0, 2], collections=['Metrics'])
+        tf.summary.scalar("descriptives/max_Fake", self._md['descriptives'][0, 3], collections=['Metrics'])
+        tf.summary.scalar("descriptives/median_Fake", self._md['descriptives'][0, 4], collections=['Metrics'])
+
+        tf.summary.scalar("descriptives/mean_Real", self._md['descriptives'][1, 0], collections=['Metrics'])
+        tf.summary.scalar("descriptives/var_Real", self._md['descriptives'][1, 1], collections=['Metrics'])
+        tf.summary.scalar("descriptives/min_Real", self._md['descriptives'][1, 2], collections=['Metrics'])
+        tf.summary.scalar("descriptives/max_Real", self._md['descriptives'][1, 3], collections=['Metrics'])
+        tf.summary.scalar("descriptives/median_Real", self._md['descriptives'][1, 4], collections=['Metrics'])
+
+        # self._md['ps_comp'] = tf.placeholder(tf.float64, name="ps_comp")
+        # tf.summary.scalar("PSD/L2_Fake-Real", self._md['ps_comp'], collections=['metrics'])
+
+
+        self._md['peak_fake'] = tf.placeholder(tf.float64, shape=[None], name="peak_fake")
+        self._md['peak_real'] = tf.placeholder(tf.float64, shape=[None], name="peak_real")
+        # tf.summary.histogram("Peaks/Fake_log", self._md['peak_fake'], collections=['Metrics'])
+        # tf.summary.histogram("Peaks/Real_log", self._md['peak_real'], collections=['Metrics'])
+
+        self._md['distance_peak_comp'] = tf.placeholder(tf.float64, name='distance_peak_comp')
+        self._md['distance_peak_fake'] = tf.placeholder(tf.float64, name='distance_peak_fake')
+        self._md['distance_peak_real'] = tf.placeholder(tf.float64, name='distance_peak_real')
+
+        tf.summary.scalar("Peaks/Ch2_Fake-Real", self._md['distance_peak_comp'], collections=['Metrics'])
+        tf.summary.scalar("Peaks/Ch2_Fake-Fake", self._md['distance_peak_fake'], collections=['Metrics'])
+        tf.summary.scalar("Peaks/Ch2_Real-Real", self._md['distance_peak_real'], collections=['Metrics'])
+
+        self._md['cross_ps'] = tf.placeholder(tf.float64, shape = [3],  name='cross_ps')
+
+        tf.summary.scalar("PSD/Cross_Fake-Real", self._md['cross_ps'][0], collections=['Metrics'])
+        tf.summary.scalar("PSD/Cross_Fake-Fake", self._md['cross_ps'][1], collections=['Metrics'])
+        tf.summary.scalar("PSD/Cross_Real-Real", self._md['cross_ps'][2], collections=['Metrics'])
+
+
+        tf.summary.histogram("Pixel/Fake", self._G_fake, collections=['Metrics'])
+        tf.summary.histogram("Pixel/Real", self._X, collections=['Metrics'])
+
+        # This summary needs clipping
+        clip_max = 1e10
+        tf.summary.histogram("Pixel/Fake_Raw", tf.clip_by_value(self._G_raw, 0, clip_max), collections=['Metrics'])
+        tf.summary.histogram("Pixel/Real_Raw", tf.clip_by_value(self._X_raw, 0, clip_max), collections=['Metrics'])
+
+        self._md['l2_psd'] = tf.placeholder(tf.float32, name = 'l2_psd')
+        self._md['log_l2_psd'] = tf.placeholder(tf.float32, name = 'log_l2_psd')
+        self._md['l1_psd'] = tf.placeholder(tf.float32, name = 'l1_psd')
+        self._md['log_l1_psd'] = tf.placeholder(tf.float32, name = 'log_l1_psd')
+        tf.summary.scalar("PSD/l2", self._md['l2_psd'], collections=['Metrics'])
+        tf.summary.scalar("PSD/log_l2", self._md['log_l2_psd'], collections=['Metrics'])
+        tf.summary.scalar("PSD/l1", self._md['l1_psd'], collections=['Metrics'])
+        tf.summary.scalar("PSD/log_l1", self._md['log_l1_psd'], collections=['Metrics'])
+
+        self.summary_op_metrics = tf.summary.merge(tf.get_collection("Metrics"))
+
+    def train(self, X, resume=False):
+
+        self._Npsd = self.params['cosmology']['Npsd']
+        # Compute the real PSD on all data! May take some time
+        psd_real, _ = metrics.power_spectrum_batch_phys(X1=utils.backward_map(X, self.params['cosmology']['k']))
+        self._psd_real = np.mean(psd_real, axis=0)
+        del psd_real
+
+        if resume:
+            self.best_psd = self.params['cosmology']['best_psd']
+            self.best_log_psd = self.params['cosmology']['best_log_psd']
+        else:
+            self.best_psd = 1e10
+            self.best_log_psd = 10000
+            self.params['cosmology']['best_psd'] = self.best_psd
+            self.params['cosmology']['best_log_psd'] = self.best_log_psd
+
+        super().train(X=X, resume=resume)
+
+    def _train_log(self, feed_dict, X):
+        super()._train_log(feed_dict, X)
+        if np.mod(self._counter, self.params['sum_every']) == 0:
+            ind = np.random.randint(0, len(X), size=[self._Npsd])
+            Xsel = X[ind]
+            real = utils.backward_map(Xsel, self.params['cosmology']['k'])
+            z_sel = self._sample_latent(self._Npsd)
+
+            _, fake = self._generate_sample_safe(z_sel, Xsel.reshape([self._Npsd,X.shape[1],X.shape[2],1]))
+            fake.resize([self._Npsd,X.shape[1],X.shape[2]])
+
+
+
+            real = utils.makeit_square(real)
+            fake = utils.makeit_square(fake)
+
+            if self.params['cosmology']['clip_max_real']:
+                clip_max = real.ravel().max()
+            else:
+                clip_max = 1e10
+
+            fake = np.clip(np.nan_to_num(fake), self.params['cosmology']['log_clip'], clip_max)
+            real = np.clip(np.nan_to_num(real), self.params['cosmology']['log_clip'], clip_max)
+
+            if self.params['cosmology']['sigma_smooth'] is not None:
+                fake = ndimage.gaussian_filter(fake, sigma=self.params['cosmology']['sigma_smooth'])
+                real = ndimage.gaussian_filter(real, sigma=self.params['cosmology']['sigma_smooth'])
+
+            # Descriptive Stats
+            descr_fake = np.array([metrics.describe(x) for x in fake])
+            descr_real = np.array([metrics.describe(x) for x in real])
+
+            feed_dict[self._md['descriptives']] = np.stack((np.mean(descr_fake, axis=0), np.mean(descr_real, axis=0)))
+
+            # Distance of Peak Histogram
+            index = np.random.choice(real.shape[0], min(50, real.shape[0]),
+                         replace=False)  # computing all pairwise comparisons is expensive
+            peak_fake = np.array([metrics.peak_count(x, neighborhood_size=5, threshold=0) for x in fake[index]])
+            peak_real = np.array([metrics.peak_count(x, neighborhood_size=5, threshold=0) for x in real[index]])
+
+            # if tensorboard:
+            feed_dict[self._md['peak_fake']] = np.log(np.hstack(peak_fake))
+            feed_dict[self._md['peak_real']] = np.log(np.hstack(peak_real))
+            feed_dict[self._md['distance_peak_comp']] = metrics.distance_chi2_peaks(peak_fake, peak_real)
+            feed_dict[self._md['distance_peak_fake']] = metrics.distance_chi2_peaks(peak_fake, peak_fake)
+            feed_dict[self._md['distance_peak_real']] = metrics.distance_chi2_peaks(peak_real, peak_real)
+
+            del peak_real, peak_fake
+
+            # Measure Cross PS
+            box_l = box_l=100/0.7
+            cross_rf, _ = metrics.power_spectrum_batch_phys(X1=real[index], X2=fake[index], box_l=box_l)
+            cross_ff, _ = metrics.power_spectrum_batch_phys(X1= fake[index], X2 = fake[index], box_l=box_l)
+            cross_rr, _ = metrics.power_spectrum_batch_phys(X1= real[index], X2 = real[index], box_l=box_l)
+
+            feed_dict[self._md['cross_ps']] = [np.mean(cross_rf),np.mean(cross_ff), np.mean(cross_rr)]
+
+
+            del cross_ff, cross_rf, cross_rr
+
+            psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake)
+            psd_gen = np.mean(psd_gen, axis=0)
+
+            e = self._psd_real - psd_gen
+            l2 = np.mean(e*e)
+            l1 = np.mean(np.abs(e))
+            loge = 10*(np.log10(self._psd_real+1e-5) - np.log10(psd_gen+1e-5))
+            logel2 = np.mean(loge*loge)
+            logel1 = np.mean(np.abs(loge))
+            feed_dict[self._md['l2_psd']] = l2
+            feed_dict[self._md['log_l2_psd']] = logel2
+            feed_dict[self._md['l1_psd']] = l1
+            feed_dict[self._md['log_l1_psd']] = logel1
+
+            summary_str = self._sess.run(self.summary_op_metrics, feed_dict=feed_dict)
+            self._summary_writer.add_summary(summary_str, self._counter)
+            # Print the results
+            print(
+            " [*] [Fake, Real] Min [{:.3f}, {:.3f}],\tMedian [{:.3f},{:.3f}],\tMean [{:.3E},{:.3E}],\t Max [{:.3E},{:.3E}],\t Var [{:.3E},{:.3E}]".format(
+                feed_dict[self._md['descriptives']][0, 2], feed_dict[self._md['descriptives']][1, 2], feed_dict[self._md['descriptives']][0, 4], feed_dict[self._md['descriptives']][1, 4],
+                feed_dict[self._md['descriptives']][0, 0], feed_dict[self._md['descriptives']][1, 0], feed_dict[self._md['descriptives']][0, 3], feed_dict[self._md['descriptives']][1, 3],
+                feed_dict[self._md['descriptives']][0, 1], feed_dict[self._md['descriptives']][1, 1]))
+
+            print(
+                " [*] [Comp, Fake, Real] PeakDistance:[{:.3f}, {:.3f}, {:.3f}]\tCrossPS:[{:.3f}, {:.3f}, {:.3f}]".format(
+                    feed_dict[self._md['distance_peak_comp']],feed_dict[self._md['distance_peak_fake']], feed_dict[self._md['distance_peak_real']],
+                    feed_dict[self._md['cross_ps']][0], feed_dict[self._md['cross_ps']][1], feed_dict[self._md['cross_ps']][2]))
+            # Save a summary if a new minimum of PSD is achieved
+            if l2 < self.best_psd:
+                print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(l2,self.best_psd))
+                self.best_psd, self._save_current_step = l2, True
+            if logel2 < self.best_log_psd:
+                print(' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(logel2,self.best_log_psd))
+                self.best_log_psd, self._save_current_step = logel2, True
+            print(' {} current PSD L2 {}, logL2 {}'.format(self._counter, l2, logel2))
+
+
+    def _generate_sample_safe(self, z=None, X=None, y=None):
+        # This should be done in a better way
+
         gen_images = []
         gen_images_raw =[]
         N = len(z)
@@ -344,175 +564,10 @@ class GAN(object):
                 gen_images.append(gi)
                 gen_images_raw.append(gi_raw)
                 sind = sind + bs
+
         gi, gi_raw = self._sess.run([self._G_fake, self._G_raw], feed_dict=self._get_dict(z, X, y, slice(sind,N)))
         gen_images.append(gi)
         gen_images_raw.append(gi_raw)
 
         return np.vstack(gen_images), np.vstack(gen_images_raw)
-
-    def _normalize(self, x):
-        return (x - self._mean)/self._var
-
-    def _unnormalize(self, x):
-        return x * self._var + self._mean
-
-    def normalized(self):
-        return 'normalize' in self.params.keys() and self.params['normalize']
-
-    @property
-    def has_encoder(self):
-        return self._has_encoder
-
-    @property
-    def model_name(self):
-        return self._model_name
-
-
-# class WGAN_upsampler(GAN):
-
-#     def _build_model(self, model):
-
-#         self._G_fake, self.D_real, self.D_fake, Xs, G_fake_s = model(self.params, self._z, self._X)
-
-#         self._G_raw = utils.inv_pre_process(self._G_fake, self.params['k'])
-#         self._X_raw = utils.inv_pre_process(self._X, self.params['k'])
-        
-#         t_vars = tf.trainable_variables()
-#         utils.show_all_variables()
-
-#         d_vars = [var for var in t_vars if 'discriminator' in var.name]
-#         g_vars = [var for var in t_vars if 'generator' in var.name]
-
-#         gamma_gp = self.params['optimization']['gamma_gp']
-#         if not gamma_gp:
-#             D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
-#             D_gp = tf.constant(0, dtype=tf.float32)
-#             print(" [!] Using weight clipping")
-#         else:
-#             D_clip = tf.constant(0, dtype=tf.float32)
-#             # calculate `x_hat`
-#             epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
-#             x_hat = epsilon * self._X + (1.0 - epsilon) * self._G_fake
-
-#             D_x_hat = model.discriminator(x_hat, reuse=True)
-
-#             # gradient penalty
-#             gradients = tf.gradients(D_x_hat, [x_hat])
-
-#             D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
-
-#         # calculate discriminator's loss
-#         D_loss_f = tf.reduce_mean(self.D_fake)
-#         D_loss_r = tf.reduce_mean(self.D_real)
-
-#         e = (Xs -G_fake_s)
-#         weight_l2 = self.params['optimization']['weight_l2']
-#         reg_l2 = self.params['generator']['latent_dim'] * weight_l2
-#         L2_loss = reg_l2 * tf.reduce_mean(e*e)
-
-#         self._D_loss = D_loss_f - D_loss_r + D_gp
-#         self._G_loss = -D_loss_f + L2_loss
-
-#         tf.summary.scalar("Disc/Loss", self._D_loss, collections=["Training"])
-#         tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
-#         tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
-#         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
-
-#         tf.summary.scalar("Gen/Loss_fake", - D_loss_f, collections=["Training"])
-#         tf.summary.scalar("Gen/Loss_l2", L2_loss, collections=["Training"])
-#         tf.summary.scalar("Gen/Loss", self._G_loss, collections=["Training"])
-
-#         global_step = tf.Variable(0, name="global_step", trainable=False)
-
-
-#         optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
-
-#         grads_and_vars_d = optimizer_D.compute_gradients(self._D_loss, var_list=d_vars)
-#         grads_and_vars_g = optimizer_G.compute_gradients(self._G_loss, var_list=g_vars)
-
-#         self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
-#         self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
-
-#         optimization.buid_opt_summaries(optimizer_D, 
-#                                         grads_and_vars_d, 
-#                                         optimizer_G, 
-#                                         grads_and_vars_g, 
-#                                         self.params['optimization'])
-
-
-# class WVEEGAN(GAN):
-
-#     def _build_model(self, model):
-
-#         self._G_fake, self.D_real, self.D_fake, z_real, z_fake = model(self.params, self._z, self._X)
-
-
-#         self._G_raw = utils.inv_pre_process(self._G_fake, self.params['k'])
-#         self._X_raw = utils.inv_pre_process(self._X, self.params['k'])
-        
-#         t_vars = tf.trainable_variables()
-#         utils.show_all_variables()
-
-#         d_vars = [var for var in t_vars if 'discriminator' in var.name]
-#         g_vars = [var for var in t_vars if 'generator' in var.name]
-#         e_vars = [var for var in t_vars if 'encoder' in var.name]
-
-#         gamma_gp = self.params['optimization']['gamma_gp']
-#         if not gamma_gp:
-#             D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
-#             D_gp = tf.constant(0, dtype=tf.float32)
-#             print(" [!] Using weight clipping")
-#         else:
-#             D_clip = tf.constant(0, dtype=tf.float32)
-#             # calculate `x_hat`
-#             epsilon = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0, maxval=1)
-#             x_hat = epsilon * self._X + (1.0 - epsilon) * self._G_fake
-#             epsilon = tf.reshape(epsilon,shape=[self.batch_size,1])
-#             z_hat = epsilon * z_real + (1.0 - epsilon) * self._z
-#             D_x_hat = model.discriminator(X=x_hat, z=z_hat, reuse=True)
-
-#             # gradient penalty
-#             gradients = tf.gradients(D_x_hat, [x_hat])
-
-#             D_gp = gamma_gp * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
-
-#         # calculate discriminator's loss
-#         D_loss_f = tf.reduce_mean(self.D_fake)
-#         D_loss_r = tf.reduce_mean(self.D_real)
-        
-#         e = (self._z - z_fake)
-#         weight_l2 = self.params['optimization']['weight_l2']
-#         reg_l2 = self.params['generator']['latent_dim'] * weight_l2
-#         L2_loss = reg_l2 * tf.reduce_mean(e*e)
-
-
-#         self._D_loss = D_loss_f - D_loss_r + D_gp
-#         self._G_loss = - D_loss_f + L2_loss
-
-#         tf.summary.scalar("Disc/Loss", self._D_loss, collections=["Training"])
-#         tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
-#         tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
-#         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
-
-#         tf.summary.scalar("Gen/Loss_fake", - D_loss_f, collections=["Training"])
-#         tf.summary.scalar("Gen/Loss_l2", L2_loss, collections=["Training"])
-#         tf.summary.scalar("Gen/Loss", self._G_loss, collections=["Training"])
-
-
-#         global_step = tf.Variable(0, name="global_step", trainable=False)
-
-
-#         optimizer_D, optimizer_G = optimization.build_optmizer(self.params['optimization'])
-
-#         grads_and_vars_d = optimizer_D.compute_gradients(self._D_loss, var_list=d_vars)
-#         grads_and_vars_g = optimizer_G.compute_gradients(self._G_loss, var_list=g_vars+e_vars)
-
-#         self.D_solver = optimizer_D.apply_gradients(grads_and_vars_d, global_step=global_step)
-#         self.G_solver = optimizer_G.apply_gradients(grads_and_vars_g, global_step=global_step)
-
-#         optimization.buid_opt_summaries(optimizer_D, 
-#                                         grads_and_vars_d, 
-#                                         optimizer_G, 
-#                                         grads_and_vars_g, 
-#                                         self.params['optimization'])
 
