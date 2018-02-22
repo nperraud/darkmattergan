@@ -329,6 +329,18 @@ class GAN(object):
         z = self._sample_latent(N)
         return self._generate_sample_safe(z, X, y)
 
+    def _get_sample_args(self):
+        return self._G_fake
+
+    def _special_vstack(self, gi):
+        if type(gi[0]) is np.ndarray:
+            return np.vstack(gi)
+        else:
+            s = []
+            for j in range(len(gi[0])):
+                s.append(np.vstack([el[j] for el in gi]))
+            return tuple(s)
+
     def _generate_sample_safe(self, z=None, X=None, y=None):
         gen_images = []
         N = len(z)
@@ -337,13 +349,13 @@ class GAN(object):
         if N > bs:
             nb = (N-1) // bs
             for i in range(nb):
-                gi = self._sess.run(self._G_fake, feed_dict = self._get_dict(z, X, y, slice(sind,sind+bs)))
+                gi = self._sess.run(self._get_sample_args(), feed_dict = self._get_dict(z, X, y, slice(sind,sind+bs)))
                 gen_images.append(gi)
                 sind = sind + bs
-        gi = self._sess.run(self._G_fake, feed_dict=self._get_dict(z, X, y, slice(sind,N)))
+        gi = self._sess.run(self._get_sample_args(), feed_dict=self._get_dict(z, X, y, slice(sind,N)))
         gen_images.append(gi)
 
-        return np.vstack(gen_images)
+        return self._special_vstack(gen_images)
 
     def _normalize(self, x):
         return (x - self._mean)/self._var
@@ -463,6 +475,19 @@ class CosmoGAN(GAN):
             _, fake = self._generate_sample_safe(z_sel, Xsel.reshape([self._Npsd,X.shape[1],X.shape[2],1]))
             fake.resize([self._Npsd,X.shape[1],X.shape[2]])
 
+            psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake)
+            psd_gen = np.mean(psd_gen, axis=0)
+
+            e = self._psd_real - psd_gen
+            l2 = np.mean(e*e)
+            l1 = np.mean(np.abs(e))
+            loge = 10*(np.log10(self._psd_real+1e-5) - np.log10(psd_gen+1e-5))
+            logel2 = np.mean(loge*loge)
+            logel1 = np.mean(np.abs(loge))
+            feed_dict[self._md['l2_psd']] = l2
+            feed_dict[self._md['log_l2_psd']] = logel2
+            feed_dict[self._md['l1_psd']] = l1
+            feed_dict[self._md['log_l1_psd']] = logel1
 
 
             real = utils.makeit_square(real)
@@ -499,7 +524,7 @@ class CosmoGAN(GAN):
             feed_dict[self._md['distance_peak_fake']] = metrics.distance_chi2_peaks(peak_fake, peak_fake)
             feed_dict[self._md['distance_peak_real']] = metrics.distance_chi2_peaks(peak_real, peak_real)
 
-            del peak_real, peak_fake
+            # del peak_real, peak_fake
 
             # Measure Cross PS
             box_l = box_l=100/0.7
@@ -510,21 +535,9 @@ class CosmoGAN(GAN):
             feed_dict[self._md['cross_ps']] = [np.mean(cross_rf),np.mean(cross_ff), np.mean(cross_rr)]
 
 
-            del cross_ff, cross_rf, cross_rr
+            # del cross_ff, cross_rf, cross_rr
 
-            psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake)
-            psd_gen = np.mean(psd_gen, axis=0)
 
-            e = self._psd_real - psd_gen
-            l2 = np.mean(e*e)
-            l1 = np.mean(np.abs(e))
-            loge = 10*(np.log10(self._psd_real+1e-5) - np.log10(psd_gen+1e-5))
-            logel2 = np.mean(loge*loge)
-            logel1 = np.mean(np.abs(loge))
-            feed_dict[self._md['l2_psd']] = l2
-            feed_dict[self._md['log_l2_psd']] = logel2
-            feed_dict[self._md['l1_psd']] = l1
-            feed_dict[self._md['log_l1_psd']] = logel1
 
             summary_str = self._sess.run(self.summary_op_metrics, feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
@@ -548,26 +561,28 @@ class CosmoGAN(GAN):
                 self.best_log_psd, self._save_current_step = logel2, True
             print(' {} current PSD L2 {}, logL2 {}'.format(self._counter, l2, logel2))
 
+    def _get_sample_args(self):
+        return [self._G_fake, self._G_raw]
 
-    def _generate_sample_safe(self, z=None, X=None, y=None):
-        # This should be done in a better way
+    # def _generate_sample_safe(self, z=None, X=None, y=None):
+    #     # This should be done in a better way
 
-        gen_images = []
-        gen_images_raw =[]
-        N = len(z)
-        sind = 0
-        bs = self.batch_size
-        if N > bs:
-            nb = (N-1) // bs
-            for i in range(nb):
-                gi, gi_raw = self._sess.run([self._G_fake, self._G_raw], feed_dict = self._get_dict(z, X, y, slice(sind,sind+bs)))
-                gen_images.append(gi)
-                gen_images_raw.append(gi_raw)
-                sind = sind + bs
+    #     gen_images = []
+    #     gen_images_raw =[]
+    #     N = len(z)
+    #     sind = 0
+    #     bs = self.batch_size
+    #     if N > bs:
+    #         nb = (N-1) // bs
+    #         for i in range(nb):
+    #             gi, gi_raw = self._sess.run([self._G_fake, self._G_raw], feed_dict = self._get_dict(z, X, y, slice(sind,sind+bs)))
+    #             gen_images.append(gi)
+    #             gen_images_raw.append(gi_raw)
+    #             sind = sind + bs
 
-        gi, gi_raw = self._sess.run([self._G_fake, self._G_raw], feed_dict=self._get_dict(z, X, y, slice(sind,N)))
-        gen_images.append(gi)
-        gen_images_raw.append(gi_raw)
+    #     gi, gi_raw = self._sess.run([self._G_fake, self._G_raw], feed_dict=self._get_dict(z, X, y, slice(sind,N)))
+    #     gen_images.append(gi)
+    #     gen_images_raw.append(gi_raw)
 
-        return np.vstack(gen_images), np.vstack(gen_images_raw)
+    #     return np.vstack(gen_images), np.vstack(gen_images_raw)
 

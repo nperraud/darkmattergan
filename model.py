@@ -134,9 +134,9 @@ class LapGanModel(GanModel):
         self._D_loss = D_loss_f + D_loss_r + D_gp
         self._G_loss = - tf.reduce_mean(self.D_fake)
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
-        tf.summary.image("trainingBW/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
-        tf.summary.image("trainingBW/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
-        tf.summary.image("trainingBW/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
 
     def generator(self, X, z, reuse):
         return generator_up(X, z, self.params['generator'], reuse=reuse)
@@ -221,9 +221,9 @@ class LapPatchWGANModel(GanModel):
 
         # G) Summaries
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
-        tf.summary.image("trainingBW/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
-        tf.summary.image("trainingBW/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
-        tf.summary.image("trainingBW/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
         if True:
             tf.summary.image("SmallerImg/G_fake1", self.G_fake1, max_outputs=1, collections=['Images'])
             tf.summary.image("SmallerImg/G_fake2", self.G_fake2, max_outputs=1, collections=['Images'])

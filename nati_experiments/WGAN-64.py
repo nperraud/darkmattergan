@@ -1,31 +1,37 @@
 
 # coding: utf-8
 
-import os
+import sys
+sys.path.insert(0, '../')
+
 import data
 
 from model import WGanModel
-from gan import GAN
+from gan import CosmoGAN
+import pickle
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # Parameters
 
 ns = 64
 nsamples = 4000
 k = 10
+try_resume = False
 
-images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)
-images = data.make_smaller_samples(images, ns)
-raw_images = data.make_smaller_samples(raw_images, ns)   
 
-def current_time_str():
-    import time, datetime
-    d = datetime.datetime.fromtimestamp(time.time())
-    return str(d.year)+ '_' + str(d.month)+ '_' + str(d.day)+ '_' + str(d.hour)+ '_' + str(d.minute)
+# def current_time_str():
+#     import time, datetime
+#     d = datetime.datetime.fromtimestamp(time.time())
+#     return str(d.year)+ '_' + str(d.month)+ '_' + str(d.day)+ '_' + str(d.hour)+ '_' + str(d.minute)
 
-time_str = current_time_str() 
-global_path = '../../saved_result/'
+# time_str = current_time_str()
+
+time_str = 'final'
+global_path = '../../../saved_result/'
+
+name = 'WGAN{}'.format(ns)
+
+bn = False
 
 bn = False
 
@@ -59,10 +65,18 @@ params_optimization['beta2'] = 0.9999
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 50
 
+params_cosmology = dict()
+params_cosmology['clip_max_real'] = False
+params_cosmology['log_clip'] = 0.1
+params_cosmology['sigma_smooth'] = 1
+params_cosmology['k'] = k
+params_cosmology['Npsd'] = 500
+
 params = dict()
 params['generator'] = params_generator
 params['discriminator'] = params_discriminator
 params['optimization'] = params_optimization
+params['cosmology'] = params_cosmology
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
@@ -74,14 +88,24 @@ params['name'] = 'WGAN{}'.format(ns)
 params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
 params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
 
-params['clip_max_real'] = False
-params['log_clip'] = 0.1
-params['sigma_smooth'] = 1
-params['k'] = k
+resume = False
+
+if try_resume:
+    try:
+        with open(params['save_dir'] + 'params.pkl', 'rb') as f:
+            params = pickle.load(f)
+        resume = True
+        print('Resume, the training will start from the last iteration!')
+    except:
+        print('No resume, the training will start from the beginning!')
 
 # Build the model
 
-wgan = GAN(params, WGanModel)
+wgan = CosmoGAN(params, WGanModel)
+
+images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)
+images = data.make_smaller_samples(images, ns)
+raw_images = data.make_smaller_samples(raw_images, ns)   
 
 # Train the model
-wgan.train(images)
+wgan.train(images, resume=resume)

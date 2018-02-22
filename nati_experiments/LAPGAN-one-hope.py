@@ -13,7 +13,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import data
 
 from model import LapGanModel
-from gan import GAN
+from gan import CosmoGAN
 
 # # Parameters
 
@@ -22,7 +22,7 @@ ns = 128
 scalings = [8]
 nsamples = 7500
 k = 10
-try_resume = True
+try_resume = False
 
 # def current_time_str():
 #     import time, datetime
@@ -121,7 +121,7 @@ if try_resume:
         print('No resume, the training will start from the beginning!')
 
 
-obj = GAN(params, LapGanModel)
+obj = CosmoGAN(params, LapGanModel)
 
 
 
