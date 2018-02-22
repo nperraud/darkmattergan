@@ -65,10 +65,10 @@ def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
     _, k =  ps.power_spectrum(field_x=X1[0].reshape(s,s), box_l=box_l, bin_k=bin_k)
 
     num_workers = mp.cpu_count()-1
-    if num_workers == 23:
-        # Small hack for CSCS
-        num_workers = 2
-        print('CSCS: Pool reduced!')
+    # if num_workers == 23:
+    #     # Small hack for CSCS
+    #     num_workers = 2
+    #     print('CSCS: Pool reduced!')
     # print('Pool with {} workers'.format(num_workers))
     with mp.Pool(processes=num_workers) as pool:
         if X2 is None:
@@ -205,10 +205,10 @@ def distance_chi2_peaks(im1, im2, bins=100, range=[0, 2e5], **kwargs):
     distance = []
 
     num_workers = mp.cpu_count()-1
-    if num_workers == 23:
-        # Small hack for CSCS
-        num_workers = 2
-        print('CSCS: Pool reduced!') 
+    # if num_workers == 23:
+    #     # Small hack for CSCS
+    #     num_workers = 2
+    #     print('CSCS: Pool reduced!') 
     # print('Pool with {} workers'.format(num_workers))
     with mp.Pool(processes=num_workers) as pool:
         for x in im1:

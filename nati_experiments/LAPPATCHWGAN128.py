@@ -17,7 +17,7 @@ sys.path.insert(0, '../')
 import data
 
 from model import LapPatchWGANModel
-from gan import GAN
+from gan import CosmoGAN
 
 # # Parameters
 
@@ -29,7 +29,8 @@ scalings = [8]
 nsamples = 7500
 k = 10
 
-try_restart = True
+try_resume = True
+
 
 
 time_str = 'test'
@@ -47,8 +48,8 @@ params_optimization['weight_l2'] = 0.1
 params_optimization['batch_size'] = 32
 params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 1e-5
-params_optimization['gen_learning_rate'] = 1e-5
+params_optimization['disc_learning_rate'] = 3e-5
+params_optimization['gen_learning_rate'] = 3e-5
 params_optimization['beta1'] = 0.5
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
@@ -83,37 +84,43 @@ params_generator['summary'] = True
 params_generator['non_lin'] = 'tanh'
 params_generator['upsampling'] = up_scaling
 
+params_cosmology = dict()
+params_cosmology['clip_max_real'] = False
+params_cosmology['log_clip'] = 0.1
+params_cosmology['sigma_smooth'] = 1
+params_cosmology['k'] = k
+params_cosmology['Npsd'] = 500
+
 params = dict()
 params['generator'] = params_generator
 params['discriminator'] = params_discriminator
 params['optimization'] = params_optimization
+params['cosmology'] = params_cosmology
+
 
 params['prior_distribution'] = 'gaussian'
-params['clip_max_real'] = False
-params['log_clip'] = 0.1
-params['sigma_smooth'] = 1
-params['k'] = k
 params['sum_every'] = 200
-params['viz_every'] = 1000
+params['viz_every'] = 200
 params['save_every'] = 5000
-
 params['normalize'] = False
 params['image_size'] = [new_ns*up_scaling, new_ns*up_scaling]
 params['name'] = name
-params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
-params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
+params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
 
 
-if try_restart:
+resume = False
+
+if try_resume:
     try:
         with open(params['save_dir']+'params.pkl', 'rb') as f:
             params = pickle.load(f)
-        restart = False
+        resume = True
+        print('Resume, the training will start from the last iteration!')
     except:
-       print('No restart!')
-       restart = True
+        print('No resume, the training will start from the beginning!')
 
-obj = GAN(params, LapPatchWGANModel)
+obj = CosmoGAN(params, LapPatchWGANModel)
 
 
 
@@ -130,4 +137,4 @@ down_sampled_images = data.down_sample_images(images, scalings)
 
 
 
-obj.train(X=down_sampled_images[level], restart=restart)
+obj.train(X=down_sampled_images[level], resume=resume)

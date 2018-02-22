@@ -237,7 +237,7 @@ class LapPatchWGANModel(GanModel):
             tf.summary.image("SmallerImg/y33", y33, max_outputs=1, collections=['Images'])
 
     def generator(self, X, z, reuse, scope, y=None):
-        return generator_up(X, z, self.params['generator'], reuse=reuse, scope=scope)
+        return generator_up(X, z, self.params['generator'], y=y, reuse=reuse, scope=scope)
 
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
@@ -433,6 +433,8 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
         rprint('     The input X is of size {}'.format(X.shape), reuse)
 
         rprint('     The input z is of size {}'.format(z.shape), reuse)
+        if y is not None:
+            rprint('     The input y is of size {}'.format(y.shape), reuse)
         bs = tf.shape(X)[0]  # Batch size
         sx = X.shape.as_list()[1]
         sy = X.shape.as_list()[2]
