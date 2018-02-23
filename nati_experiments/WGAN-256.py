@@ -1,7 +1,6 @@
 
 # coding: utf-8
 
-import os,sys
 import pickle
 
 import sys
@@ -9,18 +8,16 @@ sys.path.insert(0, '../')
 
 import data
 from model import WGanModel
-from gan import GAN
+from gan import CosmoGAN
 
 
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # Parameters
 
 ns = 256
-nsamples = 10000
+nsamples = 15000
 k = 10
-try_restart = True
+try_resume = False
 
 
 
@@ -69,10 +66,18 @@ params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 100
 
+params_cosmology = dict()
+params_cosmology['clip_max_real'] = False
+params_cosmology['log_clip'] = 0.1
+params_cosmology['sigma_smooth'] = 1
+params_cosmology['k'] = k
+params_cosmology['Npsd'] = 500
+
 params = dict()
 params['generator'] = params_generator
 params['discriminator'] = params_discriminator
 params['optimization'] = params_optimization
+params['cosmology'] = params_cosmology
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
@@ -81,35 +86,28 @@ params['sum_every'] = 200
 params['viz_every'] = 1000
 params['save_every'] = 5000
 params['name'] = name
-params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
-params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
+params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
 
-params['clip_max_real'] = False
-params['log_clip'] = 0.1
-params['sigma_smooth'] = 1
-params['k'] = k
+resume = False
 
-
-
-if try_restart:
+if try_resume:
     try:
         with open(params['save_dir']+'params.pkl', 'rb') as f:
             params = pickle.load(f)
-        restart = False
+        resume = True
+        print('Resume, the training will start from the last iteration!')
     except:
-       print('No restart!')
-       restart = True
-else:
-	restart = True
+        print('No resume, the training will start from the beginning!')
 
 # Build the model
 
-wgan = GAN(params, WGanModel)
+wgan = CosmoGAN(params, WGanModel)
 
 # Load data
 images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)
-images = data.make_smaller_samples(images, ns)
-raw_images = data.make_smaller_samples(raw_images, ns)   
+# images = data.make_smaller_samples(images, ns)
+# raw_images = data.make_smaller_samples(raw_images, ns)   
 
 # Train the model
-wgan.train(images, restart=restart)
+wgan.train(images, resume=resume)

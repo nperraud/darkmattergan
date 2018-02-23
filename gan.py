@@ -408,8 +408,8 @@ class CosmoGAN(GAN):
 
         self._md['peak_fake'] = tf.placeholder(tf.float64, shape=[None], name="peak_fake")
         self._md['peak_real'] = tf.placeholder(tf.float64, shape=[None], name="peak_real")
-        # tf.summary.histogram("Peaks/Fake_log", self._md['peak_fake'], collections=['Metrics'])
-        # tf.summary.histogram("Peaks/Real_log", self._md['peak_real'], collections=['Metrics'])
+        tf.summary.histogram("Peaks/Fake_log", self._md['peak_fake'], collections=['Metrics'])
+        tf.summary.histogram("Peaks/Real_log", self._md['peak_real'], collections=['Metrics'])
 
         self._md['distance_peak_comp'] = tf.placeholder(tf.float64, name='distance_peak_comp')
         self._md['distance_peak_fake'] = tf.placeholder(tf.float64, name='distance_peak_fake')
@@ -442,6 +442,24 @@ class CosmoGAN(GAN):
         tf.summary.scalar("PSD/log_l2", self._md['log_l2_psd'], collections=['Metrics'])
         tf.summary.scalar("PSD/l1", self._md['l1_psd'], collections=['Metrics'])
         tf.summary.scalar("PSD/log_l1", self._md['log_l1_psd'], collections=['Metrics'])
+
+        self._md['l2_peak_hist'] = tf.placeholder(tf.float32, name = 'l2_peak_hist')
+        self._md['log_l2_peak_hist'] = tf.placeholder(tf.float32, name = 'log_l2_peak_hist')
+        self._md['l1_peak_hist'] = tf.placeholder(tf.float32, name = 'l1_peak_hist')
+        self._md['log_l1_peak_hist'] = tf.placeholder(tf.float32, name = 'log_l1_peak_hist')
+        tf.summary.scalar("PEAK_HIST/l2", self._md['l2_peak_hist'], collections=['Metrics'])
+        tf.summary.scalar("PEAK_HIST/log_l2", self._md['log_l2_peak_hist'], collections=['Metrics'])
+        tf.summary.scalar("PEAK_HIST/l1", self._md['l1_peak_hist'], collections=['Metrics'])
+        tf.summary.scalar("PEAK_HIST/log_l1", self._md['log_l1_peak_hist'], collections=['Metrics'])
+
+        self._md['l2_mass_hist'] = tf.placeholder(tf.float32, name = 'l2_mass_hist')
+        self._md['log_l2_mass_hist'] = tf.placeholder(tf.float32, name = 'log_l2_mass_hist')
+        self._md['l1_mass_hist'] = tf.placeholder(tf.float32, name = 'l1_mass_hist')
+        self._md['log_l1_mass_hist'] = tf.placeholder(tf.float32, name = 'log_l1_mass_hist')
+        tf.summary.scalar("MASS_HIST/l2", self._md['l2_mass_hist'], collections=['Metrics'])
+        tf.summary.scalar("MASS_HIST/log_l2", self._md['log_l2_mass_hist'], collections=['Metrics'])
+        tf.summary.scalar("MASS_HIST/l1", self._md['l1_mass_hist'], collections=['Metrics'])
+        tf.summary.scalar("MASS_HIST/log_l1", self._md['log_l1_mass_hist'], collections=['Metrics'])
 
         self.summary_op_metrics = tf.summary.merge(tf.get_collection("Metrics"))
 
@@ -477,18 +495,28 @@ class CosmoGAN(GAN):
 
             psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake)
             psd_gen = np.mean(psd_gen, axis=0)
+            l2, logel2, l1, logel1 = metrics.diff_vec(self._psd_real, psd_gen)
 
-            e = self._psd_real - psd_gen
-            l2 = np.mean(e*e)
-            l1 = np.mean(np.abs(e))
-            loge = 10*(np.log10(self._psd_real+1e-5) - np.log10(psd_gen+1e-5))
-            logel2 = np.mean(loge*loge)
-            logel1 = np.mean(np.abs(loge))
             feed_dict[self._md['l2_psd']] = l2
             feed_dict[self._md['log_l2_psd']] = logel2
             feed_dict[self._md['l1_psd']] = l1
             feed_dict[self._md['log_l1_psd']] = logel1
 
+            y_real, y_fake, x = metrics.peak_count_hist(real, fake)
+            l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
+
+            feed_dict[self._md['l2_peak_hist']] = l2
+            feed_dict[self._md['log_l2_peak_hist']] = logel2
+            feed_dict[self._md['l1_peak_histd']] = l1
+            feed_dict[self._md['log_l1_peak_hist']] = logel1
+
+            y_real, y_fake, x = metrics.mass_hist(real, fake)
+            l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
+
+            feed_dict[self._md['l2_mass_hist']] = l2
+            feed_dict[self._md['log_l2_mass_hist']] = logel2
+            feed_dict[self._md['l1_mass_histd']] = l1
+            feed_dict[self._md['log_l1_mass_hist']] = logel1
 
             real = utils.makeit_square(real)
             fake = utils.makeit_square(fake)

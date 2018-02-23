@@ -14,9 +14,9 @@ import pickle
 # Parameters
 
 ns = 64
-nsamples = 4000
+nsamples = 10000
 k = 10
-try_resume = False
+try_resume = True
 
 
 # def current_time_str():
@@ -30,8 +30,6 @@ time_str = 'final'
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
-
-bn = False
 
 bn = False
 
@@ -99,8 +97,10 @@ if try_resume:
     except:
         print('No resume, the training will start from the beginning!')
 
-# Build the model
 
+
+params['optimization']['epoch']=300
+# Build the model
 wgan = CosmoGAN(params, WGanModel)
 
 images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)

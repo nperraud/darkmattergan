@@ -43,6 +43,7 @@ def plot_with_shade(ax, x, y, label, color, **linestyle):
 
 
 
+
 def plot_array_plt(x, ax=None, cmap='planck', color='black', simple_k = 10):
     if cmap == 'planck':
         cmap = planck_cmap()

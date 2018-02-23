@@ -29,7 +29,7 @@ scalings = [8]
 nsamples = 7500
 k = 10
 
-try_resume = True
+try_resume = False
 
 
 
@@ -45,7 +45,7 @@ name = 'LapPatchWGAN{}'.format(ns)
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 params_optimization['weight_l2'] = 0.1
-params_optimization['batch_size'] = 32
+params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 3e-5

@@ -234,17 +234,43 @@ def psd_metric(gen_sample_raw, real_sample_raw):
     psd_real, _ = power_spectrum_batch_phys(X1=real_sample_raw)
     psd_gen = np.mean(psd_gen, axis=0)    
     psd_real = np.mean(psd_real, axis=0)
-    # e = psd_real - psd_gen
-    # l2 = np.mean(e*e)
-    # loge = 10*(np.log10(psd_real) - np.log10(psd_gen))
-    # logel2 = np.mean(loge*loge)
-    return diff_psd(psd_real, psd_gen)
+    return diff_vec(psd_real, psd_gen)
 
-def diff_psd(psd_real_mean, psd_gen_mean):
-    e = psd_real_mean - psd_gen_mean
+
+
+def diff_vec(y_real, y_fake):
+    e = y_real - y_fake
     l2 = np.mean(e*e)
     l1 = np.mean(np.abs(e))
-    loge = 10*(np.log10(psd_real_mean+1e-5) - np.log10(psd_gen_mean+1e-5))
+    loge = 10*(np.log10(y_real+1e-2) - np.log10(y_fake+1e-2))
     logel2 = np.mean(loge*loge)
     logel1 = np.mean(np.abs(loge))
     return l2, logel2, l1, logel1
+
+
+def peak_count_hist(real, fake, bins=20):
+    peak_real = np.array([peak_count(x, neighborhood_size=5, threshold=0) for x in real])
+    peak_fake = np.array([peak_count(x, neighborhood_size=5, threshold=0) for x in fake])
+    peak_real = np.log(np.hstack(peak_real))
+    peak_fake = np.log(np.hstack(peak_fake))
+    lim = (np.min(peak_real), np.max(peak_real))
+    y_real, x = np.histogram(peak_real,bins=bins, range=lim)
+    y_fake, _ = np.histogram(peak_fake,bins=bins, range=lim)
+    x = (x[1:]+x[:-1])/2
+    # Normalization
+    y_real = y_real / real.shape[0]
+    y_fake = y_fake / fake.shape[0]
+    return y_real, y_fake, x
+
+
+
+def mass_hist(real, fake, bins=20):
+    log_real = np.log(real.flatten()+1)
+    log_fake = np.log(fake.flatten()+1)
+    lim = (np.min(log_real), np.max(log_real))
+    y_real, x = np.histogram(log_real, bins=20, range=lim)
+    y_fake, _ = np.histogram(log_fake, bins=20, range=lim)
+    x = (x[1:]+x[:-1])/2
+    y_real = y_real/real.shape[0]
+    y_fake = y_fake/fake.shape[0]
+    return y_real, y_fake, x

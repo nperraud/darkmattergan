@@ -99,8 +99,8 @@ params['cosmology'] = params_cosmology
 
 
 params['prior_distribution'] = 'gaussian'
-params['sum_every'] = 100
-params['viz_every'] = 100
+params['sum_every'] = 200
+params['viz_every'] = 200
 params['save_every'] = 1000
 params['normalize'] = False
 params['image_size'] = [new_ns*up_scaling, new_ns*up_scaling]
