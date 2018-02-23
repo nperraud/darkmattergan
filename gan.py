@@ -8,7 +8,7 @@ import scipy.misc
 import scipy.ndimage.filters as filters
 from scipy import ndimage
 from default import default_params, default_params_cosmology
-
+from plot_summary import PlotSummaryLog
 
 class GAN(object):
     def __init__(self, params, model=None, is_3d=False):
@@ -251,7 +251,7 @@ class GAN(object):
                                                                      (current_time - prev_iter_time) / 100, loss_d, loss_g))
                             prev_iter_time = current_time
 
-                        self._train_log(self._get_dict(sample_z, X_real), X, epoch=epoch, batch_num=idx)
+                        self._train_log(self._get_dict(sample_z, X_real), X)
 
                         if (np.mod(self._counter, self.params['save_every']) == 0) | self._save_current_step:
                             self._save(self._savedir, self._counter)
@@ -263,7 +263,7 @@ class GAN(object):
                 pass
             self._save(self._savedir, self._counter)
 
-    def _train_log(self, feed_dict, X, epoch=None, batch_num=None):
+    def _train_log(self, feed_dict, X):
         if np.mod(self._counter, self.params['viz_every']) == 0:
             summary_str, real_arr, fake_arr  = self._sess.run([self.summary_op_img, self._X, self._G_fake], feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
@@ -271,8 +271,8 @@ class GAN(object):
             ##--------------------------------display cube by tiling square slices--------------------------------------
             if self.is_3d:
                 real_summary, fake_summary = self._sess.run([self.summary_op_real_image, self.summary_op_fake_image],
-                    feed_dict={self.real_placeholder: utils.tile_cube_slices(real_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'real'),
-                    self.fake_placeholder: utils.tile_cube_slices(fake_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'fake') })
+                    feed_dict={self.real_placeholder: utils.tile_cube_slices(real_arr[0, :, :, :, 0]),
+                    self.fake_placeholder: utils.tile_cube_slices(fake_arr[0, :, :, :, 0]) })
 
                 self._summary_writer.add_summary(real_summary, self._counter)
                 self._summary_writer.add_summary(fake_summary, self._counter)
@@ -492,6 +492,10 @@ class CosmoGAN(GAN):
         tf.summary.scalar("MASS_HIST/l1", self._md['l1_mass_hist'], collections=['Metrics'])
         tf.summary.scalar("MASS_HIST/log_l1", self._md['log_l1_mass_hist'], collections=['Metrics'])
 
+        self._psd_plot = PlotSummaryLog('Power_spectrum_density', 'PLOT')
+        self._mass_hist_plot = PlotSummaryLog('Mass_histogram', 'PLOT')
+        self._peak_hist_plot = PlotSummaryLog('Peak_histogram', 'PLOT')
+
         self.summary_op_metrics = tf.summary.merge(tf.get_collection("Metrics"))
 
     def train(self, X, resume=False):
@@ -513,22 +517,19 @@ class CosmoGAN(GAN):
 
         super().train(X=X, resume=resume)
 
-    def _train_log(self, feed_dict, X, epoch=None, batch_num=None):
-        super()._train_log(feed_dict, X, epoch, batch_num)
+    def _train_log(self, feed_dict, X):
+        super()._train_log(feed_dict, X)
         if np.mod(self._counter, self.params['sum_every']) == 0:
             ind = np.random.randint(0, len(X), size=[self._Npsd])
             Xsel = X[ind]
             real = utils.backward_map(Xsel, self.params['cosmology']['k'])
             z_sel = self._sample_latent(self._Npsd)
 
-            if self.is_3d:
-                _, fake = self._generate_sample_safe(z_sel, Xsel.reshape( [self._Npsd, X.shape[1], X.shape[2], X.shape[3], 1] ))
-                fake.resize( [self._Npsd, X.shape[1], X.shape[2], X.shape[3]] )
-            else:
-                _, fake = self._generate_sample_safe(z_sel, Xsel.reshape( [self._Npsd, X.shape[1], X.shape[2], 1] ))
-                fake.resize( [self._Npsd, X.shape[1], X.shape[2]] )
 
-            psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake, is_3d=self.is_3d)
+            _, fake = self._generate_sample_safe(z_sel, Xsel.reshape( [self._Npsd, *X.shape[1:], 1] ))
+            fake.resize( [self._Npsd, *X.shape[1:]] )
+
+            psd_gen, x = metrics.power_spectrum_batch_phys(X1=fake, is_3d=self.is_3d)
             psd_gen = np.mean(psd_gen, axis=0)
             l2, logel2, l1, logel1 = metrics.diff_vec(self._psd_real, psd_gen)
 
@@ -536,6 +537,9 @@ class CosmoGAN(GAN):
             feed_dict[self._md['log_l2_psd']] = logel2
             feed_dict[self._md['l1_psd']] = l1
             feed_dict[self._md['log_l1_psd']] = logel1
+
+            summary_str = self._psd_plot.produceSummaryToWrite(self._sess,x, self._psd_real, psd_gen)
+            self._summary_writer.add_summary(summary_str, self._counter)
 
             y_real, y_fake, x = metrics.peak_count_hist(real, fake)
             l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
@@ -545,6 +549,9 @@ class CosmoGAN(GAN):
             feed_dict[self._md['log_l1_peak_hist']] = logel1
             feed_dict[self._md['l1_peak_hist']] = l1
 
+            summary_str = self._peak_hist_plot.produceSummaryToWrite(self._sess,x, y_real, y_fake)
+            self._summary_writer.add_summary(summary_str, self._counter)
+
             y_real, y_fake, x = metrics.mass_hist(real, fake)
             l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
 
@@ -552,6 +559,9 @@ class CosmoGAN(GAN):
             feed_dict[self._md['log_l2_mass_hist']] = logel2
             feed_dict[self._md['l1_mass_hist']] = l1
             feed_dict[self._md['log_l1_mass_hist']] = logel1
+
+            summary_str = self._mass_hist_plot.produceSummaryToWrite(self._sess,x, y_real, y_fake)
+            self._summary_writer.add_summary(summary_str, self._counter)
 
             real = utils.makeit_square(real)
             fake = utils.makeit_square(fake)
@@ -626,26 +636,4 @@ class CosmoGAN(GAN):
 
     def _get_sample_args(self):
         return [self._G_fake, self._G_raw]
-
-    # def _generate_sample_safe(self, z=None, X=None, y=None):
-    #     # This should be done in a better way
-
-    #     gen_images = []
-    #     gen_images_raw =[]
-    #     N = len(z)
-    #     sind = 0
-    #     bs = self.batch_size
-    #     if N > bs:
-    #         nb = (N-1) // bs
-    #         for i in range(nb):
-    #             gi, gi_raw = self._sess.run([self._G_fake, self._G_raw], feed_dict = self._get_dict(z, X, y, slice(sind,sind+bs)))
-    #             gen_images.append(gi)
-    #             gen_images_raw.append(gi_raw)
-    #             sind = sind + bs
-
-    #     gi, gi_raw = self._sess.run([self._G_fake, self._G_raw], feed_dict=self._get_dict(z, X, y, slice(sind,N)))
-    #     gen_images.append(gi)
-    #     gen_images_raw.append(gi_raw)
-
-    #     return np.vstack(gen_images), np.vstack(gen_images_raw)
 

@@ -180,7 +180,7 @@ def makeit_square(x):
         new_x = x
     return new_x
 
-def tile_cube_slices(cube, epoch, batch, label):
+def tile_cube_slices(cube):
         '''
         cube = [:, :, :]
         arrange cube as tile of squares
