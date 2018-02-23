@@ -242,7 +242,7 @@ class GAN(object):
                         sample_z = self._sample_latent(self.batch_size)
                         _, loss_g, v, m = self._sess.run([self._G_solver, self._G_loss, self._var, self._mean], feed_dict=self._get_dict(sample_z, X_real))
 
-                        if np.mod(self._counter, 200) == 0:
+                        if np.mod(self._counter, self.params['print_every']) == 0:
                             current_time = time.time()
                             print(
                                 "Epoch: [{:2d}] [{:4d}/{:4d}] Counter:{:2d}\t({:4.1f} min\t{:4.2f} examples/sec\t{:4.3f} sec/batch)\tL_Disc:{:.8f}\tL_Gen:{:.8f}".format(
@@ -542,15 +542,15 @@ class CosmoGAN(GAN):
 
             feed_dict[self._md['l2_peak_hist']] = l2
             feed_dict[self._md['log_l2_peak_hist']] = logel2
-            feed_dict[self._md['l1_peak_histd']] = l1
             feed_dict[self._md['log_l1_peak_hist']] = logel1
+            feed_dict[self._md['l1_peak_hist']] = l1
 
             y_real, y_fake, x = metrics.mass_hist(real, fake)
             l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
 
             feed_dict[self._md['l2_mass_hist']] = l2
             feed_dict[self._md['log_l2_mass_hist']] = logel2
-            feed_dict[self._md['l1_mass_histd']] = l1
+            feed_dict[self._md['l1_mass_hist']] = l1
             feed_dict[self._md['log_l1_mass_hist']] = logel1
 
             real = utils.makeit_square(real)
