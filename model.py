@@ -27,8 +27,9 @@ class GanModel(object):
         return self._G_loss
 
 class WGanModel(GanModel):
-    def __init__(self, params, X, z, name='wgan'): 
+    def __init__(self, params, X, z, name='wgan', is_3d=False):
         super().__init__(params=params, name=name)
+        self._is_3d = is_3d
         self.G_fake = self.generator(z, reuse=False)
         self.D_real = self.discriminator(X, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, reuse=True)
@@ -40,11 +41,21 @@ class WGanModel(GanModel):
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
 
+    @property
+    def is_3d(self):
+        return self._is_3d
+
     def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
+        if self.is_3d:
+            return generator(z, self.params['generator'], reuse=reuse, is_3d=True)
+        else:
+            return generator(z, self.params['generator'], reuse=reuse)
 
     def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse)
+        if self.is_3d:
+            return discriminator(X, self.params['discriminator'], reuse=reuse, conv=conv3d)
+        else:
+            return discriminator(X, self.params['discriminator'], reuse=reuse)
 
 
 
@@ -316,7 +327,7 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
     return D_gp
 
 
-def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
+def discriminator(x, params, z=None, reuse=True, scope="discriminator", conv=conv2d):
 
     assert(len(params['stride']) ==
            len(params['nfilter']) ==
@@ -328,7 +339,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         rprint('Discriminator \n------------------------------------------------------------', reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         for i in range(nconv):
-            x = conv2d(x,
+            x = conv(x,
                        nf_out=params['nfilter'][i],
                        shape=params['shape'][i],
                        stride=params['stride'][i],
@@ -367,13 +378,12 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     return x
 
 
-def generator(x, params, y=None, reuse=True, scope="generator"):
+def generator(x, params, y=None, reuse=True, scope="generator", is_3d=False):
 
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
     nfull = len(params['full'])
-
     with tf.variable_scope(scope):
         rprint('Generator \n------------------------------------------------------------', reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
@@ -394,17 +404,30 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
         sx = np.int(
             np.sqrt(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0]))
 
-        x = tf.reshape(x, [bs, sx, sx, params['nfilter'][0]], name='vec2img')
+        if is_3d:
+            x = tf.reshape(x, [bs, sx, sx, sx, params['nfilter'][0]], name='vec2img')
+        else:
+            x = tf.reshape(x, [bs, sx, sx, params['nfilter'][0]], name='vec2img')
+
         rprint('     Reshape to {}'.format(x.shape), reuse)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
-            x = deconv2d(x,
+            if is_3d:
+                x = deconv3d(x,
+                         output_shape=[bs, sx, sx, sx, params['nfilter'][i]],
+                         shape=params['shape'][i],
+                         stride=params['stride'][i],
+                         name='{}_deconv_3d'.format(i),
+                         summary=params['summary'])
+            else:
+                x = deconv2d(x,
                          output_shape=[bs, sx, sx, params['nfilter'][i]],
                          shape=params['shape'][i],
                          stride=params['stride'][i],
                          name='{}_deconv'.format(i),
                          summary=params['summary'])
+
             rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
             if i < nconv-1:
                 if params['batch_norm'][i]:

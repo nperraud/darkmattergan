@@ -1,7 +1,18 @@
 import numpy as np
 import os
 import utils
+import gaussian_synthetic_data
 
+
+def load_3d_synthetic_samples(nsamples, dim, k):
+    images = 2*gaussian_synthetic_data.generate_cubes(nsamples=nsamples, cube_dim=dim)-1.0
+    raw_images = utils.backward_map(images)
+
+    return images, raw_images
+
+def load_2d_synthetic_samples(nsamples, dim, k):
+    images = 2*gaussian_synthetic_data.generate_squares(nsamples=nsamples, square_dim=dim)-1.0
+    raw_images = utils.backward_map(images)
 
 def load_samples(nsamples=1000, permute=False, k=10, spix=256):
     path = data_path(spix)

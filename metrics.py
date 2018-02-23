@@ -37,18 +37,22 @@ import multiprocessing as mp
 def wrapper_func(x, bin_k = 50, box_l = 100/0.7):
     return ps.power_spectrum(field_x=ps.dens2overdens(np.squeeze(x), np.mean(x)), box_l=box_l, bin_k=bin_k)[0]
 
-def wrapper_func_cross(a, X2, self_comp, sx, sy, bin_k = 50, box_l = 100/0.7):
+def wrapper_func_cross(a, X2, self_comp, sx, sy, sz=None, bin_k = 50, box_l = 100/0.7, is_3d=False):
     inx, x = a
     _result = []
     for iny, y in enumerate(X2):
         if (self_comp and ( inx < iny)) or not self_comp:  # if it is a comparison with it self only do the low triangular matrix
-            over_dens_x = ps.dens2overdens(x.reshape(sx,sy))
-            over_dens_y = ps.dens2overdens(y.reshape(sx,sy))
+            if is_3d:
+                over_dens_x = ps.dens2overdens(x.reshape(sx,sy,sz))
+                over_dens_y = ps.dens2overdens(y.reshape(sx,sy,sz))   
+            else: 
+                over_dens_x = ps.dens2overdens(x.reshape(sx,sy))
+                over_dens_y = ps.dens2overdens(y.reshape(sx,sy))
 
             _result.append(ps.power_spectrum(field_x=over_dens_x, box_l=box_l,bin_k=bin_k, field_y=over_dens_y)[0])
     return _result
 
-def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
+def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7, is_3d=False):
     '''
     Calculates the 1-D PSD of a batch of variable size
     :param batch:
@@ -56,13 +60,21 @@ def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
     :return:
     '''
     sx, sy = X1[0].shape[0], X1[0].shape[1]
+    sz = None
+    if is_3d:
+        sz = X1[0].shape[2]
+
     if not(sx == sy):
         X1 = utils.makeit_square(X1)
         s = X1[0].shape[0]
     else:
         s = sx
         # ValueError('The image need to be squared')
-    _, k =  ps.power_spectrum(field_x=X1[0].reshape(s,s), box_l=box_l, bin_k=bin_k)
+    
+    if is_3d:
+        _, k =  ps.power_spectrum(field_x=X1[0].reshape(s,s,s), box_l=box_l, bin_k=bin_k)
+    else:
+        _, k =  ps.power_spectrum(field_x=X1[0].reshape(s,s), box_l=box_l, bin_k=bin_k)
 
     num_workers = mp.cpu_count()-1
     # if num_workers == 23:
@@ -91,7 +103,7 @@ def power_spectrum_batch_phys(X1, X2=None, bin_k = 50, box_l = 100/0.7):
             #     #         over_dens_x = ps.dens2overdens(x.reshape(sx,sy))
             #     #         over_dens_y = ps.dens2overdens(y.reshape(sx,sy))
             #     _result += wrapper_func_cross((inx, x), X2, self_comp, sx, sy, bin_k = 50, box_l = 100/0.7)
-            _result = pool.map(functools.partial(wrapper_func_cross, X2=X2, self_comp=self_comp, sx=sx, sy=sy, bin_k = 50, box_l = 100/0.7), enumerate(X1))
+            _result = pool.map(functools.partial(wrapper_func_cross, X2=X2, self_comp=self_comp, sx=sx, sy=sy, sz=sz, bin_k = 50, box_l = 100/0.7, is_3d=is_3d), enumerate(X1))
             _result = list(itertools.chain.from_iterable(_result))
             #  _result.append(ps.power_spectrum(field_x=over_dens_x, box_l=box_l,bin_k=bin_k, field_y=over_dens_y)[0])
             result = np.array(_result)
@@ -165,7 +177,10 @@ def peak_count(X, neighborhood_size=5, threshold=0):
     try:
         X = X.reshape(n, n)
     except:
-        raise Exception(" [!] Image not squared ")
+        try:
+            X = X.reshape(n, n, n)
+        except:
+            raise Exception(" [!] Image not squared ")
 
     # PEAK COUNTS
     data_max = filters.maximum_filter(X, neighborhood_size)
