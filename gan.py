@@ -4,18 +4,19 @@ import utils, metrics
 import time
 import os, sys
 import pickle
-from default import default_params, default_params_cosmology
-
+import scipy.misc
 import scipy.ndimage.filters as filters
 from scipy import ndimage
+from default import default_params, default_params_cosmology
 
 
 class GAN(object):
-    def __init__(self, params, model=None):
+    def __init__(self, params, model=None, is_3d=False):
 
         tf.reset_default_graph()
 
         self.params = default_params(params)
+        self._is_3d = is_3d
         if model is None:
             model = params['model']
         else:
@@ -31,7 +32,7 @@ class GAN(object):
         self._X = tf.placeholder(tf.float32, shape=[None, *self.params['image_size'], 1], name='X')
 
         name = params['name']
-        self._model = model(params, self._normalize(self._X), self._z, name=name if name else None)
+        self._model = model(params, self._normalize(self._X), self._z, name=name if name else None, is_3d=is_3d)
         self._model_name = self._model.name
         self._D_loss = self._model.D_loss
         self._G_loss = self._model.G_loss
@@ -67,11 +68,29 @@ class GAN(object):
         self._buid_opt_summaries(optimizer_D,grads_and_vars_d,optimizer_G,grads_and_vars_g,optimizer_E)
 
         # Summaries
-        tf.summary.image("training/Real_Image", self._X , max_outputs=4, collections=['Images'])
-        tf.summary.image("training/Fake_Image", self._G_fake, max_outputs=4, collections=['Images'])
-        if self.normalized():
-            tf.summary.image("training/Real_Image_normalized", self._normalize(self._X), max_outputs=4, collections=['Images'])
-            tf.summary.image("training/Fake_Image_normalized", self._normalize(self._G_fake), max_outputs=4, collections=['Images'])
+        if self.is_3d:
+            x_dim = self.params['image_size'][0]
+            y_dim = self.params['image_size'][1]
+            z_dim = self.params['image_size'][2]
+
+            self.real_placeholder = tf.placeholder(dtype=tf.float32, shape=[1, y_dim * int(x_dim**0.5), z_dim * int(x_dim**0.5), 1 ])
+            self.fake_placeholder = tf.placeholder(dtype=tf.float32, shape=[1, y_dim * int(z_dim**0.5), z_dim * int(x_dim**0.5), 1 ])
+
+            self.summary_op_real_image = tf.summary.image("training/plot_real", self.real_placeholder)
+            self.summary_op_fake_image = tf.summary.image("training/plot_fake", self.fake_placeholder)
+
+            if self.normalized():
+                tf.summary.image("training/Real_Image_normalized", self._normalize(self._X[:, 1, :, :, :]), max_outputs=4, collections=['Images'])
+                tf.summary.image("training/Fake_Image_normalized", self._normalize(self._G_fake[:, 1, :, :, :]), max_outputs=4, collections=['Images'])
+
+        else:
+            tf.summary.image("training/Real_Image", self._X , max_outputs=4, collections=['Images'])
+            tf.summary.image("training/Fake_Image", self._G_fake, max_outputs=4, collections=['Images'])
+            if self.normalized():
+                tf.summary.image("training/Real_Image_normalized", self._normalize(self._X), max_outputs=4, collections=['Images'])
+                tf.summary.image("training/Fake_Image_normalized", self._normalize(self._G_fake), max_outputs=4, collections=['Images'])
+
+        
         tf.summary.histogram('Prior/z', self._z, collections=['Images'])
 
 
@@ -223,7 +242,7 @@ class GAN(object):
                         sample_z = self._sample_latent(self.batch_size)
                         _, loss_g, v, m = self._sess.run([self._G_solver, self._G_loss, self._var, self._mean], feed_dict=self._get_dict(sample_z, X_real))
 
-                        if np.mod(self._counter, 100) == 0:
+                        if np.mod(self._counter, 200) == 0:
                             current_time = time.time()
                             print(
                                 "Epoch: [{:2d}] [{:4d}/{:4d}] Counter:{:2d}\t({:4.1f} min\t{:4.2f} examples/sec\t{:4.3f} sec/batch)\tL_Disc:{:.8f}\tL_Gen:{:.8f}".format(
@@ -232,7 +251,7 @@ class GAN(object):
                                                                      (current_time - prev_iter_time) / 100, loss_d, loss_g))
                             prev_iter_time = current_time
 
-                        self._train_log(self._get_dict(sample_z, X_real), X)
+                        self._train_log(self._get_dict(sample_z, X_real), X, epoch=epoch, batch_num=idx)
 
                         if (np.mod(self._counter, self.params['save_every']) == 0) | self._save_current_step:
                             self._save(self._savedir, self._counter)
@@ -244,10 +263,20 @@ class GAN(object):
                 pass
             self._save(self._savedir, self._counter)
 
-    def _train_log(self, feed_dict, X):
+    def _train_log(self, feed_dict, X, epoch=None, batch_num=None):
         if np.mod(self._counter, self.params['viz_every']) == 0:
-            summary_str = self._sess.run(self.summary_op_img, feed_dict=feed_dict)
+            summary_str, real_arr, fake_arr  = self._sess.run([self.summary_op_img, self._X, self._G_fake], feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
+
+            ##--------------------------------display cube by tiling square slices--------------------------------------
+            if self.is_3d:
+                real_summary, fake_summary = self._sess.run([self.summary_op_real_image, self.summary_op_fake_image],
+                    feed_dict={self.real_placeholder: utils.tile_cube_slices(real_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'real'),
+                    self.fake_placeholder: utils.tile_cube_slices(fake_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'fake') })
+
+                self._summary_writer.add_summary(real_summary, self._counter)
+                self._summary_writer.add_summary(fake_summary, self._counter)
+            ##--------------------------------------------------------------------------------------------------------------
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
             summary_str = self._sess.run(self.summary_op, feed_dict=feed_dict)
@@ -374,13 +403,15 @@ class GAN(object):
     def model_name(self):
         return self._model_name
 
-
+    @property
+    def is_3d(self):
+        return self._is_3d
 
 
 class CosmoGAN(GAN):
-    def __init__(self, params, model=None):
-        super().__init__(params=params, model=model)
-        
+    def __init__(self, params, model=None, is_3d=False):
+        super().__init__(params=params, model=model, is_3d=is_3d)
+
         self.params = default_params_cosmology(self.params)
         assert(self.params['cosmology']['k']>0)
         self._G_raw = utils.inv_pre_process(self._G_fake, self.params['cosmology']['k'])
@@ -449,7 +480,7 @@ class CosmoGAN(GAN):
 
         self._Npsd = self.params['cosmology']['Npsd']
         # Compute the real PSD on all data! May take some time
-        psd_real, _ = metrics.power_spectrum_batch_phys(X1=utils.backward_map(X, self.params['cosmology']['k']))
+        psd_real, _ = metrics.power_spectrum_batch_phys(X1=utils.backward_map(X, self.params['cosmology']['k']), is_3d=self.is_3d)
         self._psd_real = np.mean(psd_real, axis=0)
         del psd_real
 
@@ -464,18 +495,22 @@ class CosmoGAN(GAN):
 
         super().train(X=X, resume=resume)
 
-    def _train_log(self, feed_dict, X):
-        super()._train_log(feed_dict, X)
+    def _train_log(self, feed_dict, X, epoch=None, batch_num=None):
+        super()._train_log(feed_dict, X, epoch, batch_num)
         if np.mod(self._counter, self.params['sum_every']) == 0:
             ind = np.random.randint(0, len(X), size=[self._Npsd])
             Xsel = X[ind]
             real = utils.backward_map(Xsel, self.params['cosmology']['k'])
             z_sel = self._sample_latent(self._Npsd)
 
-            _, fake = self._generate_sample_safe(z_sel, Xsel.reshape([self._Npsd,X.shape[1],X.shape[2],1]))
-            fake.resize([self._Npsd,X.shape[1],X.shape[2]])
+            if self.is_3d:
+                _, fake = self._generate_sample_safe(z_sel, Xsel.reshape( [self._Npsd, X.shape[1], X.shape[2], X.shape[3], 1] ))
+                fake.resize( [self._Npsd, X.shape[1], X.shape[2], X.shape[3]] )
+            else:
+                _, fake = self._generate_sample_safe(z_sel, Xsel.reshape( [self._Npsd, X.shape[1], X.shape[2], 1] ))
+                fake.resize( [self._Npsd, X.shape[1], X.shape[2]] )
 
-            psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake)
+            psd_gen, _ = metrics.power_spectrum_batch_phys(X1=fake, is_3d=self.is_3d)
             psd_gen = np.mean(psd_gen, axis=0)
 
             e = self._psd_real - psd_gen
@@ -528,9 +563,9 @@ class CosmoGAN(GAN):
 
             # Measure Cross PS
             box_l = box_l=100/0.7
-            cross_rf, _ = metrics.power_spectrum_batch_phys(X1=real[index], X2=fake[index], box_l=box_l)
-            cross_ff, _ = metrics.power_spectrum_batch_phys(X1= fake[index], X2 = fake[index], box_l=box_l)
-            cross_rr, _ = metrics.power_spectrum_batch_phys(X1= real[index], X2 = real[index], box_l=box_l)
+            cross_rf, _ = metrics.power_spectrum_batch_phys(X1=real[index], X2=fake[index], box_l=box_l, is_3d=self.is_3d)
+            cross_ff, _ = metrics.power_spectrum_batch_phys(X1= fake[index], X2 = fake[index], box_l=box_l, is_3d=self.is_3d)
+            cross_rr, _ = metrics.power_spectrum_batch_phys(X1= real[index], X2 = real[index], box_l=box_l, is_3d=self.is_3d)
 
             feed_dict[self._md['cross_ps']] = [np.mean(cross_rf),np.mean(cross_ff), np.mean(cross_rr)]
 

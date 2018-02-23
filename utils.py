@@ -6,7 +6,7 @@ import shutil
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import warnings
-
+import scipy
 
 
 def sample_latent(m, n, prior = "uniform", normalize=False):
@@ -145,10 +145,10 @@ def show_all_variables():
 def saferm(path):
     if os.path.isdir(path):
         shutil.rmtree(path)
-        print('Erease recursively directory: '+path)
+        print('Erase recursively directory: '+path)
     if os.path.isfile(path):
         os.remove(path)
-        print('Erease file: '+path)
+        print('Erase file: '+path)
 
 
 
@@ -180,7 +180,33 @@ def makeit_square(x):
         new_x = x
     return new_x
 
+def tile_cube_slices(cube, epoch, batch, label):
+        '''
+        cube = [:, :, :]
+        arrange cube as tile of squares
+        '''
+        x_dim = cube.shape[0]
+        y_dim = cube.shape[1]
+        z_dim = cube.shape[2]
+        v_stacks = []
+        num = 0
+        for i in range(0, int(x_dim**0.5) ):
+            h_stacks = []
+            for j in range(0, int(x_dim**0.5) ):
+                h_stacks.append(cube[num, :, :])
+                num += 1
+            v_stacks.append( np.hstack(h_stacks) )
 
+        tile = np.vstack(v_stacks)
+
+        # dir_path = '../saved_result/Images/' + label
+        # if not os.path.exists(dir_path):
+        #     os.makedirs(dir_path)
+
+        # file_name = epoch + '_' + batch + '.jpg'
+        # scipy.misc.imsave(dir_path + '/' + file_name, tile)
+
+        return tile.reshape([1, *(tile.shape), 1])
 
 
 
