@@ -29,7 +29,7 @@ scalings = [8]
 nsamples = 7500
 k = 10
 
-try_resume = False
+try_resume = True
 
 
 

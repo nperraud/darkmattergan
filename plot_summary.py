@@ -1,9 +1,10 @@
 import io
 import tensorflow as tf
-import matplotlib.pyplot as plt
 import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
 
-# matplotlib.use('Agg')
 
 # Inspired by Andres
 
@@ -25,6 +26,15 @@ class PlotSummary(object):
 
     def plot(self):
         plt.Figure()
+        ax = plt.gca()
+        N = 10
+        x = np.linspace(0,N-1,N)
+        y = np.random.rand(N)
+        ax.plot(x,y,label="Random data", color='r')
+        ax.title.set_text(self._name + "\n")
+        ax.title.set_fontsize(11)
+        ax.tick_params(axis='both', which='major', labelsize=10)
+        ax.legend()
 
     def _fill_from_figure(self):
         buf = io.BytesIO()
@@ -58,3 +68,10 @@ class PlotSummaryLog(PlotSummary):
         ax.tick_params(axis='both', which='major', labelsize=10)
         ax.legend()
         # self._fill_from_figure()
+
+if __name__ == '__main__':
+    print('Testing the plot module')
+    obj = PlotSummary('Objname','ObjCat')
+    with tf.Session() as sess:
+        test = obj.produceSummaryToWrite(sess)
+    print('Test done!')
