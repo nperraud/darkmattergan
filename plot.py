@@ -36,8 +36,6 @@ def draw_images(images,
     axes : axes
 
     """
-    import matplotlib.pyplot as plt
-
     ndim = len(images.shape)
     nimg = images.shape[0]
 

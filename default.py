@@ -4,11 +4,11 @@ def default_params(params=dict()):
     # -----------------
     params['print_every'] = params.get('print_every', 100)
     # Print the losses in the consol every 'print_every' iterations
-    params['save_every'] = params.get('print_every', 100)
+    params['save_every'] = params.get('save_every', 100)
     # Save the model every 'save_every' iterations
-    params['sum_every'] = params.get('print_every', 100)
+    params['sum_every'] = params.get('sum_every', 100)
     # Compute the numerical summaries every 'sum_every' iterations
-    params['viz_every'] = params.get('print_every', 100)
+    params['viz_every'] = params.get('viz_every', 100)
     # Buil the visual summaries every 'viz_every' iterations
     params['normalize'] = params.get('normalize', False)
     # Apply a normalization step to the data

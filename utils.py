@@ -8,6 +8,21 @@ import tensorflow.contrib.slim as slim
 import scipy
 
 
+def test_resume(try_resume, params):
+
+    resume = False
+
+    if try_resume:
+        try:
+            with open(params['save_dir']+'params.pkl', 'rb') as f:
+                params = pickle.load(f)
+            resume = True
+            print('Resume, the training will start from the last iteration!')
+        except:
+            print('No resume, the training will start from the beginning!')
+
+    return resume, params
+
 def sample_latent(m, n, prior="uniform", normalize=False):
     if prior == "uniform":
         return np.random.uniform(-1., 1., size=[m, n])
