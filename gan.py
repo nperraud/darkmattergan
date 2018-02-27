@@ -242,6 +242,7 @@ class GAN(object):
                             if self.has_encoder:
                                 _, loss_e = self._sess.run([self._E_solver, self._E_loss], feed_dict=self._get_dict(sample_z, X_real))
                         sample_z = self._sample_latent(self.batch_size)
+
                         _, loss_g, v, m = self._sess.run([self._G_solver, self._G_loss, self._var, self._mean], feed_dict=self._get_dict(sample_z, X_real))
 
                         if np.mod(self._counter, self.params['print_every']) == 0:
@@ -288,6 +289,10 @@ class GAN(object):
         if bs is None:
             bs = self.batch_size
         latent_dim = self.params['generator']['latent_dim']
+        if 'num_classes' in self.params and self.params['num_classes'] > 1:
+            latent = utils.sample_latent(int(np.ceil(bs/self.params['num_classes'])),
+                                         latent_dim, self._prior_distribution)
+            return np.repeat(latent, self.params['num_classes'], axis=0)[:bs]
         return utils.sample_latent(bs, latent_dim, self._prior_distribution)
 
     def _get_dict(self, z=None, X=None, y=None, index=None):
@@ -325,7 +330,6 @@ class GAN(object):
 
         with open(self.params['save_dir']+'params.pkl', 'wb') as f:
             pickle.dump(self.params, f)
-
 
 
     def _load(self, file_name = None):       

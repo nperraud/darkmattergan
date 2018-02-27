@@ -27,7 +27,7 @@ def gen_dataset(images_per_time_step=1000, num_time_steps=10, width=64, num_gaus
             dataset[time_step][image] = dataset[time_step][image] * num_points
         if (image + 1) % (images_per_time_step / 20) == 0:
             print('completed {} image series'.format(image + 1))
-    dataset = dataset.astype(int)
+    #dataset = dataset.astype(int)
     if filename is not None:
         h5f = h5py.File(filename, 'w')
         for time_step in range(num_time_steps):
