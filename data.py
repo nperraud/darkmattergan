@@ -1,10 +1,21 @@
 import numpy as np
 import os
 import utils
+import gaussian_synthetic_data
 
+
+def load_3d_synthetic_samples(nsamples, dim, k):
+    images = 2*gaussian_synthetic_data.generate_cubes(nsamples=nsamples, cube_dim=dim)-1.0
+    raw_images = utils.backward_map(images)
+
+    return images, raw_images
+
+def load_2d_synthetic_samples(nsamples, dim, k):
+    images = 2*gaussian_synthetic_data.generate_squares(nsamples=nsamples, square_dim=dim)-1.0
+    raw_images = utils.backward_map(images)
 
 def load_samples(nsamples=1000, permute=False, k=10, spix=256):
-    path = '../data/size{}_splits1000_n500x3/'.format(spix)
+    path = data_path(spix)
     input_pattern = 'Box_70*snapshot_050'
     file_ext = '.dat'
 
@@ -17,14 +28,15 @@ def load_samples(nsamples=1000, permute=False, k=10, spix=256):
         raise ValueError("The number of samples must be smaller or equal to the number of files")
     else:
         print('Select {} samples out of {}.'.format(nsamples, len(queue)))
-
-    raw_images = np.vstack(map(lambda i: np.fromfile(queue[i], dtype=np.float32), range(nsamples)))
+    raw_images = np.array(list(map(lambda i: np.fromfile(queue[i], dtype=np.float32), range(nsamples))))
     raw_images.resize([nsamples, spix, spix])
 
-    images = utils.forward_map(raw_images, k)
     if permute:
         p = np.random.permutation(nsamples)
-        images = images[p]
+        raw_images = raw_images[p]
+
+    images = utils.forward_map(raw_images, k)
+
 
     return images, raw_images
 
@@ -55,3 +67,9 @@ def down_sample_images(images, scalings):
         down_sampled_images.append(downsample(down_sampled_images[-1], scale))
 
     return down_sampled_images
+
+
+def data_path(spix=256):
+    # To be changed
+    utils_module_path = os.path.dirname(__file__)
+    return utils_module_path + '/../data/size{}_splits1000_n500x3/'.format(spix)

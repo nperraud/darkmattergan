@@ -1,5 +1,5 @@
 save_test/*
-
+notebooks/*
 
 
 # Compiled source #
@@ -56,5 +56,7 @@ Thumbs.db
 
 # Jupyter stuff  #
 ##################
+Demo_WGAN_3d.ipynb
+3d-Gaussian.ipynb
 .ipynb_checkpoints
 __pycache__

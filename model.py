@@ -7,27 +7,17 @@ def rprint(msg, reuse=False):
     if not reuse:
         print(msg)
 
-
-class WGanModel(object):
-    def __init__(self, params, X, z, name='wgan'):
+class GanModel(object):
+    ''' Abstract class for the model'''
+    def __init__(self, params, name='gan', is_3d=False):
         self.name = name
         self.params = params
-        self.G_fake = self.generator(z, reuse=False)
-        self.D_real = self.discriminator(X, reuse=False)
-        self.D_fake = self.discriminator(self.G_fake, reuse=True)
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
-        gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        self._D_loss = D_loss_f - D_loss_r + D_gp
-        self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
-
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse)
+        self._is_3d = is_3d
+        self.G_fake = None
+        self.D_real = None
+        self.D_fake = None
+        self._D_loss = None
+        self._G_loss = None
 
     @property
     def D_loss(self):
@@ -37,11 +27,34 @@ class WGanModel(object):
     def G_loss(self):
         return self._G_loss
 
+    @property
+    def is_3d(self):
+        return self._is_3d
 
-class CondWGanModel(object):
-    def __init__(self, params, X, z, name='wgan'):
-        self.name = name
-        self.params = params
+class WGanModel(GanModel):
+    def __init__(self, params, X, z, name='wgan', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        self.G_fake = self.generator(z, reuse=False)
+        self.D_real = self.discriminator(X, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        self._D_loss = D_loss_f - D_loss_r + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse, is_3d=self.is_3d)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse, is_3d=self.is_3d)
+
+
+class CondWGanModel(GanModel):
+    def __init__(self, params, X, z, name='CondWGan', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
         self.y = tf.placeholder(tf.float32, shape=[None, 1], name='y')
         self.G_fake = self.generator(z, reuse=False)
         self.D_real = self.discriminator(X, reuse=False)
@@ -60,19 +73,9 @@ class CondWGanModel(object):
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], z=self.y, reuse=reuse)
 
-    @property
-    def D_loss(self):
-        return self._D_loss
-
-    @property
-    def G_loss(self):
-        return self._G_loss
-
-
-class TemporalGanModel(object):
-    def __init__(self, params, X, z, name='wgan'):
-        self.name = name
-        self.params = params
+class TemporalGanModel(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV1', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
         zn = tf.nn.l2_normalize(z, 1)
         self.y = tf.placeholder(tf.float32, shape=[None, 1], name='y')
         zn = tf.multiply(zn, self.y)
@@ -102,10 +105,9 @@ class TemporalGanModel(object):
         return self._G_loss
 
 
-class TempConsGanModel(object):
-    def __init__(self, params, X, z, name='wgan'):
-        self.name = name
-        self.params = params
+class TempConsGanModel(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV2', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
         zn = tf.nn.l2_normalize(z, 1)
         self.y = tf.placeholder(tf.float32, shape=[None, 1], name='y')
         zn = tf.multiply(zn, self.y)
@@ -157,15 +159,10 @@ class TempConsGanModel(object):
         return self._G_loss
 
 
-class TemporalGanModelv3(object):
-    def __init__(self, params, X, z, name='wgan'):
-        self.name = name
-        self.params = params
-        zn = tf.nn.l2_normalize(z, 1)
-        self.y = tf.placeholder(tf.float32, shape=[None, 1], name='y')
-        zn = tf.multiply(zn, self.y)
-
-        self.G_fake = self.generator(zn, reuse=False)
+class TemporalGanModelv3(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        self.G_fake = self.generator(z, reuse=False)
 
         self.D_real = self.discriminator(X, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, reuse=True)
@@ -200,10 +197,9 @@ class TemporalGanModelv3(object):
         return self._G_loss
 
 
-class WVeeGanModel(object):
-    def __init__(self, params, X, z, name='veegan'):
-        self.name = name
-        self.params = params
+class WVeeGanModel(GanModel):
+    def __init__(self, params, X, z, name='veegan', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
         self.latent_dim = params['generator']['latent_dim']
         self.G_fake = self.generator(z, reuse=False)
         self.z_real = self.encoder(X=X, reuse=False)
@@ -227,7 +223,7 @@ class WVeeGanModel(object):
         tf.summary.scalar("Enc/Loss_l2", self._E_loss, collections=["Training"])
         tf.summary.scalar("Gen/Loss_f", -D_loss_f, collections=["Training"])
 
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -239,23 +235,14 @@ class WVeeGanModel(object):
         return encoder(X, self.params['encoder'], self.latent_dim, reuse=reuse)
 
     @property
-    def D_loss(self):
-        return self._D_loss
-
-    @property
-    def G_loss(self):
-        return self._G_loss
-
-    @property
     def E_loss(self):
         return self._E_loss
 
 
-class LapGanModel(object):
-    def __init__(self, params, X, z, name='lapgan'):
+class LapGanModel(GanModel):
+    def __init__(self, params, X, z, name='lapgan', is_3d=False):
         ''' z must have the same dimension as X'''
-        self.name = name
-        self.params = params
+        super().__init__(params=params, name=name, is_3d=is_3d)
         self.upsampling = params['generator']['upsampling']
         self.Xs = down_sampler(X, s=self.upsampling)
         inshape = self.Xs.shape.as_list()[1:]
@@ -274,9 +261,9 @@ class LapGanModel(object):
         self._D_loss = D_loss_f + D_loss_r + D_gp
         self._G_loss = - tf.reduce_mean(self.D_fake)
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
-        tf.summary.image("trainingBW/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
-        tf.summary.image("trainingBW/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
-        tf.summary.image("trainingBW/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
 
     def generator(self, X, z, reuse):
         return generator_up(X, z, self.params['generator'], reuse=reuse)
@@ -284,29 +271,103 @@ class LapGanModel(object):
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
-    @property
-    def D_loss(self):
-        return self._D_loss
 
-    @property
-    def G_loss(self):
-        return self._G_loss   
-       
-# class Gan12Model(object):
-#     def __init__(self, name='wgan12'):
-#         self.name = name
-#     def generator(self, z, X, reuse):
-#         return generator12(z, X, self.params['generator'], reuse=reuse)
-#     def discriminator(self, X, reuse):
-#         return discriminator(X, self.params['discriminator'], reuse=reuse)
-#     def __call__(self, params, z, X):
-#         self.params = params
-#         X1, X2 = tf.split(X, 2, axis = params['generator']['border']['axis'])
-#         G_fake = self.generator(z, X1, reuse=False)
-#         D_real = self.discriminator(X, reuse=False)
-#         D_fake = self.discriminator(G_fake, reuse=True)
-#         return G_fake, D_real, D_fake
+class Gan12Model(GanModel):
+    def __init__(self, params, X, z, name='wgan12', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        X1, _ = tf.split(X, 2, axis = params['generator']['border']['axis'])
+        self.G_fake = self.generator(z, X1, reuse=False)
+        self.D_real = self.discriminator(X, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        self._D_loss = D_loss_f - D_loss_r + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
 
+    def generator(self, z, X, reuse):
+        return generator12(z, X, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+
+class LapPatchWGANModel(GanModel):
+    def __init__(self, params, X, z, name='lapgan', is_3d=False):
+        ''' z must have the same dimension as X'''
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        
+        # A) Down sampling the image
+        self.upsampling = params['generator']['upsampling']
+        self.Xs = down_sampler(X, s=self.upsampling)
+
+        # The input is the downsampled image
+        inshape = self.Xs.shape.as_list()[1:]
+        self.y = tf.placeholder_with_default(self.Xs, shape=[None, *inshape], name='y')
+
+        # B) Split the image in 4 parts
+        top, bottom = tf.split(self.y, 2, axis=1)
+        self.Xs1, self.Xs2 = tf.split(top, 2, axis=2)
+        self.Xs3, self.Xs4 = tf.split(bottom, 2, axis=2)
+
+        # C) Define the 4 Generators
+
+        self.G_fake1 = self.generator(X=self.Xs1, z=z, reuse=False, scope='generator1')
+        y1 = tf.reverse(self.G_fake1, axis=[2])
+        self.G_fake2 = self.generator(X=self.Xs2, z=z, y=y1, reuse=False, scope='generator2')
+        y21 = tf.reverse(self.G_fake1, axis=[1])
+        y22 = tf.reverse(self.G_fake2, axis=[1,2])
+        y2 = tf.concat([y21, y22], axis=3)
+        self.G_fake3 = self.generator(X=self.Xs3, z=z,y=y2, reuse=False, scope='generator3')
+        y31 = tf.reverse(self.G_fake1, axis=[1,2])
+        y32 = tf.reverse(self.G_fake2, axis=[1])
+        y33 = tf.reverse(self.G_fake3, axis=[2])
+        y3 = tf.concat([y31, y32, y33], axis=3)
+        self.G_fake4 = self.generator(X=self.Xs4, z=z, y=y3, reuse=False, scope='generator4')
+
+        # D) Concatenate back
+        top = tf.concat([self.G_fake1,self.G_fake2], axis=2)
+        bottom = tf.concat([self.G_fake3,self.G_fake4], axis=2)
+        self.G_fake = tf.concat([top,bottom], axis=1)
+
+        # E) Discriminator
+        self.Xsu = up_sampler(self.y, s=self.upsampling)
+        self.D_real = -self.discriminator(X, self.Xsu, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, self.Xsu, reuse=True)
+
+        # F) Losses
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
+        #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
+        self._D_loss = D_loss_f + D_loss_r + D_gp
+        self._G_loss = - tf.reduce_mean(self.D_fake)
+
+        # G) Summaries
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
+        if True:
+            tf.summary.image("SmallerImg/G_fake1", self.G_fake1, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/G_fake2", self.G_fake2, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/G_fake3", self.G_fake3, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/G_fake4", self.G_fake4, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y1", y1, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y21", y21, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y22", y22, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y31", y31, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y32", y32, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y33", y33, max_outputs=1, collections=['Images'])
+
+    def generator(self, X, z, reuse, scope, y=None):
+        return generator_up(X, z, self.params['generator'], y=y, reuse=reuse, scope=scope)
+
+    def discriminator(self, X, Xsu, reuse):
+        return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
 # class GanUpSampler(object):
 #     def __init__(self, name='gan_upsampler'):
@@ -381,8 +442,16 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
     return D_gp
 
+def get_conv(is_3d=False):
+    if is_3d:
+        conv = conv3d
+    else:
+        conv = conv2d
+    return conv
 
-def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
+
+def discriminator(x, params, z=None, reuse=True, scope="discriminator", is_3d=False):
+    conv = get_conv(is_3d)
 
     assert(len(params['stride']) ==
            len(params['nfilter']) ==
@@ -394,7 +463,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         rprint('Discriminator \n------------------------------------------------------------', reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         for i in range(nconv):
-            x = conv2d(x,
+            x = conv(x,
                        nf_out=params['nfilter'][i],
                        shape=params['shape'][i],
                        stride=params['stride'][i],
@@ -424,7 +493,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             rprint('     {} Full layer with {} outputs'.format(nconv+i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
         if params['minibatch_reg']:
-            x = mini_batch_reg(x, 16, n_kernels=100, dim_per_kernel=30)
+            x = mini_batch_reg(x, n_kernels=150, dim_per_kernel=30)
         x = linear(x, 1, 'out', summary=params['summary'])
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
@@ -433,13 +502,12 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     return x
 
 
-def generator(x, params, y=None, reuse=True, scope="generator"):
-
+def generator(x, params, y=None, reuse=True, scope="generator", is_3d=False):
+    conv = get_conv(is_3d)
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
     nfull = len(params['full'])
-
     with tf.variable_scope(scope):
         rprint('Generator \n------------------------------------------------------------', reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
@@ -460,17 +528,30 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
         sx = np.int(
             np.sqrt(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0]))
 
-        x = tf.reshape(x, [bs, sx, sx, params['nfilter'][0]], name='vec2img')
+        if is_3d:
+            x = tf.reshape(x, [bs, sx, sx, sx, params['nfilter'][0]], name='vec2img')
+        else:
+            x = tf.reshape(x, [bs, sx, sx, params['nfilter'][0]], name='vec2img')
+
         rprint('     Reshape to {}'.format(x.shape), reuse)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
-            x = deconv2d(x,
+            if is_3d:
+                x = deconv3d(x,
+                         output_shape=[bs, sx, sx, sx, params['nfilter'][i]],
+                         shape=params['shape'][i],
+                         stride=params['stride'][i],
+                         name='{}_deconv_3d'.format(i),
+                         summary=params['summary'])
+            else:
+                x = deconv2d(x,
                          output_shape=[bs, sx, sx, params['nfilter'][i]],
                          shape=params['shape'][i],
                          stride=params['stride'][i],
                          name='{}_deconv'.format(i),
                          summary=params['summary'])
+
             rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
             if i < nconv-1:
                 if params['batch_norm'][i]:
@@ -488,7 +569,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
     return x
 
 
-def generator_up(X, z, params, reuse=True, scope="generator_up"):
+def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
 
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
@@ -499,6 +580,8 @@ def generator_up(X, z, params, reuse=True, scope="generator_up"):
         rprint('     The input X is of size {}'.format(X.shape), reuse)
 
         rprint('     The input z is of size {}'.format(z.shape), reuse)
+        if y is not None:
+            rprint('     The input y is of size {}'.format(y.shape), reuse)
         bs = tf.shape(X)[0]  # Batch size
         sx = X.shape.as_list()[1]
         sy = X.shape.as_list()[2]
@@ -510,6 +593,10 @@ def generator_up(X, z, params, reuse=True, scope="generator_up"):
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
+            if (y is not None) and (params['y_layer'] == i):
+                rprint('     Merge input y of size{}'.format(y.shape), reuse)                 
+                x = tf.concat([x,y],axis=3)
+                rprint('     Concat x and y to {}'.format(x.shape), reuse) 
             x = deconv2d(x,
                          output_shape=[bs, sx, sx, params['nfilter'][i]],
                          shape=params['shape'][i],

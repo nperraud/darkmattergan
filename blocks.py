@@ -125,6 +125,31 @@ def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
 
         return conv
 
+def conv3d(imgs, nf_out, shape=[5, 5, 5], stride=2, name="conv3d", summary=True):
+    '''Convolutional layer for square images'''
+
+    weights_initializer = tf.contrib.layers.xavier_initializer()
+    const = tf.constant_initializer(0.0)
+
+    with tf.variable_scope(name):
+        w = _variable_on_cpu('w',
+                             [shape[0], shape[1], shape[2], imgs.get_shape()[-1], nf_out],
+                             initializer=weights_initializer)
+        conv = tf.nn.conv3d(imgs,
+                            w,
+                            strides=[1, stride, stride, stride, 1],
+                            padding='SAME')
+
+        biases = _variable_on_cpu('biases', [nf_out], initializer=const)
+        conv =tf.nn.bias_add(conv, biases)#  tf.reshape(, conv.get_shape())
+
+        if summary:
+            tf.summary.histogram("Bias_sum", biases, collections=["metrics"])
+            # we put it in metrics so we don't store it too often
+            tf.summary.histogram("Weights_sum", w, collections=["metrics"])
+
+        return conv
+
 
 def deconv2d(imgs, output_shape, shape=[5, 5], stride=2, name="deconv2d", summary=True):
 
@@ -155,6 +180,34 @@ def deconv2d(imgs, output_shape, shape=[5, 5], stride=2, name="deconv2d", summar
             tf.summary.histogram("Weights_sum", w, collections=["metrics"])
         return deconv
 
+def deconv3d(imgs, output_shape, shape=[5, 5, 5], stride=2, name="deconv3d", summary=True):
+
+    weights_initializer = tf.contrib.layers.xavier_initializer()
+    # was
+    # weights_initializer = tf.random_normal_initializer(stddev=stddev)
+    const = tf.constant_initializer(0.0)
+
+    with tf.variable_scope(name):
+        # filter : [depth, height, width, output_channels, in_channels]
+        w = _variable_on_cpu('w',
+                             [shape[0], shape[1], shape[2], output_shape[-1], imgs.get_shape()[-1]],
+                             initializer=weights_initializer)
+
+        deconv = tf.nn.conv3d_transpose(imgs,
+                                        w,
+                                        output_shape=output_shape,
+                                        strides=[1, stride, stride, stride, 1])
+
+
+        biases = _variable_on_cpu('biases', [output_shape[-1]], initializer=const) # one bias for each filter
+        deconv = tf.nn.bias_add(deconv, biases) #tf.reshape(, deconv.get_shape())
+
+        if summary:
+            tf.summary.histogram("Bias_sum", biases, collections=["metrics"])
+            # we put it in metrics so we don't store it too often
+            tf.summary.histogram("Weights_sum", w, collections=["metrics"])
+        return deconv
+
 
 def linear(input_, output_size, scope=None, summary=True):
     shape = input_.get_shape().as_list()
@@ -173,7 +226,7 @@ def linear(input_, output_size, scope=None, summary=True):
         return tf.matmul(input_, matrix) + bias
 
 
-def mini_batch_reg(xin, batch_size, n_kernels=300, dim_per_kernel=50):
+def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
     x = linear(xin, n_kernels * dim_per_kernel, scope="minibatch_reg")
     activation = tf.reshape(x, [tf.shape(x)[0], n_kernels, dim_per_kernel])
     abs_dif = tf.reduce_sum(tf.abs(tf.expand_dims(activation, 3) - tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0)), 2)
