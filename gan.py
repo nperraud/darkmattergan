@@ -3,6 +3,7 @@ import numpy as np
 import time
 import os, sys
 import pickle
+import math
 import scipy.misc
 import scipy.ndimage.filters as filters
 from scipy import ndimage
@@ -168,7 +169,7 @@ class GAN(object):
 
         def get_lr_ADAM(optimizer, learning_rate):
             beta1_power, beta2_power = optimizer._get_beta_accumulators()
-            optim_learning_rate = (learning_rate * math_ops.sqrt(1 - beta2_power) / (1 - beta1_power))
+            optim_learning_rate = (learning_rate * tf.sqrt(1 - beta2_power) / (1 - beta1_power))
 
             return optim_learning_rate
 
