@@ -17,15 +17,34 @@ def main():
     params = dict_reader.read_gan_dict(param_paths)
     params['name'] = 'WGAN{}'.format(params['image_size'][0])
     time_str = current_time_str()
-    params['summary_dir'] = 'tboard/' + params['name'] + '_' + time_str + 'summary/'
-    params['save_dir'] = 'checkp/' + params['name'] + '_' + time_str + 'checkpoints/'
-    params['num_classes'] = 4
+    if 'save_dir' in params:
+        params['summary_dir'] = params['summary_dir'] + params['name'] + '_' + time_str + '_summary/'
+        params['save_dir'] = params['save_dir'] + params['name'] + '_' + time_str + '_checkpoints/'
+    else:
+        params['summary_dir'] = 'tboard/' + params['name'] + '_' + time_str + 'summary/'
+        params['save_dir'] = 'checkp/' + params['name'] + '_' + time_str + 'checkpoints/'
+
+    print("All params")
+    print(params)
+    print("\nDiscriminator Params")
+    print(params['discriminator'])
+    print("\nGenerator Params")
+    print(params['generator'])
+    print("\nOptimization Params")
+    print(params['optimization'])
+    print()
+
     # Initialize model
     wgan = GAN(params, TemporalGanModelv3)
     # Generate data
-    data = time_toy_generator.gen_dataset(images_per_time_step=5000, point_density_factor=10)
-    data = np.asarray([data[0], data[3], data[6], data[9]])
-    #data = np.asarray([data[5], data[9]])
+    data = time_toy_generator.gen_dataset(images_per_time_step=5000, point_density_factor=3)
+    if params['num_classes'] == 4:
+        data = np.asarray([data[0], data[3], data[6], data[9]])
+    if params['num_classes'] == 2:
+        data = np.asarray([data[5], data[9]])
+    if params['num_classes'] == 1:
+        data = np.asarray([data[9]])
+
     data = data.swapaxes(0,1)
     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     data = data.astype(np.float32)
