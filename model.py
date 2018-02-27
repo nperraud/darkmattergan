@@ -9,9 +9,10 @@ def rprint(msg, reuse=False):
 
 class GanModel(object):
     ''' Abstract class for the model'''
-    def __init__(self, params, name='gan'):
+    def __init__(self, params, name='gan', is_3d=False):
         self.name = name
         self.params = params
+        self._is_3d = is_3d
         self.G_fake = None
         self.D_real = None
         self.D_fake = None
@@ -26,10 +27,13 @@ class GanModel(object):
     def G_loss(self):
         return self._G_loss
 
+    @property
+    def is_3d(self):
+        return self._is_3d
+
 class WGanModel(GanModel):
     def __init__(self, params, X, z, name='wgan', is_3d=False):
-        super().__init__(params=params, name=name)
-        self._is_3d = is_3d
+        super().__init__(params=params, name=name, is_3d=is_3d)
         self.G_fake = self.generator(z, reuse=False)
         self.D_real = self.discriminator(X, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, reuse=True)
@@ -41,27 +45,18 @@ class WGanModel(GanModel):
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
 
-    @property
-    def is_3d(self):
-        return self._is_3d
-
     def generator(self, z, reuse):
-        if self.is_3d:
-            return generator(z, self.params['generator'], reuse=reuse, is_3d=True)
-        else:
-            return generator(z, self.params['generator'], reuse=reuse)
+        return generator(z, self.params['generator'], reuse=reuse, is_3d=self.is_3d)
 
     def discriminator(self, X, reuse):
-        if self.is_3d:
-            return discriminator(X, self.params['discriminator'], reuse=reuse, conv=conv3d)
-        else:
-            return discriminator(X, self.params['discriminator'], reuse=reuse)
+        return discriminator(X, self.params['discriminator'], reuse=reuse, is_3d=self.is_3d)
+
 
 
 
 class CondWGanModel(GanModel):
-    def __init__(self, params, X, z, name='wgan'):
-        super().__init__(params=params, name=name)
+    def __init__(self, params, X, z, name='CondWGan', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
         self.y = tf.placeholder(tf.float32, shape=[None, 1], name='y')
         self.G_fake = self.generator(z, reuse=False)
         self.D_real = self.discriminator(X, reuse=False)
@@ -82,8 +77,8 @@ class CondWGanModel(GanModel):
 
 
 class WVeeGanModel(GanModel):
-    def __init__(self, params, X, z, name='veegan'):
-        super().__init__(params=params, name=name)
+    def __init__(self, params, X, z, name='veegan', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
         self.latent_dim = params['generator']['latent_dim']
         self.G_fake = self.generator(z, reuse=False)
         self.z_real = self.encoder(X=X, reuse=False)
@@ -124,9 +119,9 @@ class WVeeGanModel(GanModel):
 
 
 class LapGanModel(GanModel):
-    def __init__(self, params, X, z, name='lapgan'):
+    def __init__(self, params, X, z, name='lapgan', is_3d=False):
         ''' z must have the same dimension as X'''
-        super().__init__(params=params, name=name)
+        super().__init__(params=params, name=name, is_3d=is_3d)
         self.upsampling = params['generator']['upsampling']
         self.Xs = down_sampler(X, s=self.upsampling)
         inshape = self.Xs.shape.as_list()[1:]
@@ -157,8 +152,8 @@ class LapGanModel(GanModel):
 
 
 class Gan12Model(GanModel):
-    def __init__(self, params, X, z, name='wgan12'):
-        super().__init__(params=params, name=name)
+    def __init__(self, params, X, z, name='wgan12', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
         X1, _ = tf.split(X, 2, axis = params['generator']['border']['axis'])
         self.G_fake = self.generator(z, X1, reuse=False)
         self.D_real = self.discriminator(X, reuse=False)
@@ -179,9 +174,9 @@ class Gan12Model(GanModel):
 
 
 class LapPatchWGANModel(GanModel):
-    def __init__(self, params, X, z, name='lapgan'):
+    def __init__(self, params, X, z, name='lapgan', is_3d=False):
         ''' z must have the same dimension as X'''
-        super().__init__(params=params, name=name)
+        super().__init__(params=params, name=name, is_3d=is_3d)
         
         # A) Down sampling the image
         self.upsampling = params['generator']['upsampling']
@@ -326,8 +321,16 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
     return D_gp
 
+def get_conv(is_3d=False):
+    if is_3d:
+        conv = conv3d
+    else:
+        conv = conv2d
+    return conv
 
-def discriminator(x, params, z=None, reuse=True, scope="discriminator", conv=conv2d):
+
+def discriminator(x, params, z=None, reuse=True, scope="discriminator", is_3d=False):
+    conv = get_conv(is_3d)
 
     assert(len(params['stride']) ==
            len(params['nfilter']) ==
@@ -379,7 +382,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator", conv=con
 
 
 def generator(x, params, y=None, reuse=True, scope="generator", is_3d=False):
-
+    conv = get_conv(is_3d)
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
