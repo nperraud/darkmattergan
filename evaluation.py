@@ -115,7 +115,6 @@ def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
     return l2, logel2, l1, logel1
 
 
-
 def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
 
     y_real, y_fake, x = metrics.mass_hist(raw_images, gen_sample_raw)

@@ -1,13 +1,11 @@
 import io
 import tensorflow as tf
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
-
 
 # Inspired by Andres
-
 
 class PlotSummary(object):
     def __init__(self, name, cat, collections=None):
@@ -28,9 +26,9 @@ class PlotSummary(object):
         plt.Figure()
         ax = plt.gca()
         N = 10
-        x = np.linspace(0,N-1,N)
+        x = np.linspace(0, N - 1, N)
         y = np.random.rand(N)
-        ax.plot(x,y,label="Random data", color='r')
+        ax.plot(x, y, label="Random data", color='r')
         ax.title.set_text(self._name + "\n")
         ax.title.set_fontsize(11)
         ax.tick_params(axis='both', which='major', labelsize=10)
@@ -69,9 +67,10 @@ class PlotSummaryLog(PlotSummary):
         ax.legend()
         # self._fill_from_figure()
 
+
 if __name__ == '__main__':
     print('Testing the plot module')
-    obj = PlotSummary('Objname','ObjCat')
+    obj = PlotSummary('Objname', 'ObjCat')
     with tf.Session() as sess:
         test = obj.produceSummaryToWrite(sess)
     print('Test 1 done!')
@@ -79,7 +78,7 @@ if __name__ == '__main__':
     x = np.linspace(1, N, N)
     y1 = np.random.rand(N)
     y2 = np.random.rand(N)
-    obj = PlotSummaryLog('Objname','ObjCat')
+    obj = PlotSummaryLog('Objname', 'ObjCat')
     with tf.Session() as sess:
         test = obj.produceSummaryToWrite(sess, x, y1, y2)
     print('Test 2 done!')
