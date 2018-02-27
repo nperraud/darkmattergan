@@ -1,6 +1,6 @@
 import dict_reader, utils,  sys
 from Data_Generators import time_toy_generator
-from model import TempConsGanModel
+from model import TemporalGanModelv3
 from gan import GAN
 import numpy as np
 
@@ -21,10 +21,11 @@ def main():
     params['save_dir'] = 'checkp/' + params['name'] + '_' + time_str + 'checkpoints/'
     params['num_classes'] = 4
     # Initialize model
-    wgan = GAN(params, TempConsGanModel)
+    wgan = GAN(params, TemporalGanModelv3)
     # Generate data
-    data = time_toy_generator.gen_dataset(images_per_time_step=5000, point_density_factor=75)
+    data = time_toy_generator.gen_dataset(images_per_time_step=5000, point_density_factor=10)
     data = np.asarray([data[0], data[3], data[6], data[9]])
+    #data = np.asarray([data[5], data[9]])
     data = data.swapaxes(0,1)
     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     data = data.astype(np.float32)
