@@ -17,7 +17,7 @@ from gan import CosmoGAN
 ns = 256
 nsamples = 15000
 k = 10
-try_resume = True
+try_resume = False
 
 
 
