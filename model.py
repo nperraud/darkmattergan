@@ -73,12 +73,18 @@ class CondWGanModel(GanModel):
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], z=self.y, reuse=reuse)
 
+
 class TemporalGanModel(GanModel):
     def __init__(self, params, X, z, name='TempWGanV1', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
         zn = tf.nn.l2_normalize(z, 1)
-        self.y = tf.placeholder(tf.float32, shape=[None, 1], name='y')
-        zn = tf.multiply(zn, self.y)
+        z_shape = tf.shape(zn)
+        scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
+        scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
+        y = tf.constant(scaling, dtype=tf.float32, name='y')
+        y = y[:z_shape[0]]
+        zn = tf.multiply(zn, y)
+
         self.G_fake = self.generator(zn, reuse=False)
         self.D_real = self.discriminator(X, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, reuse=True)
@@ -109,8 +115,12 @@ class TempConsGanModel(GanModel):
     def __init__(self, params, X, z, name='TempWGanV2', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
         zn = tf.nn.l2_normalize(z, 1)
-        self.y = tf.placeholder(tf.float32, shape=[None, 1], name='y')
-        zn = tf.multiply(zn, self.y)
+        z_shape = tf.shape(zn)
+        scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
+        scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
+        y = tf.constant(scaling, dtype=tf.float32, name='y')
+        y = y[:z_shape[0]]
+        zn = tf.multiply(zn, y)
 
         self.G_fake = self.generator(zn, reuse=False)
 
@@ -162,7 +172,15 @@ class TempConsGanModel(GanModel):
 class TemporalGanModelv3(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
-        self.G_fake = self.generator(z, reuse=False)
+        zn = tf.nn.l2_normalize(z, 1)
+        z_shape = tf.shape(zn)
+        scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
+        scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
+        y = tf.constant(scaling, dtype=tf.float32, name='y')
+        y = y[:z_shape[0]]
+        zn = tf.multiply(zn, y)
+
+        self.G_fake = self.generator(zn, reuse=False)
 
         self.D_real = self.discriminator(X, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, reuse=True)
