@@ -1,6 +1,5 @@
 import h5py
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 import shutil
 import tensorflow as tf
@@ -90,6 +89,8 @@ def draw_images(images, nx=1, ny=1, px=None, py=None, axes=None, *args, **kwargs
     axes : axes
 
     """
+    import matplotlib.pyplot as plt
+
     ndim = len(images.shape)
     nimg = images.shape[0]
 

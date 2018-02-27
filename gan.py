@@ -1,14 +1,15 @@
 import tensorflow as tf
 import numpy as np
-import utils, metrics
 import time
 import os, sys
 import pickle
 import scipy.misc
 import scipy.ndimage.filters as filters
 from scipy import ndimage
-from default import default_params, default_params_cosmology
+import utils, metrics
+
 from plot_summary import PlotSummaryLog
+from default import default_params, default_params_cosmology
 
 class GAN(object):
     def __init__(self, params, model=None, is_3d=False):

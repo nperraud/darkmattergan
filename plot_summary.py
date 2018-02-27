@@ -74,4 +74,12 @@ if __name__ == '__main__':
     obj = PlotSummary('Objname','ObjCat')
     with tf.Session() as sess:
         test = obj.produceSummaryToWrite(sess)
-    print('Test done!')
+    print('Test 1 done!')
+    N = 10
+    x = np.linspace(1, N, N)
+    y1 = np.random.rand(N)
+    y2 = np.random.rand(N)
+    obj = PlotSummaryLog('Objname','ObjCat')
+    with tf.Session() as sess:
+        test = obj.produceSummaryToWrite(sess, x, y1, y2)
+    print('Test 2 done!')
