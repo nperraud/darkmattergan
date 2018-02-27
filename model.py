@@ -101,6 +101,7 @@ class TemporalGanModel(object):
     def G_loss(self):
         return self._G_loss
 
+
 class TempConsGanModel(object):
     def __init__(self, params, X, z, name='wgan'):
         self.name = name
@@ -108,20 +109,28 @@ class TempConsGanModel(object):
         zn = tf.nn.l2_normalize(z, 1)
         self.y = tf.placeholder(tf.float32, shape=[None, 1], name='y')
         zn = tf.multiply(zn, self.y)
+
         self.G_fake = self.generator(zn, reuse=False)
-        self.D_real = self.discriminator(X, reuse=False)
-        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+
         self.D_c_real = self.c_discriminator(X, reuse=False)
+        self.D_real = self.discriminator(X, reuse=False)
+
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
         self.D_c_fake = self.c_discriminator(self.G_fake, reuse=True)
+
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
+
         D_c_loss_f = tf.reduce_mean(self.D_c_fake)
         D_c_loss_r = tf.reduce_mean(self.D_c_real)
+
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         D_c_gp = wgan_regularization(gamma_gp, self.c_discriminator, [self.G_fake], [X])
+
         self._D_loss = D_loss_f - D_loss_r + D_c_loss_f - D_c_loss_r + D_gp + D_c_gp
         self._G_loss = -D_loss_f -D_c_loss_f
+
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
 
     def generator(self, z, reuse):
@@ -131,10 +140,56 @@ class TempConsGanModel(object):
         return discriminator(X, self.params['discriminator'], z=self.y, reuse=reuse)
 
     def c_discriminator(self, X, reuse):
-        x1 = X[::2]
-        x2 = X[1::2]
+        bs = self.params['optimization']['batch_size']
+        nc = self.params['num_classes']
+        seq = np.repeat(np.arange(bs // nc) * nc, nc - 1) + np.tile(np.arange(nc - 1), bs // nc)
+        x1 = tf.gather(X, seq)
+        x2 = tf.gather(X, seq + 1)
         x = tf.concat([x1,x2], axis=3)
         return discriminator(x, self.params['discriminator'], reuse=reuse, scope="consistency_discriminator")
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
+
+class TemporalGanModelv3(object):
+    def __init__(self, params, X, z, name='wgan'):
+        self.name = name
+        self.params = params
+        zn = tf.nn.l2_normalize(z, 1)
+        self.y = tf.placeholder(tf.float32, shape=[None, 1], name='y')
+        zn = tf.multiply(zn, self.y)
+
+        self.G_fake = self.generator(zn, reuse=False)
+
+        self.D_real = self.discriminator(X, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        self._D_loss = D_loss_f - D_loss_r + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        bs = self.params['optimization']['batch_size']
+        nc = self.params['num_classes']
+        idx = np.arange(bs // nc) * nc
+        x = tf.gather(X, idx)
+        for i in (np.arange(nc - 1) + 1):
+            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
+        return discriminator(x, self.params['discriminator'], reuse=reuse)
 
     @property
     def D_loss(self):
