@@ -17,6 +17,8 @@ def default_params(params=dict()):
     params['prior_distribution'] = params.get('prior_distribution',
                                               'gaussian')
     # Prior distribution to sample from ('Gaussian','Uniform',...)
+    params['num_classes'] = params.get('num_classes', 1)
+    # Number of classes to condition on
 
     # Discriminator parameters
     # ------------------------

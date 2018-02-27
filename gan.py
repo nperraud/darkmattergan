@@ -168,7 +168,7 @@ class GAN(object):
 
         def get_lr_ADAM(optimizer, learning_rate):
             beta1_power, beta2_power = optimizer._get_beta_accumulators()
-            optim_learning_rate = (learning_rate * math_ops.sqrt(1 - beta2_power) / (1 - beta1_power))
+            optim_learning_rate = (learning_rate * tf.sqrt(1 - beta2_power) / (1 - beta1_power))
 
             return optim_learning_rate
 
@@ -288,7 +288,7 @@ class GAN(object):
         if bs is None:
             bs = self.batch_size
         latent_dim = self.params['generator']['latent_dim']
-        if 'num_classes' in self.params and self.params['num_classes'] > 1:
+        if self.params['num_classes'] > 1:
             latent = utils.sample_latent(int(np.ceil(bs/self.params['num_classes'])),
                                          latent_dim, self._prior_distribution)
             return np.repeat(latent, self.params['num_classes'], axis=0)[:bs]

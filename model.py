@@ -111,7 +111,7 @@ class TemporalGanModel(GanModel):
         return self._G_loss
 
 
-class TempConsGanModel(GanModel):
+class TempGanModelv2(GanModel):
     def __init__(self, params, X, z, name='TempWGanV2', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
         zn = tf.nn.l2_normalize(z, 1)
@@ -124,8 +124,8 @@ class TempConsGanModel(GanModel):
 
         self.G_fake = self.generator(zn, reuse=False)
 
-        self.D_c_real = self.c_discriminator(X, reuse=False)
         self.D_real = self.discriminator(X, reuse=False)
+        self.D_c_real = self.c_discriminator(X, reuse=False)
 
         self.D_fake = self.discriminator(self.G_fake, reuse=True)
         self.D_c_fake = self.c_discriminator(self.G_fake, reuse=True)
