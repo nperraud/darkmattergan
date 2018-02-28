@@ -17,7 +17,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 ns = 128
 nsamples = 7500
 k = 10
-try_resume = False
+try_resume = True
 
 # def current_time_str():
 #     import time, datetime
