@@ -7,6 +7,7 @@ def rprint(msg, reuse=False):
     if not reuse:
         print(msg)
 
+
 class GanModel(object):
     ''' Abstract class for the model'''
     def __init__(self, params, name='gan', is_3d=False):
@@ -31,10 +32,35 @@ class GanModel(object):
     def is_3d(self):
         return self._is_3d
 
+
 class WGanModel(GanModel):
     def __init__(self, params, X, z, name='wgan', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
         self.G_fake = self.generator(z, reuse=False)
+        self.D_real = self.discriminator(X, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        self._D_loss = D_loss_f - D_loss_r + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse, is_3d=self.is_3d)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse, is_3d=self.is_3d)
+
+
+# This is for testing the (expected non positive) effect of normalization on the latent variable
+# Use of a regular WGAN if you need a simple Wasserstein GAN
+class WNGanModel(GanModel):
+    def __init__(self, params, X, z, name='wngan', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        zn = tf.nn.l2_normalize(z, 1)
+        self.G_fake = self.generator(zn, reuse=False)
         self.D_real = self.discriminator(X, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, reuse=True)
         D_loss_f = tf.reduce_mean(self.D_fake)
