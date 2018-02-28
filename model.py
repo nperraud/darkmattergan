@@ -12,6 +12,8 @@ class GanModel(object):
     def __init__(self, params, name='gan', is_3d=False):
         self.name = name
         self.params = params
+        self.params['generator']['is_3d'] = is_3d
+        self.params['discriminator']['is_3d'] = is_3d    
         self._is_3d = is_3d
         self.G_fake = None
         self.D_real = None
@@ -46,10 +48,10 @@ class WGanModel(GanModel):
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
 
     def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse, is_3d=self.is_3d)
+        return generator(z, self.params['generator'], reuse=reuse)
 
     def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse, is_3d=self.is_3d)
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
 
 
 class CondWGanModel(GanModel):
@@ -387,6 +389,7 @@ class LapPatchWGANModel(GanModel):
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
+
 # class GanUpSampler(object):
 #     def __init__(self, name='gan_upsampler'):
 #         self.name = name
@@ -468,8 +471,8 @@ def get_conv(is_3d=False):
     return conv
 
 
-def discriminator(x, params, z=None, reuse=True, scope="discriminator", is_3d=False):
-    conv = get_conv(is_3d)
+def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
+    conv = get_conv(params['is_3d'])
 
     assert(len(params['stride']) ==
            len(params['nfilter']) ==
@@ -520,8 +523,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator", is_3d=Fa
     return x
 
 
-def generator(x, params, y=None, reuse=True, scope="generator", is_3d=False):
-    conv = get_conv(is_3d)
+def generator(x, params, y=None, reuse=True, scope="generator"):
+    conv = get_conv(params['is_3d'])
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
@@ -546,7 +549,7 @@ def generator(x, params, y=None, reuse=True, scope="generator", is_3d=False):
         sx = np.int(
             np.sqrt(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0]))
 
-        if is_3d:
+        if params['is_3d']:
             x = tf.reshape(x, [bs, sx, sx, sx, params['nfilter'][0]], name='vec2img')
         else:
             x = tf.reshape(x, [bs, sx, sx, params['nfilter'][0]], name='vec2img')
@@ -555,7 +558,7 @@ def generator(x, params, y=None, reuse=True, scope="generator", is_3d=False):
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
-            if is_3d:
+            if params['is_3d']:
                 x = deconv3d(x,
                          output_shape=[bs, sx, sx, sx, params['nfilter'][i]],
                          shape=params['shape'][i],
@@ -638,6 +641,60 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint('------------------------------------------------------------\n', reuse)
     return x
+
+
+# def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
+
+#     assert(len(params['stride']) == len(params['nfilter'])
+#            == len(params['batch_norm'])+1)
+#     nconv = len(params['stride'])
+
+#     with tf.variable_scope(scope):
+#         rprint('Generator \n------------------------------------------------------------', reuse)
+#         rprint('     The input X is of size {}'.format(X.shape), reuse)
+
+#         rprint('     The input z is of size {}'.format(z.shape), reuse)
+#         if y is not None:
+#             rprint('     The input y is of size {}'.format(y.shape), reuse)
+#         bs = tf.shape(X)[0]  # Batch size
+#         sx = X.shape.as_list()[1]
+#         sy = X.shape.as_list()[2]
+#         z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img')        
+#         rprint('     Reshape z to {}'.format(z.shape), reuse)
+
+#         x = tf.concat([X, z], axis=3)
+#         rprint('     Concat x and z to {}'.format(x.shape), reuse)      
+
+#         for i in range(nconv):
+#             sx = sx * params['stride'][i]
+#             if (y is not None) and (params['y_layer'] == i):
+#                 rprint('     Merge input y of size{}'.format(y.shape), reuse)                 
+#                 x = tf.concat([x,y],axis=3)
+#                 rprint('     Concat x and y to {}'.format(x.shape), reuse) 
+#             x = deconv2d(x,
+#                          output_shape=[bs, sx, sx, params['nfilter'][i]],
+#                          shape=params['shape'][i],
+#                          stride=params['stride'][i],
+#                          name='{}_deconv'.format(i),
+#                          summary=params['summary'])
+#             rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+#             if i < nconv-1:
+#                 if params['batch_norm'][i]:
+#                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
+#                 x = lrelu(x)
+#                 rprint('         Batch norm', reuse)
+#             rprint('         Size of the variables: {}'.format(x.shape), reuse)
+
+#         if params['non_lin']:
+#             non_lin_f = getattr(tf, params['non_lin'])
+#             x = non_lin_f(x)
+#             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+#         # Xu = up_sampler(X, params['upsampling'])
+#         # x = x + Xu
+#         rprint('     The output is of size {}'.format(x.shape), reuse)
+#         rprint('------------------------------------------------------------\n', reuse)
+#     return x
+
 
 
 # def generator_up(X, z, params, reuse=True, scope="generator_up"):
