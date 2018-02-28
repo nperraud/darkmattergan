@@ -412,7 +412,7 @@ class GAN(object):
         if bs is None:
             bs = self.batch_size
         latent_dim = self.params['generator']['latent_dim']
-        if 'num_classes' in self.params and self.params['num_classes'] > 1:
+        if self.params['num_classes'] > 1:
             latent = utils.sample_latent(
                 int(np.ceil(bs / self.params['num_classes'])), latent_dim,
                 self._prior_distribution)
@@ -684,6 +684,21 @@ class CosmoGAN(GAN):
         tf.summary.scalar(
             "PSD/log_l1", self._md['log_l1_psd'], collections=['Metrics'])
 
+        if self.params['num_classes'] > 1:
+            for i in range(self.params['num_classes']):
+                self._md['c' + str(i) + '_l2_psd'] = tf.placeholder(tf.float32, name='c' + str(i) + '_l2_psd')
+                self._md['c' + str(i) + '_log_l2_psd'] = tf.placeholder(tf.float32, name='c' + str(i) + '_log_l2_psd')
+                self._md['c' + str(i) + '_l1_psd'] = tf.placeholder(tf.float32, name='c' + str(i) + '_l1_psd')
+                self._md['c' + str(i) + '_log_l1_psd'] = tf.placeholder(tf.float32, name='c' + str(i) + '_log_l1_psd')
+                tf.summary.scalar(
+                    "PSD/l2", self._md['c' + str(i) + '_l2_psd'], collections=['Metrics'])
+                tf.summary.scalar(
+                    "PSD/log_l2", self._md['c' + str(i) + '_log_l2_psd'], collections=['Metrics'])
+                tf.summary.scalar(
+                    "PSD/l1", self._md['c' + str(i) + '_l1_psd'], collections=['Metrics'])
+                tf.summary.scalar(
+                    "PSD/log_l1", self._md['c' + str(i) + '_log_l1_psd'], collections=['Metrics'])
+
         self._md['l2_peak_hist'] = tf.placeholder(
             tf.float32, name='l2_peak_hist')
         self._md['log_l2_peak_hist'] = tf.placeholder(
@@ -730,6 +745,11 @@ class CosmoGAN(GAN):
         self._mass_hist_plot = PlotSummaryLog('Mass_histogram', 'PLOT')
         self._peak_hist_plot = PlotSummaryLog('Peak_histogram', 'PLOT')
 
+        if self.params['num_classes'] > 1:
+            self._c_psd_plot = []
+            for i in range(self.params['num_classes']):
+                self._c_psd_plot.append(PlotSummaryLog('C' + str(i) + '_Power_spectrum_density', 'PLOT'))
+
         self.summary_op_metrics = tf.summary.merge(
             tf.get_collection("Metrics"))
 
@@ -742,6 +762,15 @@ class CosmoGAN(GAN):
             is_3d=self.is_3d)
         self._psd_real = np.mean(psd_real, axis=0)
         del psd_real
+        if self.params['num_classes'] > 1:
+            self._c_psd_real = []
+            for i in range(self.params['num_classes']):
+                psd_real, _ = metrics.power_spectrum_batch_phys(
+                    X1=utils.backward_map(X[i::self.params['num_classes']],
+                                          self.params['cosmology']['k']),
+                    is_3d=self.is_3d)
+                self._c_psd_real.append(np.mean(psd_real, axis=0))
+                del psd_real
 
         if resume:
             self.best_psd = self.params['cosmology']['best_psd']
@@ -754,9 +783,37 @@ class CosmoGAN(GAN):
 
         super().train(X=X, resume=resume)
 
+    def _multiclass_l2_psd(self, feed_dict, X):
+        Xsel = X[0:self._Npsd]
+        real = utils.backward_map(Xsel, self.params['cosmology']['k'])
+        z_sel = self._sample_latent(self._Npsd)
+
+        _, fake = self._generate_sample_safe(
+            z_sel, Xsel.reshape([self._Npsd, *X.shape[1:], 1]))
+        fake.resize([self._Npsd, *X.shape[1:]])
+
+        nc = self.params['num_classes']
+        for i in range(nc):
+            psd_gen, x = metrics.power_spectrum_batch_phys(
+                X1=fake[i::nc], is_3d=self.is_3d)
+            psd_gen = np.mean(psd_gen, axis=0)
+            l2, logel2, l1, logel1 = metrics.diff_vec(self._c_psd_real[i], psd_gen)
+
+            feed_dict[self._md['c' + str(i) + '_l2_psd']] = l2
+            feed_dict[self._md['c' + str(i) + '_log_l2_psd']] = logel2
+            feed_dict[self._md['c' + str(i) + '_l1_psd']] = l1
+            feed_dict[self._md['c' + str(i) + '_log_l1_psd']] = logel1
+
+            summary_str = self._c_psd_plot[i].produceSummaryToWrite(
+                self._sess, x, self._c_psd_real[i], psd_gen)
+            self._summary_writer.add_summary(summary_str, self._counter)
+
+
     def _train_log(self, feed_dict, X):
         super()._train_log(feed_dict, X)
         if np.mod(self._counter, self.params['sum_every']) == 0:
+            if self.params['num_classes'] > 1:
+                self._multiclass_l2_psd(feed_dict, X)
             ind = np.random.randint(0, len(X), size=[self._Npsd])
             Xsel = X[ind]
             real = utils.backward_map(Xsel, self.params['cosmology']['k'])
