@@ -24,15 +24,15 @@ class PlotSummary(object):
 
     def plot(self):
         plt.Figure()
-        ax = plt.gca()
-        N = 10
-        x = np.linspace(0, N - 1, N)
-        y = np.random.rand(N)
-        ax.plot(x, y, label="Random data", color='r')
-        ax.title.set_text(self._name + "\n")
-        ax.title.set_fontsize(11)
-        ax.tick_params(axis='both', which='major', labelsize=10)
-        ax.legend()
+        # ax = plt.gca()
+        # N = 10
+        # x = np.linspace(0, N - 1, N)
+        # y = np.random.rand(N)
+        # ax.plot(x, y, label="Random data", color='r')
+        # ax.title.set_text(self._name + "\n")
+        # ax.title.set_fontsize(11)
+        # ax.tick_params(axis='both', which='major', labelsize=10)
+        # ax.legend()
 
     def _fill_from_figure(self):
         buf = io.BytesIO()
