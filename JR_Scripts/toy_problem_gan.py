@@ -1,7 +1,10 @@
+import sys
+sys.path.insert(0, '../')
+
 import dict_reader, utils,  sys
 from Data_Generators import time_toy_generator
-from model import TemporalGanModelv3
-from gan import GAN
+from model import WGanModel, WNGanModel, TemporalGanModelv3
+from gan import CosmoGAN
 import numpy as np
 
 
@@ -18,11 +21,19 @@ def main():
     params['name'] = 'WGAN{}'.format(params['image_size'][0])
     time_str = current_time_str()
     if 'save_dir' in params:
-        params['summary_dir'] = params['summary_dir'] + params['name'] + '_' + time_str + '_summary/'
-        params['save_dir'] = params['save_dir'] + params['name'] + '_' + time_str + '_checkpoints/'
+        params['summary_dir'] = params['summary_dir'] + '/' + params['name'] + '_' + time_str + '_summary/'
+        params['save_dir'] = params['save_dir'] + '/' + params['name'] + '_' + time_str + '_checkpoints/'
     else:
         params['summary_dir'] = 'tboard/' + params['name'] + '_' + time_str + 'summary/'
         params['save_dir'] = 'checkp/' + params['name'] + '_' + time_str + 'checkpoints/'
+
+    params_cosmology = dict()
+    params_cosmology['clip_max_real'] = params['clip_max_real']
+    params_cosmology['log_clip'] = params['log_clip']
+    params_cosmology['sigma_smooth'] = params['sigma_smooth']
+    params_cosmology['k'] = params['k']
+    params_cosmology['Npsd'] = params['Npsd']
+    params['cosmology'] = params_cosmology
 
     print("All params")
     print(params)
@@ -32,10 +43,19 @@ def main():
     print(params['generator'])
     print("\nOptimization Params")
     print(params['optimization'])
+    print("\nCosmo Params")
+    print(params['cosmology'])
     print()
 
     # Initialize model
-    wgan = GAN(params, TemporalGanModelv3)
+    if params['model_idx'] == 0:
+        model = WGanModel
+    if params['model_idx'] == 1:
+        model = WNGanModel
+    if params['model_idx'] == 2:
+        model = TemporalGanModelv3
+    wgan = CosmoGAN(params, model)
+
     # Generate data
     data = time_toy_generator.gen_dataset(images_per_time_step=5000, point_density_factor=3)
     if params['num_classes'] == 4:

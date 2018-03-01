@@ -53,6 +53,8 @@ parse_dict = {
     'k': int,
     'log_clip': float,
     'name': string_no_newline,
+    'Npsd': int,
+    'model_idx': int,
     'num_classes': int,
     'save_dir': string_no_newline,
     'save_every': int,
