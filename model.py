@@ -592,19 +592,22 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                          name='{}_deconv_3d'.format(i),
                          summary=params['summary'])
             else:
+                output_shape = [bs, sx, sx, params['nfilter'][i]]
                 x = deconv2d(x,
-                         output_shape=[bs, sx, sx, params['nfilter'][i]],
+                         output_shape=output_shape,
                          shape=params['shape'][i],
                          stride=params['stride'][i],
                          name='{}_deconv'.format(i),
                          summary=params['summary'])
+                x = tf.reshape(x, output_shape)
 
             rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
+                    rprint('         Batch norm', reuse)
                 x = lrelu(x)
-                rprint('         Batch norm', reuse)
+                rprint('         Leaky ReLU', reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if params['non_lin']:
