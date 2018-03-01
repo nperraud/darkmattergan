@@ -4,12 +4,12 @@ import os
 import shutil
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+import pickle
 
 import scipy
 
 
 def test_resume(try_resume, params):
-
     resume = False
 
     if try_resume:

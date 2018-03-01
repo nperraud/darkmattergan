@@ -9,7 +9,7 @@ from model import WGanModel
 from gan import CosmoGAN
 
 import sys
-# sys.path.insert(0, '../')
+sys.path.insert(0, '../')
 
 
 def current_time_str():
