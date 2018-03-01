@@ -74,10 +74,10 @@ class WNGanModel(GanModel):
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
 
     def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse, is_3d=self.is_3d)
+        return generator(z, self.params['generator'], reuse=reuse)
 
     def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse, is_3d=self.is_3d)
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
 
 
 class CondWGanModel(GanModel):
