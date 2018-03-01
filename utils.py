@@ -137,33 +137,34 @@ def makeit_square(x):
     return new_x
 
 
-def tile_cube_slices(cube):
-    '''
+def tile_cube_slices(cube, epoch, batch, label, save_images=False):
+        '''
         cube = [:, :, :]
         arrange cube as tile of squares
         '''
-    x_dim = cube.shape[0]
-    y_dim = cube.shape[1]
-    z_dim = cube.shape[2]
-    v_stacks = []
-    num = 0
-    for i in range(0, int(x_dim**0.5)):
-        h_stacks = []
-        for j in range(0, int(x_dim**0.5)):
-            h_stacks.append(cube[num, :, :])
-            num += 1
-        v_stacks.append(np.hstack(h_stacks))
+        x_dim = cube.shape[0]
+        y_dim = cube.shape[1]
+        z_dim = cube.shape[2]
+        v_stacks = []
+        num = 0
+        for i in range(x_dim//8):
+            h_stacks = []
+            for j in range(8): # show 8 squares from the cube in one row
+                h_stacks.append(cube[num, :, :])
+                num += 1
+            v_stacks.append( np.hstack(h_stacks) )
 
-    tile = np.vstack(v_stacks)
+        tile = np.vstack(v_stacks)
 
-    # dir_path = '../saved_result/Images/' + label
-    # if not os.path.exists(dir_path):
-    #     os.makedirs(dir_path)
+        if save_images:
+            dir_path = '../saved_result/Images/' + label
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
 
-    # file_name = epoch + '_' + batch + '.jpg'
-    # scipy.misc.imsave(dir_path + '/' + file_name, tile)
+            file_name = epoch + '_' + batch + '.jpg'
+            scipy.misc.imsave(dir_path + '/' + file_name, tile)
 
-    return tile.reshape([1, *(tile.shape), 1])
+        return tile.reshape([1, *(tile.shape), 1])
 
 
 # def make_batches(bs, *args):
