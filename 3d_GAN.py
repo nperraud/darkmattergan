@@ -11,7 +11,7 @@ def current_time_str():
     return str(d.year)+ '_' + str(d.month)+ '_' + str(d.day)+ '_' + str(d.hour)+ '_' + str(d.minute)
 
 if __name__ == "__main__":
-	ns = 16
+	ns = 32
 	nsamples = 1000
 	k = 10
 
@@ -27,14 +27,14 @@ if __name__ == "__main__":
 
 	params_discriminator = dict()
 	params_discriminator['stride'] = [2, 2, 2, 1]
-	params_discriminator['nfilter'] = [16, 32, 32, 16]
+	params_discriminator['nfilter'] = [32, 32, 32, 16]
 	params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [3, 3, 3], [3, 3, 3]]
 	params_discriminator['batch_norm'] = [bn, bn, bn, bn]
 	params_discriminator['full'] = [32]
 	params_discriminator['summary'] = True
 
 	params_generator = dict()
-	params_generator['stride'] = [2, 2, 2, 1, 1]
+	params_generator['stride'] = [2, 2, 2, 2, 1]
 	params_generator['latent_dim'] = 100
 	params_generator['nfilter'] = [8, 32, 64, 64, 1]
 	params_generator['shape'] = [[3, 3, 3], [3, 3, 3], [5, 5, 5], [5, 5, 5], [5, 5, 5]]

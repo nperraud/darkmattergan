@@ -107,12 +107,12 @@ class GAN(object):
             self.real_placeholder = tf.placeholder(
                 dtype=tf.float32,
                 shape=[
-                    1, y_dim * int(x_dim**0.5), z_dim * int(x_dim**0.5), 1
+                    1, y_dim * x_dim//8, z_dim * 8, 1
                 ])
             self.fake_placeholder = tf.placeholder(
                 dtype=tf.float32,
                 shape=[
-                    1, y_dim * int(z_dim**0.5), z_dim * int(x_dim**0.5), 1
+                    1, y_dim * x_dim//8, z_dim * 8, 1
                 ])
 
             self.summary_op_real_image = tf.summary.image(
@@ -395,9 +395,9 @@ class GAN(object):
                     [self.summary_op_real_image, self.summary_op_fake_image],
                     feed_dict={
                         self.real_placeholder:
-                        utils.tile_cube_slices(real_arr[0, :, :, :, 0]),
+                        utils.tile_cube_slices(real_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'real', True),
                         self.fake_placeholder:
-                        utils.tile_cube_slices(fake_arr[0, :, :, :, 0])
+                        utils.tile_cube_slices(fake_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'fake', True)
                     })
 
                 self._summary_writer.add_summary(real_summary, self._counter)
