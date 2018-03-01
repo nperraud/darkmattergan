@@ -57,7 +57,7 @@ def main():
     wgan = CosmoGAN(params, model)
 
     # Generate data
-    data = time_toy_generator.gen_dataset(width=params['image_size'], images_per_time_step=5000, point_density_factor=3)
+    data = time_toy_generator.gen_dataset(width=params['image_size'][0], images_per_time_step=5000, point_density_factor=3)
     if params['num_classes'] == 4:
         data = np.asarray([data[0], data[3], data[6], data[9]])
     if params['num_classes'] == 2:
