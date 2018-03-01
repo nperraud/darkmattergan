@@ -47,6 +47,8 @@ parse_dict = {
     'gen_learning_rate': float,
     'learning_rate': float,
     'optimizer': string_no_newline,
+    'disc_optimizer': string_no_newline,
+    'gen_optimizer': string_no_newline,
     # general parameters
     'image_size': integer_list,
     'clip_max_real': boolean,
@@ -62,6 +64,7 @@ parse_dict = {
     'sum_every': int,
     'summary_dir': string_no_newline,
     'viz_every': int,
+    'weight_l2': float,
     # reader parameters
     'discriminator_params_path': string_no_newline,
     'generator_params_path': string_no_newline,
