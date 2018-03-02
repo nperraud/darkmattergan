@@ -11,13 +11,18 @@ def generate_cube(cube_dim):
 	x, y, z = np.mgrid[0:lim:complex(0, cube_dim), 0:lim:complex(0, cube_dim), 0:lim:complex(0, cube_dim)] # z changes fastest, then y, then x
 	# Need an (N, 3) array of (x, y, z) triplets.
 	xyz = np.column_stack([x.flat, y.flat, z.flat])
-	mu = np.random.rand(3)
-	C = RAND_COV(3)
 
-	v = xyz-mu
-	sigma = 1
-	f = np.exp(-np.sum(v* (C @ v.T).T, axis=1)/sigma**2)
-	# f = multivariate_normal.pdf(xyz, mean=mu, cov=covariance)
+	f = 0
+	num_gaussians = 20;
+	for _ in range(num_gaussians):
+		mu = np.random.rand(3)
+		C = RAND_COV(3)
+		#C = np.diag([1, 1, 1])
+		v = xyz - mu
+		sigma = 0.1
+		f += np.exp(-np.sum(v * (C @ v.T).T, axis=1)/sigma**2)
+		#f += multivariate_normal.pdf(xyz, mean=mu, cov=C)
+
 	f = f.reshape(x.shape)  # THE CUBE OF DATA WITH DIM = [cube_dim, cube_dim, cube_dim] [x_index, y_index, z_index]
 	return f
 
@@ -36,18 +41,24 @@ def generate_square(square_dim):
 	'''
 
 	# generate the x, y values
-	lim = 0.1
+	lim = 1
 	x, y = np.mgrid[0:lim:complex(0, square_dim), 0:lim:complex(0, square_dim)] # y changes fastest, then x
 	# Need an (N, 2) array of (x, y)
 	xy = np.column_stack([x.flat, y.flat])
-	mu = np.random.rand(2)
-	C = RAND_COV(2)
 
-	v = xy-mu
-	sigma = 1
-	f = np.exp(-np.sum(v* (C @ v.T).T, axis=1)/sigma**2)
-	# f = multivariate_normal.pdf(xy, mean=mu, cov=covariance)
+	f = 0
+	num_gaussians = 5;
+	for _ in range(num_gaussians):
+		mu = np.random.rand(2)
+		C = RAND_COV(2)
+		v = xy - mu
+		sigma = 0.25
+		f += np.exp(-np.sum(v * (C @ v.T).T, axis=1)/sigma**2)
+		#f += multivariate_normal.pdf(xy, mean=mu, cov=C)
+
+
 	f = f.reshape(x.shape)  # THE CUBE OF DATA WITH DIM = [square_dim, square_dim]
+	print(np.shape(f))
 	return f
 
 def generate_squares(nsamples, square_dim):
