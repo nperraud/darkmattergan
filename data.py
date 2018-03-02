@@ -2,6 +2,7 @@ import numpy as np
 import os
 import utils
 import gaussian_synthetic_data
+import socket
 
 
 def load_3d_synthetic_samples(nsamples, dim, k):
@@ -84,7 +85,12 @@ def down_sample_images(images, scalings):
 
 
 def data_path(spix=256):
-    # To be changed
-    utils_module_path = os.path.dirname(__file__)
-    return utils_module_path + '/../data/size{}_splits1000_n500x3/'.format(
-        spix)
+    # Check if we are on pizdaint
+    if 'nid' in socket.gethostname():
+        # Mhis to the store folder to be able to all use it?
+        # For reading it is ok.
+        return '/scratch/snx3000/nperraud/nati-gpu/data/size256_splits1000_n500x3/'
+    else:
+        # This should be done in a different way
+        utils_module_path = os.path.dirname(__file__)
+        return utils_module_path + '/../data/size{}_splits1000_n500x3/'.format(spix)

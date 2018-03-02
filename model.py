@@ -444,8 +444,17 @@ class LapPatchWGANsingleModel(GanModel):
         z3, z4 = tf.split(bottomz, 2, axis=2)
 
         # C) Define the 4 Generators
-        Xshape = self.X.shape.as_list()[1:]
-        y00 = tf.constant(0,dtype=tf.float32a, shape=[None, *inshape])
+
+        # This should be done differently!!!
+        # Here are my attenpts
+        # inshape = [el//2 for el in X.shape.as_list()[1:-1]]
+        # y00 = tf.constant(-1.,dtype=tf.float32, shape=[params['optimization']['batch_size'], *inshape,1])
+        # const = tf.placeholder(tf.float32, shape=[None, *inshape,1])
+        # `tf.shape(input)` takes the dynamic shape of `input`.
+        # tinshape = tf.TensorShape(bs).concatenate(tf.TensorShape([*inshape,1]))
+        tinshape = tf.shape(down_sampler(X, s=2))
+
+        y00 = tf.fill(tinshape, -1.)
         y0 = tf.concat([y00, y00, y00], axis=3)
 
         self.G_fake1 = self.generator(X=self.Xs1, z=z1, y=y0, reuse=False, scope='generator')
@@ -645,7 +654,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
     nfull = len(params['full'])
-    with tf.variable_scope(scope):
+    with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n------------------------------------------------------------', reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         if y is not None:
@@ -712,7 +721,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
 
-    with tf.variable_scope(scope):
+    with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n------------------------------------------------------------', reuse)
         rprint('     The input X is of size {}'.format(X.shape), reuse)
 
@@ -873,7 +882,7 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
     assert(len(params_border['stride']) == len(params_border['nfilter'])
            == len(params_border['batch_norm']))
     nconv_border = len(params_border['stride'])
-    with tf.variable_scope(scope):
+    with tf.variable_scope(scope, reuse=reuse):
         rprint('Border block \n------------------------------------------------------------', reuse)
 
         rprint('     BORDER:  The input is of size {}'.format(img.shape), reuse)
