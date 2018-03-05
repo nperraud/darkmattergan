@@ -46,8 +46,8 @@ params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 3e-5
 params_optimization['gen_learning_rate'] = 3e-5
-params_optimization['beta1'] = 0.5
-params_optimization['beta2'] = 0.99
+params_optimization['beta1'] = 0.9
+params_optimization['beta2'] = 0.999
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 100
 

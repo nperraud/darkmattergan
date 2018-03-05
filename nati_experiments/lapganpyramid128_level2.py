@@ -50,11 +50,11 @@ params_discriminator['summary'] = True
 params_discriminator['minibatch_reg'] = False
 
 params_generator = dict()
-params_generator['stride'] = [1, 1, 2, 1]
+params_generator['stride'] = [1, 1, 2, 1, 1]
 params_generator['latent_dim'] = latent_dim
-params_generator['nfilter'] = [64, 128 ,64, 1]
-params_generator['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
-params_generator['batch_norm'] = [bn, bn, bn]
+params_generator['nfilter'] = [64, 128, 128 ,64, 1]
+params_generator['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5], [5, 5]]
+params_generator['batch_norm'] = [bn, bn, bn, bn]
 params_generator['summary'] = True
 params_generator['non_lin'] = 'tanh'
 params_generator['upsampling'] = up_scaling

@@ -1,12 +1,6 @@
 
 # coding: utf-8
 
-# In[2]:
-
-
-
-# In[3]:
-
 import os, sys
 import pickle
 import numpy as np
@@ -18,15 +12,16 @@ import data
 
 from model import LapPatchWGANModel
 from gan import CosmoGAN
+import utils
 
 # # Parameters
 
-# In[4]:
+
 
 
 ns = 128
 scalings = [4]
-nsamples = 7500
+nsamples = 500
 k = 10
 
 try_resume = False
@@ -50,17 +45,16 @@ params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 3e-5
 params_optimization['gen_learning_rate'] = 3e-5
-params_optimization['beta1'] = 0.5
-params_optimization['beta2'] = 0.99
+params_optimization['beta1'] = 0.9
+params_optimization['beta2'] = 0.999
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 100
 
 
 
-level = 0
 
-up_scaling = scalings[level]
-new_ns = ns//np.prod(scalings[:level+1])
+up_scaling = scalings[0]
+new_ns = ns//up_scaling
 latent_dim = new_ns**2
 bn = False
 params_discriminator = dict()
@@ -109,16 +103,7 @@ params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary
 params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
 
 
-resume = False
-
-if try_resume:
-    try:
-        with open(params['save_dir']+'params.pkl', 'rb') as f:
-            params = pickle.load(f)
-        resume = True
-        print('Resume, the training will start from the last iteration!')
-    except:
-        print('No resume, the training will start from the beginning!')
+resume, params = utils.test_resume(try_resume, params)
 
 obj = CosmoGAN(params, LapPatchWGANModel)
 
@@ -133,8 +118,7 @@ raw_images = data.make_smaller_samples(raw_images, ns)
 
 
 
-down_sampled_images = data.down_sample_images(images, scalings)
 
 
 
-obj.train(X=down_sampled_images[level], resume=resume)
+obj.train(X=images, resume=resume)

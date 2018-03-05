@@ -358,20 +358,28 @@ class LapPatchWGANModel(GanModel):
         self.Xs1, self.Xs2 = tf.split(top, 2, axis=2)
         self.Xs3, self.Xs4 = tf.split(bottom, 2, axis=2)
 
+        # B') Split latent in 4 parts
+        # This may/should be done differently?
+        bs = tf.shape(self.y)[0]  # Batch size
+        z = tf.reshape(z, [bs, *inshape])
+        topz, bottomz = tf.split(z, 2, axis=1)
+        z1, z2 = tf.split(topz, 2, axis=2)
+        z3, z4 = tf.split(bottomz, 2, axis=2)
+
         # C) Define the 4 Generators
 
-        self.G_fake1 = self.generator(X=self.Xs1, z=z, reuse=False, scope='generator1')
+        self.G_fake1 = self.generator(X=self.Xs1, z=z1, reuse=False, scope='generator1')
         y1 = tf.reverse(self.G_fake1, axis=[2])
-        self.G_fake2 = self.generator(X=self.Xs2, z=z, y=y1, reuse=False, scope='generator2')
+        self.G_fake2 = self.generator(X=self.Xs2, z=z2, y=y1, reuse=False, scope='generator2')
         y21 = tf.reverse(self.G_fake1, axis=[1])
         y22 = tf.reverse(self.G_fake2, axis=[1,2])
         y2 = tf.concat([y21, y22], axis=3)
-        self.G_fake3 = self.generator(X=self.Xs3, z=z,y=y2, reuse=False, scope='generator3')
+        self.G_fake3 = self.generator(X=self.Xs3, z=z3,y=y2, reuse=False, scope='generator3')
         y31 = tf.reverse(self.G_fake1, axis=[1,2])
         y32 = tf.reverse(self.G_fake2, axis=[1])
         y33 = tf.reverse(self.G_fake3, axis=[2])
         y3 = tf.concat([y31, y32, y33], axis=3)
-        self.G_fake4 = self.generator(X=self.Xs4, z=z, y=y3, reuse=False, scope='generator4')
+        self.G_fake4 = self.generator(X=self.Xs4, z=z4, y=y3, reuse=False, scope='generator4')
 
         # D) Concatenate back
         top = tf.concat([self.G_fake1,self.G_fake2], axis=2)
@@ -437,7 +445,7 @@ class LapPatchWGANsingleModel(GanModel):
 
         # B') Split latent in 4 parts
         # This may/should be done differently?
-        bs = tf.shape(X)[0]  # Batch size
+        bs = tf.shape(self.y)[0]  # Batch size
         z = tf.reshape(z, [bs, *inshape])
         topz, bottomz = tf.split(z, 2, axis=1)
         z1, z2 = tf.split(topz, 2, axis=2)
@@ -452,7 +460,7 @@ class LapPatchWGANsingleModel(GanModel):
         # const = tf.placeholder(tf.float32, shape=[None, *inshape,1])
         # `tf.shape(input)` takes the dynamic shape of `input`.
         # tinshape = tf.TensorShape(bs).concatenate(tf.TensorShape([*inshape,1]))
-        tinshape = tf.shape(down_sampler(X, s=2))
+        tinshape = tf.shape(up_sampler(z1, s=self.upsampling))
 
         y00 = tf.fill(tinshape, -1.)
         y0 = tf.concat([y00, y00, y00], axis=3)
@@ -753,8 +761,8 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
+                    rprint('         Batch norm', reuse)
                 x = lrelu(x)
-                rprint('         Batch norm', reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if params['non_lin']:
