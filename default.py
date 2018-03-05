@@ -25,7 +25,9 @@ def default_params(params=dict()):
     params['discriminator'] = params.get('discriminator', dict())
     params['discriminator']['minibatch_reg'] = params['discriminator'].get(
         'minibatch_reg', False)
-
+    # Minibatch regularization
+    # params['discriminator']['minibatch_reg'] = False
+    # print('Minibatch regularization set to False (Force)')
     # Optimization parameters
     # -----------------------
     params['optimization'] = params.get('optimization', dict())

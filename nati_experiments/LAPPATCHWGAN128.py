@@ -25,11 +25,11 @@ from gan import CosmoGAN
 
 
 ns = 128
-scalings = [8]
+scalings = [4]
 nsamples = 7500
 k = 10
 
-try_resume = True
+try_resume = False
 
 
 
@@ -64,18 +64,18 @@ new_ns = ns//np.prod(scalings[:level+1])
 latent_dim = new_ns**2
 bn = False
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 2, 1, 1]
+params_discriminator['stride'] = [2, 2, 2, 2, 1]
 params_discriminator['nfilter'] = [16, 256, 512, 256, 16]
 params_discriminator['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5], [3, 3]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_discriminator['full'] = [32]
 params_discriminator['summary'] = True
-params_discriminator['minibatch_reg'] = True
+params_discriminator['minibatch_reg'] = False
 
 params_generator = dict()
-params_generator['stride'] = [2, 2, 2, 1, 1, 1]
-params_generator['y_layer'] = 3
-params_generator['latent_dim'] = (new_ns//2)**2
+params_generator['stride'] = [2, 2, 1, 1, 1, 1]
+params_generator['y_layer'] = 2
+params_generator['latent_dim'] = latent_dim
 params_generator['nfilter'] = [64, 256, 512, 256, 64, 1]
 params_generator['shape'] = [[3, 3], [5, 5], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]

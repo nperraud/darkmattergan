@@ -702,8 +702,8 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
+                    rprint('         Batch norm', reuse)
                 x = lrelu(x)
-                rprint('         Batch norm', reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if params['non_lin']:
