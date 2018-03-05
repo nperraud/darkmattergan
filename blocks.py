@@ -184,15 +184,11 @@ def deconv2d(imgs,
                   imgs.get_shape()[-1]],
             initializer=weights_initializer)
 
-        print("w shape: {}".format(w.shape))
-
         deconv = tf.nn.conv2d_transpose(
             imgs,
             w,
             output_shape=output_shape,
             strides=[1, stride, stride, 1])
-
-        print("deconv shape: {}".format(deconv.shape))
 
         biases = _variable_on_cpu(
             'biases', [output_shape[-1]], initializer=const)

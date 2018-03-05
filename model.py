@@ -599,7 +599,11 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                          stride=params['stride'][i],
                          name='{}_deconv'.format(i),
                          summary=params['summary'])
-                x = tf.reshape(x, output_shape)
+                # If we are running on Leonhard we need to reshape in order for TF
+                # to explicitly know the shape of the tensor. Machines with newer
+                # TensorFlow versions do not need this.
+                if tf.__version__ == '1.3.0':
+                    x = tf.reshape(x, output_shape)
 
             rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
             if i < nconv-1:
