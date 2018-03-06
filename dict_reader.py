@@ -66,6 +66,7 @@ parse_dict = {
     'discriminator_params_path': string_no_newline,
     'generator_params_path': string_no_newline,
     'optimizer_params_path': string_no_newline,
+    'cosmology_params_path': string_no_newline,
     'params_path': string_no_newline,
     # cosmology parameters
     'clip_max_real': boolean,
