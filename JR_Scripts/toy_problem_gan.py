@@ -27,14 +27,6 @@ def main():
         params['summary_dir'] = 'tboard/' + params['name'] + '_' + time_str + 'summary/'
         params['save_dir'] = 'checkp/' + params['name'] + '_' + time_str + 'checkpoints/'
 
-    params_cosmology = dict()
-    params_cosmology['clip_max_real'] = params['clip_max_real']
-    params_cosmology['log_clip'] = params['log_clip']
-    params_cosmology['sigma_smooth'] = params['sigma_smooth']
-    params_cosmology['k'] = params['k']
-    params_cosmology['Npsd'] = params['Npsd']
-    params['cosmology'] = params_cosmology
-
     print("All params")
     print(params)
     print("\nDiscriminator Params")
@@ -54,10 +46,19 @@ def main():
         model = WNGanModel
     if params['model_idx'] == 2:
         model = TemporalGanModelv3
-    wgan = CosmoGAN(params, model)
+    cosmo_gan = CosmoGAN(params, model)
+
+    num_gaussians = 42
+    if 'num_gaussians' in params:
+        num_gaussians = params['num_gaussians']
 
     # Generate data
-    data = time_toy_generator.gen_dataset(width=params['image_size'][0], images_per_time_step=5000, point_density_factor=3)
+    data = time_toy_generator.gen_dataset(images_per_time_step=params['num_samples_per_class'],
+                                          width=params['image_size'][0],
+                                          num_gaussians=num_gaussians,
+                                          point_density_factor=3)
+    if params['num_classes'] == 5:
+        data = np.asarray([data[1], data[3], data[5], data[7], data[9]])
     if params['num_classes'] == 4:
         data = np.asarray([data[0], data[3], data[6], data[9]])
     if params['num_classes'] == 2:
@@ -65,12 +66,14 @@ def main():
     if params['num_classes'] == 1:
         data = np.asarray([data[9]])
 
+    # Prep data
     data = data.swapaxes(0,1)
     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     data = data.astype(np.float32)
     data = utils.forward_map(data, params['k'])
+
     # Train model
-    wgan.train(data)
+    cosmo_gan.train(data)
     return 0
 
 

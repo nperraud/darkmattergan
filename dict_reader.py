@@ -51,16 +51,13 @@ parse_dict = {
     'gen_optimizer': string_no_newline,
     # general parameters
     'image_size': integer_list,
-    'clip_max_real': boolean,
-    'k': int,
-    'log_clip': float,
     'name': string_no_newline,
-    'Npsd': int,
-    'model_idx': int,
     'num_classes': int,
+    'num_gaussians': int,
+    'num_samples_per_class': int,
+    'model_idx': int,
     'save_dir': string_no_newline,
     'save_every': int,
-    'sigma_smooth': float,
     'sum_every': int,
     'summary_dir': string_no_newline,
     'viz_every': int,
@@ -70,6 +67,12 @@ parse_dict = {
     'generator_params_path': string_no_newline,
     'optimizer_params_path': string_no_newline,
     'params_path': string_no_newline,
+    # cosmology parameters
+    'clip_max_real': boolean,
+    'k': int,
+    'log_clip': float,
+    'Npsd': int,
+    'sigma_smooth': float,
 }
 
 
@@ -87,8 +90,11 @@ def read_gan_dict(path):
     gen_params = read_dict(paths['generator_params_path'])
     disc_params = read_dict(paths['discriminator_params_path'])
     opt_params = read_dict(paths['optimizer_params_path'])
+    cosmo_params = read_dict(paths['cosmology_params_path'])
     params = read_dict(paths['params_path'])
+
     params['generator'] = gen_params
     params['discriminator'] = disc_params
     params['optimization'] = opt_params
+    params['cosmology'] = cosmo_params
     return params
