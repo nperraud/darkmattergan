@@ -70,7 +70,7 @@ def main():
     data = data.swapaxes(0,1)
     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     data = data.astype(np.float32)
-    data = utils.forward_map(data, params['k'])
+    data = utils.forward_map(data, params['cosmology']['k'])
 
     # Train model
     cosmo_gan.train(data)
