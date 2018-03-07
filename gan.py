@@ -821,7 +821,9 @@ class CosmoGAN(GAN):
 
             _, fake = self._generate_sample_safe(
                 z_sel, Xsel.reshape([self._Npsd, *X.shape[1:], 1]))
+            print("fake shape: {}".format(np.shape(fake)))
             fake.resize([self._Npsd, *X.shape[1:]])
+            print("fake shape after reshape: {}".format(np.shape(fake)))
 
             psd_gen, x = metrics.power_spectrum_batch_phys(
                 X1=fake, is_3d=self.is_3d)
