@@ -825,6 +825,8 @@ class CosmoGAN(GAN):
 
             psd_gen, x = metrics.power_spectrum_batch_phys(
                 X1=fake, is_3d=self.is_3d)
+            # Debugging
+            print("psd_gen hash shape {} after metrics.power_spectrum_bach_phys(...)".format(np.shape(psd_gen)))
             psd_gen = np.mean(psd_gen, axis=0)
             l2, logel2, l1, logel1 = metrics.diff_vec(self._psd_real, psd_gen)
 
