@@ -40,6 +40,7 @@ def dens2overdens(density, mean_density=None):
     #assert np.ndim(density) == 3, 'density is not 3D'
 
     if mean_density:
+        print("Density shape: {}".format(np.shape(density)))
         delta = (density - np.mean(density)) / mean_density
     else:
         mean_density = np.mean(density)
