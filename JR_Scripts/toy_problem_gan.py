@@ -4,7 +4,7 @@ sys.path.insert(0, '../')
 import dict_reader, utils,  sys
 from Data_Generators import time_toy_generator
 from model import WGanModel, WNGanModel, TemporalGanModelv3
-from gan import CosmoGAN
+from gan import GAN
 import numpy as np
 
 
@@ -46,7 +46,7 @@ def main():
         model = WNGanModel
     if params['model_idx'] == 2:
         model = TemporalGanModelv3
-    cosmo_gan = CosmoGAN(params, model)
+    cosmo_gan = GAN(params, model)
 
     num_gaussians = 42
     if 'num_gaussians' in params:
