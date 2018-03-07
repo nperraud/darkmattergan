@@ -42,6 +42,8 @@ def dens2overdens(density, mean_density=None):
     if mean_density:
         if np.isnan(density).any():
             print("Nan detected in density!")
+        if np.isinf(density).any():
+            print("Inf detected in density!")
         delta = (density - np.mean(density)) / mean_density
     else:
         mean_density = np.mean(density)
