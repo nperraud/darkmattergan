@@ -3,6 +3,24 @@ import os
 import utils
 import gaussian_synthetic_data
 import socket
+import pickle
+
+def load_3d_hists(path_3d_hists, k):
+    raw_hists_3d = []
+    for item in os.listdir(path_3d_hists):
+        dir_path = os.path.join(path_3d_hists, item)
+        if os.path.isdir(dir_path) and item.endswith('hist'): # the directories where the 3d histograms are saved end with 'hist'
+            print("----------------------------------current directory {}".format(item))
+            for file_name in os.listdir(dir_path):
+                file_path = os.path.join(dir_path, file_name)
+                with open(file_path, 'rb') as pickle_file:
+                    arr = pickle.load(pickle_file)
+                    raw_hists_3d.append(arr)
+                    
+    raw_hists_3d = np.array(raw_hists_3d)
+    hists_3d = utils.forward_map(raw_hists_3d, k)
+
+    return hists_3d, raw_hists_3d
 
 
 def load_3d_synthetic_samples(nsamples, dim, k):

@@ -2,6 +2,10 @@ def default_params(params=dict()):
 
     # Global parameters
     # -----------------
+    params['file_input'] = params.get('file_input', False)
+    # Whether samples to be read from files
+    params['samples_dir_path'] = params.get('samples_dir_path', '')
+    # The directory path on disk where the samples are stored as files
     params['print_every'] = params.get('print_every', 100)
     # Print the losses in the consol every 'print_every' iterations
     params['save_every'] = params.get('save_every', 100)

@@ -136,6 +136,12 @@ def makeit_square(x):
         new_x = x
     return new_x
 
+def num_images_each_row(x_dim):
+    num_images_in_each_row = int(x_dim**0.5)
+    while x_dim % num_images_in_each_row != 0:#smallest number that is larger than square root of x_dim and divides x_dim
+        num_images_in_each_row += 1    
+
+    return num_images_in_each_row
 
 def tile_cube_slices(cube, epoch, batch, label, save_images=False):
         '''
@@ -147,9 +153,11 @@ def tile_cube_slices(cube, epoch, batch, label, save_images=False):
         z_dim = cube.shape[2]
         v_stacks = []
         num = 0
-        for i in range(x_dim//8):
+        num_images_in_each_row = num_images_each_row(x_dim)
+
+        for i in range(x_dim//num_images_in_each_row):
             h_stacks = []
-            for j in range(8): # show 8 squares from the cube in one row
+            for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
                 h_stacks.append(cube[num, :, :])
                 num += 1
             v_stacks.append( np.hstack(h_stacks) )
@@ -165,6 +173,15 @@ def tile_cube_slices(cube, epoch, batch, label, save_images=False):
             scipy.misc.imsave(dir_path + '/' + file_name, tile)
 
         return tile.reshape([1, *(tile.shape), 1])
+
+def get_3d_hists_dir_paths(path_3d_hists):
+    dir_paths = []
+    for item in os.listdir(path_3d_hists):
+        dir_path = os.path.join(path_3d_hists, item)
+        if os.path.isdir(dir_path) and item.endswith('hist'): # the directories where the 3d histograms are saved end with 'hist'
+            dir_paths.append(dir_path)
+
+    return dir_paths
 
 
 # def make_batches(bs, *args):

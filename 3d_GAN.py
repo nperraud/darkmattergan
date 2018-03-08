@@ -11,13 +11,20 @@ def current_time_str():
     return str(d.year)+ '_' + str(d.month)+ '_' + str(d.day)+ '_' + str(d.hour)+ '_' + str(d.minute)
 
 if __name__ == "__main__":
-	ns = 32
+	ns = 16
 	nsamples = 1000
 	k = 10
 
-	images, raw_images = data.load_3d_synthetic_samples(nsamples = nsamples,dim=ns, k=k)
-	print("images shape: ", np.shape(images))
-	print("raw_images shape: ", np.shape(raw_images))
+	#mages, raw_images = data.load_3d_synthetic_samples(nsamples = nsamples,dim=ns, k=k)
+	#print("images shape: ", np.shape(images))
+	#print("raw_images shape: ", np.shape(raw_images))
+
+	path_3d_hists = '../3d_smaller_cubes'
+	hists_3d, raw_hists_3d = data.load_3d_hists(path_3d_hists, k)
+	print("hists_3d shape: ", np.shape(hists_3d))
+	print("raw_hists_3d shape: ", np.shape(raw_hists_3d))
+	nsamples = len(raw_hists_3d)
+	print("Total samples={}".format(nsamples))	
 
 	time_str = current_time_str() 
 	global_path = '../saved_result/'
@@ -34,7 +41,7 @@ if __name__ == "__main__":
 	params_discriminator['summary'] = True
 
 	params_generator = dict()
-	params_generator['stride'] = [2, 2, 2, 2, 1]
+	params_generator['stride'] = [2, 2, 2, 1, 1]
 	params_generator['latent_dim'] = 100
 	params_generator['nfilter'] = [8, 32, 64, 64, 1]
 	params_generator['shape'] = [[3, 3, 3], [3, 3, 3], [5, 5, 5], [5, 5, 5], [5, 5, 5]]
@@ -77,6 +84,8 @@ if __name__ == "__main__":
 	params['name'] = name
 	params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
 	params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
+	params['file_input'] = True
+	params['samples_dir_path'] = '../3d_smaller_cubes/'
 
 	wgan = CosmoGAN(params, WGanModel, is_3d=True)
 	wgan.train(images)
