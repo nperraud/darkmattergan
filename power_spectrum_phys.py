@@ -40,9 +40,7 @@ def dens2overdens(density, mean_density=None):
     #assert np.ndim(density) == 3, 'density is not 3D'
 
     if mean_density:
-        if np.isinf(density).any():
-            print("Inf detected in density!")
-        delta = (density - np.ma.masked_invalid(density).mean()) / mean_density
+        delta = (density - np.mean(density)) / mean_density
     else:
         mean_density = np.mean(density)
         if mean_density == 0.:
