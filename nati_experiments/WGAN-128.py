@@ -9,6 +9,7 @@ sys.path.insert(0, '../')
 import data
 from model import WGanModel
 from gan import CosmoGAN
+import utils
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -26,7 +27,7 @@ try_resume = True
 
 # time_str = current_time_str()
 
-time_str = 'final'
+time_str = 'final_no_reg'
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -40,7 +41,7 @@ params_discriminator['shape'] = [[5, 5], [5, 5], [3, 3], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_discriminator['full'] = [32]
 params_discriminator['summary'] = True
-params_discriminator['minibatch_reg'] = True
+params_discriminator['minibatch_reg'] = False
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 2, 1, 1]
@@ -89,16 +90,7 @@ params['summary_dir'] = (
 params['save_dir'] = (
     global_path + params['name'] + '_' + time_str + '_checkpoints/')
 
-resume = False
-
-if try_resume:
-    try:
-        with open(params['save_dir'] + 'params.pkl', 'rb') as f:
-            params = pickle.load(f)
-        resume = True
-        print('Resume, the training will start from the last iteration!')
-    except:
-        print('No resume, the training will start from the beginning!')
+resume, params = utils.test_resume(try_resume, params)
 
 # Build the model
 

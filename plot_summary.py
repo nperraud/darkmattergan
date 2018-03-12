@@ -57,8 +57,8 @@ class PlotSummaryLog(PlotSummary):
             "marker": "o",
             "linestyle": "-"
         }
-        ax.plot(x, real, label="Fake", color='r', **linestyle)
-        ax.plot(x, fake, label="Real", color='b', **linestyle)
+        ax.plot(x, real, label="Real", color='r', **linestyle)
+        ax.plot(x, fake, label="Fake", color='b', **linestyle)
 
         # ax.set_ylim(bottom=0.1)
         ax.title.set_text(self._name + "\n")

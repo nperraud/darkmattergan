@@ -9,8 +9,8 @@ import sys
 import pickle
 sys.path.insert(0, '../')
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import data
+import utils
 
 from model import LapGanModel
 from gan import CosmoGAN
@@ -22,7 +22,7 @@ ns = 128
 scalings = [8]
 nsamples = 7500
 k = 10
-try_resume = True
+try_resume = False
 
 # def current_time_str():
 #     import time, datetime
@@ -44,10 +44,10 @@ params_optimization['weight_l2'] = 0.1
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 1e-5
-params_optimization['gen_learning_rate'] = 1e-5
-params_optimization['beta1'] = 0.5
-params_optimization['beta2'] = 0.99
+params_optimization['disc_learning_rate'] = 3e-5
+params_optimization['gen_learning_rate'] = 3e-5
+params_optimization['beta1'] = 0.9
+params_optimization['beta2'] = 0.999
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 100
 
@@ -70,7 +70,7 @@ params_discriminator['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5], [3, 3]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_discriminator['full'] = [32]
 params_discriminator['summary'] = True
-params_discriminator['minibatch_reg'] = True
+params_discriminator['minibatch_reg'] = False
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 1, 1, 1]
@@ -109,16 +109,7 @@ params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoin
 
 
 
-resume = False
-
-if try_resume:
-    try:
-        with open(params['save_dir']+'params.pkl', 'rb') as f:
-            params = pickle.load(f)
-        resume = True
-        print('Resume, the training will start from the last iteration!')
-    except:
-        print('No resume, the training will start from the beginning!')
+resume, params = utils.test_resume(try_resume, params)
 
 
 obj = CosmoGAN(params, LapGanModel)

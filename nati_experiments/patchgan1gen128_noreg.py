@@ -1,6 +1,3 @@
-
-# coding: utf-8
-
 import os, sys
 import pickle
 import numpy as np
@@ -9,26 +6,26 @@ import sys
 sys.path.insert(0, '../')
 
 import data
-
-from model import LapPatchWGANModel
-from gan import CosmoGAN
 import utils
+
+from model import LapPatchWGANsingleModel
+from gan import CosmoGAN
 
 # # Parameters
 
-
+# In[4]:
 
 
 ns = 128
 scalings = [4]
-nsamples = 500
+nsamples = 7500
 k = 10
 
-try_resume = False
+try_resume = True
 
 
 
-time_str = 'test'
+time_str = 'single_no_reg'
 global_path = '../../../saved_result/'
 
 name = 'LapPatchWGAN{}'.format(ns)
@@ -45,16 +42,17 @@ params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 3e-5
 params_optimization['gen_learning_rate'] = 3e-5
-params_optimization['beta1'] = 0.9
-params_optimization['beta2'] = 0.999
+params_optimization['beta1'] = 0.5
+params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 100
 
 
 
+level = 0
 
-up_scaling = scalings[0]
-new_ns = ns//up_scaling
+up_scaling = scalings[level]
+new_ns = ns//np.prod(scalings[:level+1])
 latent_dim = new_ns**2
 bn = False
 params_discriminator = dict()
@@ -105,7 +103,7 @@ params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoin
 
 resume, params = utils.test_resume(try_resume, params)
 
-obj = CosmoGAN(params, LapPatchWGANModel)
+obj = CosmoGAN(params, LapPatchWGANsingleModel)
 
 
 
@@ -118,7 +116,8 @@ raw_images = data.make_smaller_samples(raw_images, ns)
 
 
 
+down_sampled_images = data.down_sample_images(images, scalings)
 
 
 
-obj.train(X=images, resume=resume)
+obj.train(X=down_sampled_images[level], resume=resume)

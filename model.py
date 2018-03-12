@@ -358,20 +358,28 @@ class LapPatchWGANModel(GanModel):
         self.Xs1, self.Xs2 = tf.split(top, 2, axis=2)
         self.Xs3, self.Xs4 = tf.split(bottom, 2, axis=2)
 
+        # B') Split latent in 4 parts
+        # This may/should be done differently?
+        bs = tf.shape(self.y)[0]  # Batch size
+        z = tf.reshape(z, [bs, *inshape])
+        topz, bottomz = tf.split(z, 2, axis=1)
+        z1, z2 = tf.split(topz, 2, axis=2)
+        z3, z4 = tf.split(bottomz, 2, axis=2)
+
         # C) Define the 4 Generators
 
-        self.G_fake1 = self.generator(X=self.Xs1, z=z, reuse=False, scope='generator1')
+        self.G_fake1 = self.generator(X=self.Xs1, z=z1, reuse=False, scope='generator1')
         y1 = tf.reverse(self.G_fake1, axis=[2])
-        self.G_fake2 = self.generator(X=self.Xs2, z=z, y=y1, reuse=False, scope='generator2')
+        self.G_fake2 = self.generator(X=self.Xs2, z=z2, y=y1, reuse=False, scope='generator2')
         y21 = tf.reverse(self.G_fake1, axis=[1])
         y22 = tf.reverse(self.G_fake2, axis=[1,2])
         y2 = tf.concat([y21, y22], axis=3)
-        self.G_fake3 = self.generator(X=self.Xs3, z=z,y=y2, reuse=False, scope='generator3')
+        self.G_fake3 = self.generator(X=self.Xs3, z=z3,y=y2, reuse=False, scope='generator3')
         y31 = tf.reverse(self.G_fake1, axis=[1,2])
         y32 = tf.reverse(self.G_fake2, axis=[1])
         y33 = tf.reverse(self.G_fake3, axis=[2])
         y3 = tf.concat([y31, y32, y33], axis=3)
-        self.G_fake4 = self.generator(X=self.Xs4, z=z, y=y3, reuse=False, scope='generator4')
+        self.G_fake4 = self.generator(X=self.Xs4, z=z4, y=y3, reuse=False, scope='generator4')
 
         # D) Concatenate back
         top = tf.concat([self.G_fake1,self.G_fake2], axis=2)
@@ -415,6 +423,105 @@ class LapPatchWGANModel(GanModel):
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
+
+
+class LapPatchWGANsingleModel(GanModel):
+    def __init__(self, params, X, z, name='lapgan', is_3d=False):
+        ''' z must have the same dimension as X'''
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        
+        # A) Down sampling the image
+        self.upsampling = params['generator']['upsampling']
+        self.Xs = down_sampler(X, s=self.upsampling)
+
+        # The input is the downsampled image
+        inshape = self.Xs.shape.as_list()[1:]
+        self.y = tf.placeholder_with_default(self.Xs, shape=[None, *inshape], name='y')
+
+        # B) Split the image in 4 parts
+        top, bottom = tf.split(self.y, 2, axis=1)
+        self.Xs1, self.Xs2 = tf.split(top, 2, axis=2)
+        self.Xs3, self.Xs4 = tf.split(bottom, 2, axis=2)
+
+        # B') Split latent in 4 parts
+        # This may/should be done differently?
+        bs = tf.shape(self.y)[0]  # Batch size
+        z = tf.reshape(z, [bs, *inshape])
+        topz, bottomz = tf.split(z, 2, axis=1)
+        z1, z2 = tf.split(topz, 2, axis=2)
+        z3, z4 = tf.split(bottomz, 2, axis=2)
+
+        # C) Define the 4 Generators
+
+        # This should be done differently!!!
+        # Here are my attenpts
+        # inshape = [el//2 for el in X.shape.as_list()[1:-1]]
+        # y00 = tf.constant(-1.,dtype=tf.float32, shape=[params['optimization']['batch_size'], *inshape,1])
+        # const = tf.placeholder(tf.float32, shape=[None, *inshape,1])
+        # `tf.shape(input)` takes the dynamic shape of `input`.
+        # tinshape = tf.TensorShape(bs).concatenate(tf.TensorShape([*inshape,1]))
+        tinshape = tf.shape(up_sampler(z1, s=self.upsampling))
+
+        y00 = tf.fill(tinshape, -1.)
+        y0 = tf.concat([y00, y00, y00], axis=3)
+
+        self.G_fake1 = self.generator(X=self.Xs1, z=z1, y=y0, reuse=False, scope='generator')
+        y11 = tf.reverse(self.G_fake1, axis=[2])
+        y1 = tf.concat([y11, y00, y00], axis=3)
+
+        self.G_fake2 = self.generator(X=self.Xs2, z=z2, y=y1, reuse=True, scope='generator')
+        y21 = tf.reverse(self.G_fake1, axis=[1])
+        y22 = tf.reverse(self.G_fake2, axis=[1,2])
+        y2 = tf.concat([y21, y22, y00], axis=3)
+
+        self.G_fake3 = self.generator(X=self.Xs3, z=z3,y=y2, reuse=True, scope='generator')
+        y31 = tf.reverse(self.G_fake1, axis=[1,2])
+        y32 = tf.reverse(self.G_fake2, axis=[1])
+        y33 = tf.reverse(self.G_fake3, axis=[2])
+        y3 = tf.concat([y31, y32, y33], axis=3)
+        self.G_fake4 = self.generator(X=self.Xs4, z=z4, y=y3, reuse=True, scope='generator')
+
+        # D) Concatenate back
+        top = tf.concat([self.G_fake1,self.G_fake2], axis=2)
+        bottom = tf.concat([self.G_fake3,self.G_fake4], axis=2)
+        self.G_fake = tf.concat([top,bottom], axis=1)
+
+        # E) Discriminator
+        self.Xsu = up_sampler(self.y, s=self.upsampling)
+        self.D_real = -self.discriminator(X, self.Xsu, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, self.Xsu, reuse=True)
+
+        # F) Losses
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
+        #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
+        self._D_loss = D_loss_f + D_loss_r + D_gp
+        self._G_loss = - tf.reduce_mean(self.D_fake)
+
+        # G) Summaries
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
+        if True:
+            tf.summary.image("SmallerImg/G_fake1", self.G_fake1, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/G_fake2", self.G_fake2, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/G_fake3", self.G_fake3, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/G_fake4", self.G_fake4, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y1", y11, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y21", y21, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y22", y22, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y31", y31, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y32", y32, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y33", y33, max_outputs=1, collections=['Images'])
+
+    def generator(self, X, z, reuse, scope, y=None):
+        return generator_up(X, z, self.params['generator'], y=y, reuse=reuse, scope=scope)
+
+    def discriminator(self, X, Xsu, reuse):
+        return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
 # class GanUpSampler(object):
 #     def __init__(self, name='gan_upsampler'):
@@ -555,7 +662,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
     nfull = len(params['full'])
-    with tf.variable_scope(scope):
+    with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n------------------------------------------------------------', reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         if y is not None:
@@ -611,7 +718,6 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
                 x = lrelu(x)
-                rprint('         Leaky ReLU', reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if params['non_lin']:
@@ -629,7 +735,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
 
-    with tf.variable_scope(scope):
+    with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n------------------------------------------------------------', reuse)
         rprint('     The input X is of size {}'.format(X.shape), reuse)
 
@@ -661,8 +767,8 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
+                    rprint('         Batch norm', reuse)
                 x = lrelu(x)
-                rprint('         Batch norm', reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if params['non_lin']:
@@ -674,60 +780,6 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint('------------------------------------------------------------\n', reuse)
     return x
-
-
-# def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
-
-#     assert(len(params['stride']) == len(params['nfilter'])
-#            == len(params['batch_norm'])+1)
-#     nconv = len(params['stride'])
-
-#     with tf.variable_scope(scope):
-#         rprint('Generator \n------------------------------------------------------------', reuse)
-#         rprint('     The input X is of size {}'.format(X.shape), reuse)
-
-#         rprint('     The input z is of size {}'.format(z.shape), reuse)
-#         if y is not None:
-#             rprint('     The input y is of size {}'.format(y.shape), reuse)
-#         bs = tf.shape(X)[0]  # Batch size
-#         sx = X.shape.as_list()[1]
-#         sy = X.shape.as_list()[2]
-#         z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img')        
-#         rprint('     Reshape z to {}'.format(z.shape), reuse)
-
-#         x = tf.concat([X, z], axis=3)
-#         rprint('     Concat x and z to {}'.format(x.shape), reuse)      
-
-#         for i in range(nconv):
-#             sx = sx * params['stride'][i]
-#             if (y is not None) and (params['y_layer'] == i):
-#                 rprint('     Merge input y of size{}'.format(y.shape), reuse)                 
-#                 x = tf.concat([x,y],axis=3)
-#                 rprint('     Concat x and y to {}'.format(x.shape), reuse) 
-#             x = deconv2d(x,
-#                          output_shape=[bs, sx, sx, params['nfilter'][i]],
-#                          shape=params['shape'][i],
-#                          stride=params['stride'][i],
-#                          name='{}_deconv'.format(i),
-#                          summary=params['summary'])
-#             rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
-#             if i < nconv-1:
-#                 if params['batch_norm'][i]:
-#                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
-#                 x = lrelu(x)
-#                 rprint('         Batch norm', reuse)
-#             rprint('         Size of the variables: {}'.format(x.shape), reuse)
-
-#         if params['non_lin']:
-#             non_lin_f = getattr(tf, params['non_lin'])
-#             x = non_lin_f(x)
-#             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
-#         # Xu = up_sampler(X, params['upsampling'])
-#         # x = x + Xu
-#         rprint('     The output is of size {}'.format(x.shape), reuse)
-#         rprint('------------------------------------------------------------\n', reuse)
-#     return x
-
 
 
 # def generator_up(X, z, params, reuse=True, scope="generator_up"):
@@ -844,7 +896,7 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
     assert(len(params_border['stride']) == len(params_border['nfilter'])
            == len(params_border['batch_norm']))
     nconv_border = len(params_border['stride'])
-    with tf.variable_scope(scope):
+    with tf.variable_scope(scope, reuse=reuse):
         rprint('Border block \n------------------------------------------------------------', reuse)
 
         rprint('     BORDER:  The input is of size {}'.format(img.shape), reuse)

@@ -107,12 +107,12 @@ class GAN(object):
             self.real_placeholder = tf.placeholder(
                 dtype=tf.float32,
                 shape=[
-                    1, y_dim * int(x_dim**0.5), z_dim * int(x_dim**0.5), 1
+                    1, y_dim * x_dim//8, z_dim * 8, 1
                 ])
             self.fake_placeholder = tf.placeholder(
                 dtype=tf.float32,
                 shape=[
-                    1, y_dim * int(z_dim**0.5), z_dim * int(x_dim**0.5), 1
+                    1, y_dim * x_dim//8, z_dim * 8, 1
                 ])
 
             self.summary_op_real_image = tf.summary.image(
@@ -395,9 +395,9 @@ class GAN(object):
                     [self.summary_op_real_image, self.summary_op_fake_image],
                     feed_dict={
                         self.real_placeholder:
-                        utils.tile_cube_slices(real_arr[0, :, :, :, 0]),
+                        utils.tile_cube_slices(real_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'real', True),
                         self.fake_placeholder:
-                        utils.tile_cube_slices(fake_arr[0, :, :, :, 0])
+                        utils.tile_cube_slices(fake_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'fake', True)
                     })
 
                 self._summary_writer.add_summary(real_summary, self._counter)
@@ -826,12 +826,12 @@ class CosmoGAN(GAN):
             psd_gen, x = metrics.power_spectrum_batch_phys(
                 X1=fake, is_3d=self.is_3d)
             psd_gen = np.mean(psd_gen, axis=0)
-            l2, logel2, l1, logel1 = metrics.diff_vec(self._psd_real, psd_gen)
+            l2psd, logel2psd, l1psd, logel1psd = metrics.diff_vec(self._psd_real, psd_gen)
 
-            feed_dict[self._md['l2_psd']] = l2
-            feed_dict[self._md['log_l2_psd']] = logel2
-            feed_dict[self._md['l1_psd']] = l1
-            feed_dict[self._md['log_l1_psd']] = logel1
+            feed_dict[self._md['l2_psd']] = l2psd
+            feed_dict[self._md['log_l2_psd']] = logel2psd
+            feed_dict[self._md['l1_psd']] = l1psd
+            feed_dict[self._md['log_l1_psd']] = logel1psd
 
             summary_str = self._psd_plot.produceSummaryToWrite(
                 self._sess, x, self._psd_real, psd_gen)
@@ -965,17 +965,17 @@ class CosmoGAN(GAN):
                        feed_dict[self._md['cross_ps']][1],
                        feed_dict[self._md['cross_ps']][2]))
             # Save a summary if a new minimum of PSD is achieved
-            if l2 < self.best_psd:
+            if l2psd < self.best_psd:
                 print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(
-                    l2, self.best_psd))
-                self.best_psd, self._save_current_step = l2, True
-            if logel2 < self.best_log_psd:
+                    l2psd, self.best_psd))
+                self.best_psd, self._save_current_step = l2psd, True
+            if logel2psd < self.best_log_psd:
                 print(
                     ' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(
-                        logel2, self.best_log_psd))
-                self.best_log_psd, self._save_current_step = logel2, True
+                        logel2psd, self.best_log_psd))
+                self.best_log_psd, self._save_current_step = logel2psd, True
             print(' {} current PSD L2 {}, logL2 {}'.format(
-                self._counter, l2, logel2))
+                self._counter, l2psd, logel2psd))
 
     def _get_sample_args(self):
         return [self._G_fake, self._G_raw]

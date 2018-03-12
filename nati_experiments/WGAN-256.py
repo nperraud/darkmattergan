@@ -17,7 +17,7 @@ from gan import CosmoGAN
 ns = 256
 nsamples = 15000
 k = 10
-try_resume = True
+try_resume = False
 
 
 
@@ -42,7 +42,7 @@ params_discriminator['shape'] = [[5, 5], [5, 5], [5, 5], [3, 3], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
 params_discriminator['full'] = [32]
 params_discriminator['summary'] = True
-params_discriminator['minibatch_reg'] = True
+params_discriminator['minibatch_reg'] = False
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 2, 2, 1, 1]
