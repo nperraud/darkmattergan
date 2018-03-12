@@ -1,8 +1,8 @@
 import sys
 sys.path.insert(0, '../')
 
-import dict_reader, utils,  sys
-from Data_Generators import time_toy_generator
+import utils,  sys
+from JR_Scripts import dict_reader, time_toy_generator
 from model import WGanModel, WNGanModel, TemporalGanModelv3
 from gan import CosmoGAN
 import numpy as np
