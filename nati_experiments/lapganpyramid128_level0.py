@@ -19,7 +19,7 @@ ns = 128
 nsamples = 7500
 k = 10
 scalings = [2,2,2]
-try_resume = False
+try_resume = True
 
 
 
@@ -94,6 +94,7 @@ params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoin
 
 resume, params = utils.test_resume(try_resume, params)
 
+params['optimization']['epoch'] = 100
 
 # Build the model
 

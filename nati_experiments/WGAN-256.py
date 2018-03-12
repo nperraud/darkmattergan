@@ -9,6 +9,7 @@ sys.path.insert(0, '../')
 import data
 from model import WGanModel
 from gan import CosmoGAN
+import utils
 
 
 
@@ -17,7 +18,7 @@ from gan import CosmoGAN
 ns = 256
 nsamples = 15000
 k = 10
-try_resume = False
+try_resume = True
 
 
 
@@ -89,16 +90,7 @@ params['name'] = name
 params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary/'
 params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
 
-resume = False
-
-if try_resume:
-    try:
-        with open(params['save_dir']+'params.pkl', 'rb') as f:
-            params = pickle.load(f)
-        resume = True
-        print('Resume, the training will start from the last iteration!')
-    except:
-        print('No resume, the training will start from the beginning!')
+resume, params = utils.test_resume(try_resume, params)
 
 # Build the model
 

@@ -79,7 +79,6 @@ class WNGanModel(GanModel):
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], reuse=reuse, is_3d=self.is_3d)
 
-
 class CondWGanModel(GanModel):
     def __init__(self, params, X, z, name='CondWGan', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
@@ -316,6 +315,41 @@ class LapGanModel(GanModel):
 
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
+
+
+class LapGanModelTanh(GanModel):
+    def __init__(self, params, X, z, name='lapgan', is_3d=False):
+        ''' z must have the same dimension as X'''
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        self.upsampling = params['generator']['upsampling']
+        self.Xs = down_sampler(X, s=self.upsampling)
+        inshape = self.Xs.shape.as_list()[1:]
+        self.y = tf.placeholder_with_default(self.Xs, shape=[None, *inshape], name='y')       
+        self.Xsu = up_sampler(self.Xs, s=self.upsampling)
+        G_tmp = self.generator(X=self.y, z=z, reuse=False)
+        self.G_fake = tf.tanh(G_tmp)
+        # self.D_real = self.discriminator(X-self.Xsu, self.Xsu, reuse=False)
+        # self.D_fake = self.discriminator(self.G_fake-self.Xsu, self.Xsu, reuse=True)
+        self.D_real = -self.discriminator(tf.atanh(X), tf.atanh(self.Xsu), reuse=False)
+        self.D_fake = self.discriminator(G_tmp, tf.atanh(self.Xsu), reuse=True)
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
+        #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
+        self._D_loss = D_loss_f + D_loss_r + D_gp
+        self._G_loss = - tf.reduce_mean(self.D_fake)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
+
+    def generator(self, X, z, reuse):
+        return generator_up(X, z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, Xsu, reuse):
+        return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
+
 
 
 class Gan12Model(GanModel):
@@ -616,6 +650,10 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Discriminator \n------------------------------------------------------------', reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
+        if params['non_lin']:
+            non_lin_f = getattr(tf, params['non_lin'])
+            x = non_lin_f(x)
+            rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
         for i in range(nconv):
             x = conv(x,
                        nf_out=params['nfilter'][i],
@@ -715,7 +753,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if params['non_lin']:
-            non_lin_f = getattr(tf.nn, params['non_lin'])
+            non_lin_f = getattr(tf, params['non_lin'])
             x = non_lin_f(x)
             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
         rprint('     The output is of size {}'.format(x.shape), reuse)

@@ -24,7 +24,7 @@ scalings = [4]
 nsamples = 500
 k = 10
 
-try_resume = False
+try_resume = True
 
 
 
