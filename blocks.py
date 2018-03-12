@@ -176,8 +176,6 @@ def deconv2d(imgs,
     const = tf.constant_initializer(0.0)
 
     with tf.variable_scope(name):
-        print("imgs shape: {}".format(imgs.shape))
-
         # filter : [height, width, output_channels, in_channels]
         w = _variable_on_cpu(
             'w', [shape[0], shape[1], output_shape[-1],
