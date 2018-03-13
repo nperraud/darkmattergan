@@ -51,11 +51,11 @@ def gen_sanity_dataset(images_per_time_step=1000, num_time_steps=10, width=64, n
         pdf_vec = norm.pdf(np.arange((width + border_width) * 2 - 1),
                            width - 1 + border_width, scale[time_step])
         pdf_mat[time_step] = np.outer(pdf_vec, pdf_vec)
-    lst = [[width / 4, width / 2], [3 * width / 4, width / 2],
-           [width / 2, 3 * width / 4], [width/ 2, 3 * width / 4]]
+    lst = [[width // 4, width // 2], [(3 * width) // 4, width // 2],
+           [width // 2, width // 4], [width // 2, (3 * width) // 4]]
     for image in range(images_per_time_step):
-        mu_x = width / 2 + border_width
-        mu_y = width / 2 + border_width
+        mu_x = width // 2 + border_width
+        mu_y = width // 2 + border_width
         for time_step in range(num_time_steps):
             dataset[time_step][image] = dataset[time_step][image]\
                                             + pdf_mat[time_step][mu_x:mu_x+width, mu_y:mu_y+width]
