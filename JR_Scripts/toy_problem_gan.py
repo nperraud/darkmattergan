@@ -53,7 +53,7 @@ def main():
         num_gaussians = params['num_gaussians']
 
     # Generate data
-    data = time_toy_generator.gen_dataset(images_per_time_step=params['num_samples_per_class'],
+    data = time_toy_generator.gen_sanity_dataset(images_per_time_step=params['num_samples_per_class'],
                                           width=params['image_size'][0],
                                           num_gaussians=num_gaussians,
                                           point_density_factor=3)
