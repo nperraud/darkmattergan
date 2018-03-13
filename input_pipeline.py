@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import os, random, pickle
+import os, random
 from tensorflow.contrib.data import Dataset
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework.ops import convert_to_tensor
@@ -48,10 +48,9 @@ class input_pipeline(object):
 		where we load the data from the file. If only tensorflow ops here, then performance-wise more efficient
 		'''
 		sample = []
-		with open(sample_file_path, 'rb') as pickle_file:
-			sample = pickle.load(pickle_file)
-			sample = utils.forward_map(sample, self.k)
-			sample.resize([*sample.shape, 1])
+		sample = utils.load_hdf5(filename=sample_file_path, dataset_name='data', mode='r')
+		sample = utils.forward_map(sample, self.k)
+		sample.resize([*sample.shape, 1])
 
 		ret = sample.astype(np.float32)
 		return ret

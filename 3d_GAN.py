@@ -80,6 +80,7 @@ if __name__ == "__main__":
 	params['prior_distribution'] = 'gaussian'
 	params['sum_every'] = 200
 	params['viz_every'] = 200
+	params['print_every'] = 200
 	params['save_every'] = 4000
 	params['name'] = name
 	params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'

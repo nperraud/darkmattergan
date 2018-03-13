@@ -142,8 +142,6 @@ def power_spectrum_batch_phys_from_file_input(dir_list, k=10., max_num_psd=100, 
     if type(dir_list) is not list:
         raise ValueError("Path to directories not passed as list!!")
 
-    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-
     raw_hists_3d = []
     forward_mapped_hists_3d = []
     first = True

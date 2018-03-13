@@ -876,7 +876,6 @@ class CosmoGAN(GAN):
                     Xsel = np.vstack((Xsel, forward_mapped_data[ind] ))
                     real = utils.backward_map(Xsel, self.params['cosmology']['k'])
 
-        print("real shape=", real.shape)
         return real, Xsel
 
     def _train_log(self, feed_dict, X, epoch=None, batch_num=None):

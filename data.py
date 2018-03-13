@@ -3,7 +3,6 @@ import os
 import utils
 import gaussian_synthetic_data
 import socket
-import pickle
 
 def load_3d_hists(path_3d_hists, k=10):
     '''
@@ -31,9 +30,8 @@ def load_data_from_dir(dir_path, k=10):
     raw_data = []
     for file_name in os.listdir(dir_path):
         file_path = os.path.join(dir_path, file_name)
-        with open(file_path, 'rb') as pickle_file:
-            arr = pickle.load(pickle_file)
-            raw_data.append(arr)
+        arr = utils.load_hdf5(filename=file_path, dataset_name='data', mode='r')
+        raw_data.append(arr)
                     
     raw_data = np.array(raw_data)
     forward_mapped_data = utils.forward_map(raw_data, k)
@@ -45,11 +43,9 @@ def load_data_from_file(file_path, k=10):
     load training data, saved as ndarrays in file
     '''
     raw_data = []
-    with open(file_path, 'rb') as pickle_file:
-        raw_data = pickle.load(pickle_file)
-        if type(raw_data) is not np.ndarray:
-            raise ValueError("Data stroed in file {} is not of type np.ndarray".format(file_path))
-
+    raw_data = utils.load_hdf5(filename=file_path, dataset_name='data', mode='r')
+    if type(raw_data) is not np.ndarray:
+        raise ValueError("Data stroed in file {} is not of type np.ndarray".format(file_path))
 
     forward_mapped_data = utils.forward_map(raw_data, k)
 

@@ -1,9 +1,8 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import os
 import pynbody
-import pickle
+import h5py
+import utils
 
 def load_pynbody(fname_cuboid, PATH_READ, PATH_WRITE, cube_id):
     '''
@@ -86,41 +85,39 @@ def slice_cuboid(edges, nbody_i, PATH_WRITE, cube_id):
     #if the directory does not exist, create it 
     dir_path = os.path.join(PATH_WRITE, cube_id)
     if not os.path.exists(dir_path):
-    	os.makedirs(dir_path)
+        os.makedirs(dir_path)
 
     print("start dumping small cubes to disk")
 
     #check if file with this key exists. If yes, append to it, else create the file
     for key, points in small_cubes.items():
-	    pickleFileName = os.path.join(dir_path, str(key) + '.pickle')
-	    if not os.path.exists(pickleFileName):
-	    	with open(pickleFileName, 'wb+') as pickleFile:
-	    		pickle.dump(points, pickleFile, pickle.HIGHEST_PROTOCOL)
-	    else:
-	    	with open(pickleFileName, 'rb+') as pickleFile:
-	    		arr = pickle.load(pickleFile)
-	    		pickleFile.seek(0)
-	    		pickleFile.truncate() #delete old content
-	    		arr = np.vstack((arr, points))
-	    		pickle.dump(arr, pickleFile, pickle.HIGHEST_PROTOCOL)
+        file_name = os.path.join(dir_path, str(key) + '.h5')
+
+        if not os.path.exists(file_name):
+            utils.save_hdf5(data=points, filename=file_name, dataset_name='data', mode='w')
+
+        else:
+            arr = utils.load_hdf5(filename=file_name, dataset_name='data', mode='r')
+            arr = np.vstack((arr, points))
+            utils.save_hdf5(data=arr, filename=file_name, dataset_name='data', mode='w')
 
 def slice_cube(PATH_READ, PATH_WRITE, cube_id, num_slices=50, lbox=500):
-	'''
-	slice the cube with id cube_id, and write the smaller cubes to PATH_WRITE
-	'''
-	edges = get_slice_edges(num_slices, lbox)
-	#print(edges)
-	
-	small_cubes={}
-	# load cuboids one by one, and keep updating the smaller cubes
-	cuboid_num = 0
-	for filename in os.listdir( os.path.join(PATH_READ, cube_id) ):
-	    if not filename.endswith(".txt") and not filename.endswith(".dat") and not filename.endswith(".info"):
-		    print("---------------------------------------------------Current cuboid = {} num={}".format(filename, cuboid_num))
-		    cuboid_num += 1
-		    nbody_i, lbox_i = load_pynbody(fname_cuboid=filename, PATH_READ=PATH_READ, PATH_WRITE=PATH_WRITE, cube_id=cube_id)
-		    #print("nbody_i={}   lbox_i={} Mpc".format(nbody_i, lbox_i) )
-		    slice_cuboid(edges, nbody_i, PATH_WRITE, cube_id)
+    '''
+    slice the cube with id cube_id, and write the smaller cubes to PATH_WRITE
+    '''
+    edges = get_slice_edges(num_slices, lbox)
+    #print(edges)
+    
+    small_cubes={}
+    # load cuboids one by one, and keep updating the smaller cubes
+    cuboid_num = 0
+    for filename in os.listdir( os.path.join(PATH_READ, cube_id) ):
+        if not filename.endswith(".txt") and not filename.endswith(".dat") and not filename.endswith(".info"):
+            print("---------------------------------------------------Current cuboid = {} num={}".format(filename, cuboid_num))
+            cuboid_num += 1
+            nbody_i, lbox_i = load_pynbody(fname_cuboid=filename, PATH_READ=PATH_READ, PATH_WRITE=PATH_WRITE, cube_id=cube_id)
+            #print("nbody_i={}   lbox_i={} Mpc".format(nbody_i, lbox_i) )
+            slice_cuboid(edges, nbody_i, PATH_WRITE, cube_id)
 
 def small_cubes_to_3d_hist(PATH, cube_id, small_cube_dim=16):
     '''
@@ -131,73 +128,69 @@ def small_cubes_to_3d_hist(PATH, cube_id, small_cube_dim=16):
     '''
     path_write_hist = os.path.join(PATH, cube_id + 'hist')
     if not os.path.exists(path_write_hist):
-    	os.makedirs(path_write_hist)
+        os.makedirs(path_write_hist)
 
     for filename in os.listdir( os.path.join(PATH, cube_id) ):
-    	file_path = os.path.join(PATH, cube_id, filename)
-    	with open( file_path, 'rb') as pickleFile:
-	    	points = pickle.load(pickleFile)
-	    	hist_3d = np.histogramdd(sample=points, bins=small_cube_dim)
-	    	
-	    	hist_file_path = os.path.join(path_write_hist, filename)
-	    	with open( hist_file_path, 'wb+' ) as pickle_file:
-    			pickle.dump(hist_3d[0], pickle_file, pickle.HIGHEST_PROTOCOL)
+        file_path = os.path.join(PATH, cube_id, filename)
+        points = utils.load_hdf5(filename=file_path, dataset_name='data', mode='r')
+        hist_3d = np.histogramdd(sample=points, bins=small_cube_dim)
+            
+        hist_file_path = os.path.join(path_write_hist, filename)
+        utils.save_hdf5(data=hist_3d[0], filename=hist_file_path, dataset_name='data', mode='w')
 
 def read_small_cube_from_disk(PATH, cube_id, filename):
-    points = []
-    with open( os.path.join(PATH, cube_id, filename), 'rb') as pickleFile:
-        points = pickle.load(pickleFile)
+    file_path = os.path.join(PATH, cube_id, filename)
+    points = utils.load_hdf5(filename=file_path, dataset_name='data', mode='r')
     return points
 
 def read_3d_hist_from_disk(PATH, cube_id, filename):
-    hist_3d = []
-    with open( os.path.join(PATH, cube_id + 'hist', filename), 'rb') as pickleFile:
-        hist_3d = pickle.load(pickleFile)
+    file_path = os.path.join(PATH, cube_id + 'hist', filename)
+    hist_3d = utils.load_hdf5(filename=file_path, dataset_name='data', mode='r')
     return hist_3d
 
 def main():
-	PATH_WRITE = '../3d_smaller_cubes'
-	#if the directory does not exist, create it
-	if not os.path.exists(PATH_WRITE):
-		os.makedirs(PATH_WRITE)
+    PATH_WRITE = '../3d_smaller_cubes'
+    #if the directory does not exist, create it
+    if not os.path.exists(PATH_WRITE):
+        os.makedirs(PATH_WRITE)
     
-	cube_id_root = 'Box_350Mpch_'
-	PATH_READ = '../../nbody/'
+    cube_id_root = 'Box_350Mpch_'
+    PATH_READ = '../../nbody/'
 
-	for box_num in range(1):
-		print("---------------------------------------------Current box = {}".format(box_num))
-		cube_id = cube_id_root + str(box_num)
-		slice_cube(PATH_READ, PATH_WRITE, cube_id, num_slices=10, lbox=500)
+    for box_num in range(1):
+        print("---------------------------------------------Current box = {}".format(box_num))
+        cube_id = cube_id_root + str(box_num)
+        slice_cube(PATH_READ, PATH_WRITE, cube_id, num_slices=10, lbox=500)
 
-		# verify that nbody cubes were sliced properly
-		nbody = []
-		lbox = []
-		for filename in os.listdir( os.path.join(PATH_READ, cube_id)):
-			if not filename.endswith(".txt") and not filename.endswith(".dat") and not filename.endswith(".info"):
-				nbody_i, lbox_i = load_pynbody(fname_cuboid=filename, PATH_READ=PATH_READ, PATH_WRITE=PATH_WRITE, cube_id=cube_id)
-				nbody.append(nbody_i)
-				lbox.append(lbox_i)
+        # verify that nbody cubes were sliced properly
+        nbody = []
+        lbox = []
+        for filename in os.listdir( os.path.join(PATH_READ, cube_id)):
+            if not filename.endswith(".txt") and not filename.endswith(".dat") and not filename.endswith(".info"):
+                nbody_i, lbox_i = load_pynbody(fname_cuboid=filename, PATH_READ=PATH_READ, PATH_WRITE=PATH_WRITE, cube_id=cube_id)
+                nbody.append(nbody_i)
+                lbox.append(lbox_i)
 
-		t2 = 0
-		for nbody_i in nbody:
-			t2 += len(nbody_i['pos'])
+        t2 = 0
+        for nbody_i in nbody:
+            t2 += len(nbody_i['pos'])
 
-		t1 = 0
-		for filename in os.listdir( os.path.join(PATH_WRITE, cube_id)):
-			points = read_small_cube_from_disk(PATH_WRITE, cube_id, filename)
-			t1 += len(points)
+        t1 = 0
+        for filename in os.listdir( os.path.join(PATH_WRITE, cube_id)):
+            points = read_small_cube_from_disk(PATH_WRITE, cube_id, filename)
+            t1 += len(points)
 
-		print("t1=", t1)
-		print("t2=", t2)
-		print("t1==t2: ", t1 == t2)
+        print("t1=", t1)
+        print("t2=", t2)
+        print("t1==t2: ", t1 == t2)
 
-		print("Writing 3d Histogram to disk")
-		cube_dim=16
-		small_cubes_to_3d_hist(PATH_WRITE, cube_id, cube_dim)
-		print("Done!")
-	
+        print("Writing 3d Histogram to disk")
+        cube_dim=16
+        small_cubes_to_3d_hist(PATH_WRITE, cube_id, cube_dim)
+        print("Done!")
+    
 
 if __name__ == '__main__':
-	main()
+    main()
 
 

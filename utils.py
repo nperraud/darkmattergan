@@ -214,14 +214,14 @@ def get_3d_hists_dir_paths(path_3d_hists):
 #     return itertools.zip_longest(fillvalue=fillvalue, *args)
 
 
-def save_hdf5(data, filename, dataset_name='data'):
-    h5f = h5py.File(filename, 'w')
+def save_hdf5(data, filename, dataset_name='data', mode='w'):
+    h5f = h5py.File(filename, mode)
     h5f.create_dataset(dataset_name, data=data)
     h5f.close()
 
 
-def load_hdf5(filename, dataset_name='data'):
-    h5f = h5py.File(filename, 'r')
+def load_hdf5(filename, dataset_name='data', mode='r'):
+    h5f = h5py.File(filename, mode)
     data = h5f[dataset_name][:]
     h5f.close()
     return data
