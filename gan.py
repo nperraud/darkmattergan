@@ -80,7 +80,7 @@ class GAN(object):
         global_step = tf.Variable(0, name="global_step", trainable=False)
 
         if self.params['file_input']: # samples to be read from file, rather than feeding as numpy array
-            samples_dir_paths = utils.get_3d_hists_dir_paths(params['samples_dir_path'])
+            samples_dir_paths = params['samples_dir_paths']
             self.train_data = input_pipeline(dir_paths=samples_dir_paths, batch_size=self.batch_size)
             # create a reinitializable iterator given the dataset structure
             self.iterator = Iterator.from_structure(self.train_data.data.output_types, self.train_data.data.output_shapes)
@@ -778,19 +778,28 @@ class CosmoGAN(GAN):
         self.summary_op_metrics = tf.summary.merge(
             tf.get_collection("Metrics"))
 
-    def train(self, X=None, resume=False):
-
+    def _compute_real_psd(self, X=None):
+        '''
+        Compute the real PSD on 'max_num_psd' data
+        '''
         self._Npsd = self.params['cosmology']['Npsd']
-        # Compute the real PSD on all data! May take some time
-        if self.params['file_input']:
-            X, _ = data.load_3d_hists(self.params['samples_dir_path'], self.params['cosmology']['k'])
+        self._max_num_psd = self.params['cosmology']['max_num_psd']
 
-        psd_real, _ = metrics.power_spectrum_batch_phys(
-            X1=utils.backward_map(X, self.params['cosmology']['k']),
-            is_3d=self.is_3d)
-        self._psd_real = np.mean(psd_real, axis=0)
-        del psd_real
-        if self.params['num_classes'] > 1:
+        if self.params['file_input']: # training samples stored in files
+            #X, _ = data.load_3d_hists(self.params['samples_dir_path'], self.params['cosmology']['k'])
+            psd_real = metrics.power_spectrum_batch_phys_from_file_input(self.params['samples_dir_paths'],
+                                        self.params['cosmology']['k'], 
+                                        self._max_num_psd, is_3d=self.is_3d)
+            self._psd_real = np.mean(psd_real, axis=0)
+
+        else: # training samples passed as numpy ndarray
+            psd_real, _ = metrics.power_spectrum_batch_phys(
+                X1=utils.backward_map(X, self.params['cosmology']['k']), 
+                                        is_3d=self.is_3d)
+            self._psd_real = np.mean(psd_real, axis=0)
+            del psd_real
+        
+        if self.params['num_classes'] > 1: # this block will not work with file inputs!!
             self._c_psd_real = []
             for i in range(self.params['num_classes']):
                 psd_real, _ = metrics.power_spectrum_batch_phys(
@@ -799,6 +808,12 @@ class CosmoGAN(GAN):
                     is_3d=self.is_3d)
                 self._c_psd_real.append(np.mean(psd_real, axis=0))
                 del psd_real
+
+    def train(self, X=None, resume=False):
+        if X is not None and self.params['file_input']:
+            print("Warning: A numpy array as well as a file location for training set is provided!!")
+
+        self._compute_real_psd(X)
 
         if resume:
             self.best_psd = self.params['cosmology']['best_psd']
@@ -836,20 +851,48 @@ class CosmoGAN(GAN):
                 self._sess, x, self._c_psd_real[i], psd_gen)
             self._summary_writer.add_summary(summary_str, self._counter)
 
-
-    def _train_log(self, feed_dict, X, epoch=None, batch_num=None):
-        super()._train_log(feed_dict, X, epoch, batch_num)
-        if np.mod(self._counter, self.params['sum_every']) == 0:
-            if self.params['num_classes'] > 1:
-                self._multiclass_l2_psd(feed_dict, X)
+    def _sample_real_data(self, X):
+        '''
+        Sample from training data, where training data coould be both, a numpy array or file saved on disk
+        '''
+        if X is not None: # training set provided as numpy array
             ind = np.random.randint(0, len(X), size=[self._Npsd])
             Xsel = X[ind]
             real = utils.backward_map(Xsel, self.params['cosmology']['k'])
-            z_sel = self._sample_latent(self._Npsd)
+        else:        
+            num_dir = len(self.params['samples_dir_paths'])
+            num_samples_each_dir = [ self._Npsd//num_dir for i in range(num_dir)]
+            num_samples_each_dir[0] += (self._Npsd % num_dir) # remainder samples sampled from 0th directory
 
+            for i, dir_path in enumerate(self.params['samples_dir_paths']): # sample from each directory
+                forward_mapped_data, _ = data.load_data_from_dir(dir_path) # load all the samples in the current directory
+
+                ind = np.random.randint(0, len(forward_mapped_data), num_samples_each_dir[i]) 
+
+                if i == 0:
+                    Xsel = forward_mapped_data[ind] # sample only required number
+                    real = utils.backward_map(Xsel, self.params['cosmology']['k'])
+                else:
+                    Xsel = np.vstack((Xsel, forward_mapped_data[ind] ))
+                    real = utils.backward_map(Xsel, self.params['cosmology']['k'])
+
+        print("real shape=", real.shape)
+        return real, Xsel
+
+    def _train_log(self, feed_dict, X, epoch=None, batch_num=None):
+        super()._train_log(feed_dict, X, epoch, batch_num)
+
+        if np.mod(self._counter, self.params['sum_every']) == 0:
+            if self.params['num_classes'] > 1:
+                self._multiclass_l2_psd(feed_dict, X)
+            
+            real, Xsel = self._sample_real_data(X)
+
+            z_sel = self._sample_latent(self._Npsd)
             _, fake = self._generate_sample_safe(
-                z_sel, Xsel.reshape([self._Npsd, *X.shape[1:], 1]))
-            fake.resize([self._Npsd, *X.shape[1:]])
+                z_sel, Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1]))
+
+            fake.resize([self._Npsd, *Xsel.shape[1:]])
 
             psd_gen, x = metrics.power_spectrum_batch_phys(
                 X1=fake, is_3d=self.is_3d)

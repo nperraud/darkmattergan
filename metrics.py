@@ -3,9 +3,11 @@ from scipy import stats
 import power_spectrum_phys as ps
 import scipy.ndimage.filters as filters
 import itertools
+import os
 import utils
 import functools
 import multiprocessing as mp
+import data, utils
 
 
 def wrapper_func(x, bin_k=50, box_l=100 / 0.7):
@@ -49,7 +51,8 @@ def power_spectrum_batch_phys(X1,
                               X2=None,
                               bin_k=50,
                               box_l=100 / 0.7,
-                              is_3d=False):
+                              is_3d=False,
+                              remove_nan=True):
     '''
     Calculates the 1-D PSD of a batch of variable size
     :param batch:
@@ -124,10 +127,53 @@ def power_spectrum_batch_phys(X1,
             _result = list(itertools.chain.from_iterable(_result))
             result = np.array(_result)
 
-    freq_index = ~np.isnan(result).any(
-        axis=0)  # Some frequencies are not defined, remove them
+    if remove_nan:
+        freq_index = ~np.isnan(result).any(axis=0) # Some frequencies are not defined, remove them
+        result = result[:, freq_index]
+        k = k[freq_index]
 
-    return result[:, freq_index], k[freq_index]
+    return result, k
+
+def power_spectrum_batch_phys_from_file_input(dir_list, k=10., max_num_psd=100, num_sample_in_each_file=1, is_3d=False):
+    '''
+    calculate psd from data, stored as files on disk
+    dir_list = list of directories from files are to be read
+    '''
+    if type(dir_list) is not list:
+        raise ValueError("Path to directories not passed as list!!")
+
+    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+
+    raw_hists_3d = []
+    forward_mapped_hists_3d = []
+    first = True
+    num_samples_read = 0
+
+    for dir_path in dir_list:
+        for file_name in os.listdir(dir_path):
+            file_path = os.path.join(dir_path, file_name)
+            forward_mapped_arr, raw_arr = data.load_data_from_file(file_path, k)
+
+            X1=utils.backward_map(forward_mapped_arr, k)
+            X1 = np.reshape(X1, [1, *X1.shape])
+            psd_real, _ = power_spectrum_batch_phys(
+                            X1=X1,
+                            is_3d = is_3d, 
+                            remove_nan=False)
+
+
+            if first:
+                first = False
+                psd_real_vstacked = psd_real
+            else:
+                psd_real_vstacked = np.vstack((psd_real_vstacked, psd_real))
+
+            num_samples_read += num_sample_in_each_file
+            if(num_samples_read >= max_num_psd):
+                break
+
+    freq_index = ~np.isnan(psd_real_vstacked).any(axis=0) # Some frequencies are not defined, remove them
+    return psd_real_vstacked[:, freq_index]
 
 
 def histogram(x, bins, probability=True):

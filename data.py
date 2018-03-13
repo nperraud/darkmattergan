@@ -5,22 +5,55 @@ import gaussian_synthetic_data
 import socket
 import pickle
 
-def load_3d_hists(path_3d_hists, k):
+def load_3d_hists(path_3d_hists, k=10):
+    '''
+    load 3d histograms
+    '''
+    forward_mapped_hists_3d = []
     raw_hists_3d = []
     for item in os.listdir(path_3d_hists):
         dir_path = os.path.join(path_3d_hists, item)
         if os.path.isdir(dir_path) and item.endswith('hist'): # the directories where the 3d histograms are saved end with 'hist'
             print("----------------------------------current directory {}".format(item))
-            for file_name in os.listdir(dir_path):
-                file_path = os.path.join(dir_path, file_name)
-                with open(file_path, 'rb') as pickle_file:
-                    arr = pickle.load(pickle_file)
-                    raw_hists_3d.append(arr)
+            forward_mapped_arr, raw_arr = load_data_from_dir(dir_path, k)
+            forward_mapped_hists_3d.append(forward_mapped_arr)
+            raw_hists_3d.append(raw_arr)
                     
+    forward_mapped_hists_3d = np.array(forward_mapped_hists_3d)
     raw_hists_3d = np.array(raw_hists_3d)
-    hists_3d = utils.forward_map(raw_hists_3d, k)
 
-    return hists_3d, raw_hists_3d
+    return forward_mapped_hists_3d, raw_hists_3d
+
+def load_data_from_dir(dir_path, k=10):
+    '''
+    load training data, saved as ndarrays in files in directory dir_path
+    '''
+    raw_data = []
+    for file_name in os.listdir(dir_path):
+        file_path = os.path.join(dir_path, file_name)
+        with open(file_path, 'rb') as pickle_file:
+            arr = pickle.load(pickle_file)
+            raw_data.append(arr)
+                    
+    raw_data = np.array(raw_data)
+    forward_mapped_data = utils.forward_map(raw_data, k)
+
+    return forward_mapped_data, raw_data
+
+def load_data_from_file(file_path, k=10):
+    '''
+    load training data, saved as ndarrays in file
+    '''
+    raw_data = []
+    with open(file_path, 'rb') as pickle_file:
+        raw_data = pickle.load(pickle_file)
+        if type(raw_data) is not np.ndarray:
+            raise ValueError("Data stroed in file {} is not of type np.ndarray".format(file_path))
+
+
+    forward_mapped_data = utils.forward_map(raw_data, k)
+
+    return forward_mapped_data, raw_data
 
 
 def load_3d_synthetic_samples(nsamples, dim, k):
