@@ -144,35 +144,57 @@ def num_images_each_row(x_dim):
     return num_images_in_each_row
 
 def tile_cube_slices(cube, epoch, batch, label, save_images=False):
-        '''
-        cube = [:, :, :]
-        arrange cube as tile of squares
-        '''
-        x_dim = cube.shape[0]
-        y_dim = cube.shape[1]
-        z_dim = cube.shape[2]
-        v_stacks = []
-        num = 0
-        num_images_in_each_row = num_images_each_row(x_dim)
+    '''
+    cube = [:, :, :]
+    arrange cube as tile of squares
+    '''
+    x_dim = cube.shape[0]
+    y_dim = cube.shape[1]
+    z_dim = cube.shape[2]
+    v_stacks = []
+    num = 0
+    num_images_in_each_row = num_images_each_row(x_dim)
 
-        for i in range(x_dim//num_images_in_each_row):
-            h_stacks = []
-            for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
-                h_stacks.append(cube[num, :, :])
-                num += 1
-            v_stacks.append( np.hstack(h_stacks) )
+    for i in range(x_dim//num_images_in_each_row):
+        h_stacks = []
+        for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
+            h_stacks.append(cube[num, :, :])
+            num += 1
+        v_stacks.append( np.hstack(h_stacks) )
 
-        tile = np.vstack(v_stacks)
+    tile = np.vstack(v_stacks)
 
-        if save_images:
-            dir_path = '../saved_result/Images/' + label
-            if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
+    if save_images:
+        dir_path = '../saved_result/Images/' + label
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
-            file_name = epoch + '_' + batch + '.jpg'
-            scipy.misc.imsave(dir_path + '/' + file_name, tile)
+        file_name = epoch + '_' + batch + '.jpg'
+        scipy.misc.imsave(dir_path + '/' + file_name, tile)
 
-        return tile.reshape([1, *(tile.shape), 1])
+    return tile.reshape([1, *(tile.shape), 1])
+
+def tile_cube_to_2d(cube):
+    '''
+    cube = [:, :, :]
+    arrange cube as tile of squares
+    '''
+    x_dim = cube.shape[0]
+    y_dim = cube.shape[1]
+    z_dim = cube.shape[2]
+    v_stacks = []
+    num = 0
+    num_images_in_each_row = num_images_each_row(x_dim)
+
+    for i in range(x_dim//num_images_in_each_row):
+        h_stacks = []
+        for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
+            h_stacks.append(cube[num, :, :])
+            num += 1
+        v_stacks.append( np.hstack(h_stacks) )
+
+    tile = np.vstack(v_stacks)
+    return tile
 
 def get_3d_hists_dir_paths(path_3d_hists):
     dir_paths = []
@@ -216,7 +238,7 @@ def get_3d_hists_dir_paths(path_3d_hists):
 
 def save_hdf5(data, filename, dataset_name='data', mode='w'):
     h5f = h5py.File(filename, mode)
-    h5f.create_dataset(dataset_name, data=data)
+    h5f.create_dataset(dataset_name, data=data, dtype='float32')
     h5f.close()
 
 
@@ -225,3 +247,13 @@ def load_hdf5(filename, dataset_name='data', mode='r'):
     data = h5f[dataset_name][:]
     h5f.close()
     return data
+
+def load_hdf5_all_datasets(filename, num=100):
+    lst = []
+    h5f = h5py.File(filename, 'r')
+    for i in range(num):
+        data = h5f['data' + str(i)][:]
+        lst.append(data)
+
+    h5f.close()
+    return lst

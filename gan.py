@@ -79,14 +79,18 @@ class GAN(object):
 
         global_step = tf.Variable(0, name="global_step", trainable=False)
 
-        if self.params['file_input']: # samples to be read from file, rather than feeding as numpy array
+        if self.params['file_input']: # samples to be read from file, rather than feeding on fly as numpy array
+
             samples_dir_paths = params['samples_dir_paths']
-            self.train_data = input_pipeline(dir_paths=samples_dir_paths, batch_size=self.batch_size)
+            self.train_data = input_pipeline(dir_paths=samples_dir_paths, 
+                                                batch_size=self.batch_size, 
+                                                num_samples_in_each_file=self.params['num_samples_in_each_file'],
+                                                image_size=self.params['image_size'])
             # create a reinitializable iterator given the dataset structure
-            self.iterator = Iterator.from_structure(self.train_data.data.output_types, self.train_data.data.output_shapes)
+            self.iterator = self.train_data.dataset.make_initializable_iterator()
             self.next_batch = self.iterator.get_next()
             # Op for initializing the iterator
-            self.training_init_op = self.iterator.make_initializer(self.train_data.data)
+            self.training_init_op = self.iterator.initializer
 
         optimizer_D, optimizer_G, optimizer_E = self._build_optmizer()
 
@@ -112,10 +116,7 @@ class GAN(object):
 
         # Summaries
         if self.is_3d:
-            x_dim = self.params['image_size'][0]
-            y_dim = self.params['image_size'][1]
-            z_dim = self.params['image_size'][2]
-
+            x_dim, y_dim, z_dim = self.params['image_size']
             num_images_in_each_row = utils.num_images_each_row(x_dim)
 
             self.real_placeholder = tf.placeholder(
@@ -350,7 +351,7 @@ class GAN(object):
 
                         if self.params['file_input']:
                             # Initialize iterator with the training dataset
-                            X_real = self._sess.run(self.next_batch)[0]
+                            X_real = self._sess.run(self.next_batch)
                         else:
                             X_real = X[idx * self.batch_size:(idx + 1) * self.batch_size]
                             X_real.resize([*X_real.shape, 1])
@@ -788,8 +789,11 @@ class CosmoGAN(GAN):
         if self.params['file_input']: # training samples stored in files
             #X, _ = data.load_3d_hists(self.params['samples_dir_path'], self.params['cosmology']['k'])
             psd_real = metrics.power_spectrum_batch_phys_from_file_input(self.params['samples_dir_paths'],
+                                        self.params['image_size'],
                                         self.params['cosmology']['k'], 
-                                        self._max_num_psd, is_3d=self.is_3d)
+                                        self._max_num_psd,
+                                        num_sample_in_each_file=self.params['num_sample_in_each_file'], 
+                                        is_3d=self.is_3d)
             self._psd_real = np.mean(psd_real, axis=0)
 
         else: # training samples passed as numpy ndarray
@@ -853,7 +857,7 @@ class CosmoGAN(GAN):
 
     def _sample_real_data(self, X):
         '''
-        Sample from training data, where training data coould be both, a numpy array or file saved on disk
+        Sample from training data, where training data coould be both, a numpy array or files saved on disk
         '''
         if X is not None: # training set provided as numpy array
             ind = np.random.randint(0, len(X), size=[self._Npsd])
@@ -865,7 +869,9 @@ class CosmoGAN(GAN):
             num_samples_each_dir[0] += (self._Npsd % num_dir) # remainder samples sampled from 0th directory
 
             for i, dir_path in enumerate(self.params['samples_dir_paths']): # sample from each directory
-                forward_mapped_data, _ = data.load_data_from_dir(dir_path) # load all the samples in the current directory
+                forward_mapped_data, _ = data.read_tfrecords_from_dir(dir_path, 
+                                                    self.params['image_size'], 
+                                                    self.params['cosmology']['k']) # load all the samples in the current directory
 
                 ind = np.random.randint(0, len(forward_mapped_data), num_samples_each_dir[i]) 
 

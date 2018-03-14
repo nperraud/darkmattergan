@@ -134,7 +134,7 @@ def power_spectrum_batch_phys(X1,
 
     return result, k
 
-def power_spectrum_batch_phys_from_file_input(dir_list, k=10., max_num_psd=100, num_sample_in_each_file=1, is_3d=False):
+def power_spectrum_batch_phys_from_file_input(dir_list, image_size, k=10., max_num_psd=100, num_sample_in_each_file=1, is_3d=False):
     '''
     calculate psd from data, stored as files on disk
     dir_list = list of directories from files are to be read
@@ -150,15 +150,17 @@ def power_spectrum_batch_phys_from_file_input(dir_list, k=10., max_num_psd=100, 
     for dir_path in dir_list:
         for file_name in os.listdir(dir_path):
             file_path = os.path.join(dir_path, file_name)
-            forward_mapped_arr, raw_arr = data.load_data_from_file(file_path, k)
+            forward_mapped_arr, raw_arr = data.read_tfrecords_from_file(file_path, image_size, k)
 
             X1=utils.backward_map(forward_mapped_arr, k)
-            X1 = np.reshape(X1, [1, *X1.shape])
+
+            if num_sample_in_each_file == 1:
+                X1 = np.reshape(X1, [1, *X1.shape])
+            
             psd_real, _ = power_spectrum_batch_phys(
                             X1=X1,
                             is_3d = is_3d, 
                             remove_nan=False)
-
 
             if first:
                 first = False

@@ -3,25 +3,7 @@ import os
 import utils
 import gaussian_synthetic_data
 import socket
-
-def load_3d_hists(path_3d_hists, k=10):
-    '''
-    load 3d histograms
-    '''
-    forward_mapped_hists_3d = []
-    raw_hists_3d = []
-    for item in os.listdir(path_3d_hists):
-        dir_path = os.path.join(path_3d_hists, item)
-        if os.path.isdir(dir_path) and item.endswith('hist'): # the directories where the 3d histograms are saved end with 'hist'
-            print("----------------------------------current directory {}".format(item))
-            forward_mapped_arr, raw_arr = load_data_from_dir(dir_path, k)
-            forward_mapped_hists_3d.append(forward_mapped_arr)
-            raw_hists_3d.append(raw_arr)
-                    
-    forward_mapped_hists_3d = np.array(forward_mapped_hists_3d)
-    raw_hists_3d = np.array(raw_hists_3d)
-
-    return forward_mapped_hists_3d, raw_hists_3d
+import tensorflow as tf
 
 def load_data_from_dir(dir_path, k=10):
     '''
@@ -50,6 +32,49 @@ def load_data_from_file(file_path, k=10):
     forward_mapped_data = utils.forward_map(raw_data, k)
 
     return forward_mapped_data, raw_data
+
+def read_tfrecords_from_file(file_path, image_size, k=10.):
+    '''
+    read samples stored in a tfrecord file
+    '''
+    record_iterator = tf.python_io.tf_record_iterator(path=file_path)
+    cubes = []
+    for string_record in record_iterator:
+        example = tf.train.Example()
+        example.ParseFromString(string_record)
+
+        img_string = (example.features.feature['image']
+                                      .bytes_list
+                                      .value[0])
+
+        cube = np.fromstring(img_string, dtype=np.float32)
+        cube = cube.reshape(image_size)
+        cubes.append(cube)
+
+    data = np.array(cubes, dtype=np.float32)    
+    forward_mapped_data = utils.forward_map(data, k)
+
+    return forward_mapped_data, data
+
+def read_tfrecords_from_dir(dir_path, image_size, k):
+    '''
+    read samples from all tfrecord files in a directory
+    '''
+    vstacked_forward = 0
+    vstacked_raw = 0
+    first = True
+
+    for file_name in os.listdir(dir_path):
+        file_path = os.path.join(dir_path, file_name)
+        forward_mapped_data, data = read_tfrecords_from_file(file_path, image_size, k)
+        if first:
+            vstacked_forward = forward_mapped_data
+            vstacked_raw = data
+        else:
+            vstacked_forward = np.vstack((vstacked_forward, forward_mapped_data))
+            vstacked_raw = np.vstack((vstacked_raw, data))
+
+    return vstacked_forward, vstacked_raw
 
 
 def load_3d_synthetic_samples(nsamples, dim, k):

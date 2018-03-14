@@ -23,6 +23,11 @@ def default_params(params=dict()):
     # Prior distribution to sample from ('Gaussian','Uniform',...)
     params['num_classes'] = params.get('num_classes', 1)
     # Number of classes to condition on
+    params['image_size'] = params.get('image_size', [16, 16, 16])
+    # size of input image
+    params['num_samples_in_each_file'] = params.get('num_samples_in_each_file', 100)
+    # number of samples stored in each of the tfrecords files
+
 
     # Discriminator parameters
     # ------------------------
@@ -67,6 +72,6 @@ def default_params_cosmology(params=dict()):
     # Apply a guausian filter to remove high frequency before executing the computations
     params['cosmology']['k'] = params['cosmology'].get('k', 10)
     params['cosmology']['Npsd'] = params['cosmology'].get('Npsd', 500)
-    params['cosmology']['max_num_psd'] = params['cosmology'].get('max_num_psd', 100)   
+    params['cosmology']['max_num_psd'] = params['cosmology'].get('max_num_psd', 100)
 
     return params
