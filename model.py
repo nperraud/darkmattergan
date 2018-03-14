@@ -721,9 +721,10 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if params['non_lin']:
-            non_lin_f = getattr(tf.nn, params['non_lin'])
-            x = non_lin_f(x)
-            rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+            # non_lin_f = getattr(tf.nn, params['non_lin'])
+            # x = non_lin_f(x)
+            # rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+            rprint('    Non linearity DISABLED!! WARNING!!', reuse)
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint('------------------------------------------------------------\n', reuse)
     return x

@@ -66,7 +66,7 @@ def gen_sanity_dataset(images_per_time_step=1000, num_time_steps=10, width=64, n
                                         + pdf_mat[time_step][mu_x:mu_x + width, mu_y:mu_y + width]
         for time_step in range(num_time_steps):
             dataset[time_step][image] = dataset[time_step][image] * num_points
-    #dataset = dataset.astype(int)
+    # dataset = dataset.astype(int)
     if filename is not None:
         h5f = h5py.File(filename, 'w')
         for time_step in range(num_time_steps):
