@@ -4,7 +4,7 @@ sys.path.insert(0, '../')
 import utils,  sys
 from JR_Scripts import dict_reader, time_toy_generator
 from model import WGanModel, WNGanModel, TemporalGanModelv3
-from gan import GAN
+from gan import CosmoGAN
 import numpy as np
 
 
@@ -46,7 +46,7 @@ def main():
         model = WNGanModel
     if params['model_idx'] == 2:
         model = TemporalGanModelv3
-    cosmo_gan = GAN(params, model)
+    cosmo_gan = CosmoGAN(params, model)
 
     num_gaussians = 42
     if 'num_gaussians' in params:
@@ -71,6 +71,7 @@ def main():
     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     data = data.astype(np.float32)
     data = utils.forward_map(data, params['cosmology']['k'])
+    data = data / 1.25
 
     # Train model
     cosmo_gan.train(data)
