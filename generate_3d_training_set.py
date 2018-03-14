@@ -139,7 +139,7 @@ def _bytes_feature(value):
     '''
     convert string to bytes
     '''
-  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 def save_as_tfrecord(list_arrs, file_path):
     '''
