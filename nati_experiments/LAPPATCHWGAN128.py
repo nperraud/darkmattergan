@@ -21,10 +21,10 @@ import utils
 
 ns = 128
 scalings = [4]
-nsamples = 500
+nsamples = 7500
 k = 10
 
-try_resume = True
+try_resume = False
 
 
 

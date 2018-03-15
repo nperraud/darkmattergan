@@ -40,12 +40,12 @@ params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
 params_generator = dict()
-params_generator['stride'] = [2, 2, 2, 2, 1, 1]
+params_generator['stride'] = [2, 2, 2, 1, 1, 1]
 params_generator['latent_dim'] = 100
 params_generator['nfilter'] = [64, 256, 512, 256, 64, 1]
 params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
-params_generator['full'] = [4*4*64]
+params_generator['full'] = [8*8*64]
 params_generator['summary'] = True
 params_generator['non_lin'] = 'tanh'
 

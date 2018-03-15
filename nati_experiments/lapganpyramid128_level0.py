@@ -94,7 +94,7 @@ params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoin
 
 resume, params = utils.test_resume(try_resume, params)
 
-params['optimization']['epoch'] = 100
+params['optimization']['epoch'] = 200
 
 # Build the model
 
