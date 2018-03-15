@@ -74,10 +74,10 @@ class WNGanModel(GanModel):
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
 
     def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse, is_3d=self.is_3d)
+        return generator(z, self.params['generator'], reuse=reuse)
 
     def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse, is_3d=self.is_3d)
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
 
 
 class CondWGanModel(GanModel):
@@ -699,12 +699,18 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                          name='{}_deconv_3d'.format(i),
                          summary=params['summary'])
             else:
+                output_shape = [bs, sx, sx, params['nfilter'][i]]
                 x = deconv2d(x,
-                         output_shape=[bs, sx, sx, params['nfilter'][i]],
+                         output_shape=output_shape,
                          shape=params['shape'][i],
                          stride=params['stride'][i],
                          name='{}_deconv'.format(i),
                          summary=params['summary'])
+                # If we are running on Leonhard we need to reshape in order for TF
+                # to explicitly know the shape of the tensor. Machines with newer
+                # TensorFlow versions do not need this.
+                if tf.__version__ == '1.3.0':
+                    x = tf.reshape(x, output_shape)
 
             rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
             if i < nconv-1:
