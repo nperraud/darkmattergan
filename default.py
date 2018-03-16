@@ -25,8 +25,6 @@ def default_params(params=dict()):
     # Number of classes to condition on
     params['image_size'] = params.get('image_size', [16, 16, 16])
     # size of input image
-    params['num_samples_in_each_file'] = params.get('num_samples_in_each_file', 100)
-    # number of samples stored in each of the tfrecords files
 
 
     # Discriminator parameters

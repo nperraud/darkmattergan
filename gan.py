@@ -13,7 +13,6 @@ from scipy import ndimage
 
 from plot_summary import PlotSummaryLog
 from default import default_params, default_params_cosmology
-from input_pipeline import input_pipeline
 import data
 
 
@@ -79,18 +78,10 @@ class GAN(object):
 
         global_step = tf.Variable(0, name="global_step", trainable=False)
 
-        if self.params['file_input']: # samples to be read from file, rather than feeding on fly as numpy array
-
-            samples_dir_paths = params['samples_dir_paths']
-            self.train_data = input_pipeline(dir_paths=samples_dir_paths, 
-                                                batch_size=self.batch_size, 
-                                                num_samples_in_each_file=self.params['num_samples_in_each_file'],
-                                                image_size=self.params['image_size'])
-            # create a reinitializable iterator given the dataset structure
-            self.iterator = self.train_data.dataset.make_initializable_iterator()
-            self.next_batch = self.iterator.get_next()
-            # Op for initializing the iterator
-            self.training_init_op = self.iterator.initializer
+        # If input to be taken from files, create a dataset object, which will be initialized in train().
+        # This dataset is intialized only once for the whole lifetime of the object
+        if self.params['file_input']:
+            self.dataset = None
 
         optimizer_D, optimizer_G, optimizer_E = self._build_optmizer()
 
@@ -294,8 +285,20 @@ class GAN(object):
                 collections=["Training"])
 
     def train(self, X=None, resume=False):
-        if self.params['file_input']:
-            n_data = self.train_data.num_samples
+        if self.params['file_input']: # samples to be read from file, rather than feeding on fly as numpy array
+            if self.dataset is None:
+                samples_dir_paths = self.params['samples_dir_paths']
+                self.dataset, self.num_samples = data.create_input_pipeline(dir_paths=samples_dir_paths, 
+                                                batch_size=self.batch_size, 
+                                                k=self.params['cosmology']['k'])
+                # create a reinitializable iterator given the dataset structure
+                self.iterator = self.dataset.make_initializable_iterator()
+                self.next_batch = self.iterator.get_next()
+                # Op for initializing the iterator
+                self.training_init_op = self.iterator.initializer
+
+            n_data = self.num_samples
+
         else:
             n_data = len(X)
 
@@ -354,7 +357,8 @@ class GAN(object):
                             X_real = self._sess.run(self.next_batch)
                         else:
                             X_real = X[idx * self.batch_size:(idx + 1) * self.batch_size]
-                            X_real.resize([*X_real.shape, 1])
+                            
+                        X_real.resize([*X_real.shape, 1])
                         
                         for _ in range(5):
                             sample_z = self._sample_latent(self.batch_size)
@@ -792,7 +796,6 @@ class CosmoGAN(GAN):
                                         self.params['image_size'],
                                         self.params['cosmology']['k'], 
                                         self._max_num_psd,
-                                        num_sample_in_each_file=self.params['num_sample_in_each_file'], 
                                         is_3d=self.is_3d)
             self._psd_real = np.mean(psd_real, axis=0)
 

@@ -131,8 +131,9 @@ def dump_small_cubes_and_hists_to_disk(x_min, small_cubes, path_write_cube, path
         utils.save_hdf5(data=cube, filename=cubes_file_name, dataset_name='data' + str(i), mode='a')
 
     # store the 3d histograms as TFRecord files
-    hists_to_dump = np.array(hists_to_dump)
-    hists_file_name = os.path.join(path_write_hist, str(name) + '.tfrecords')
+    num_samples = len(hists_to_dump)
+    sample_dims = hists_to_dump[0].shape
+    hists_file_name = os.path.join(path_write_hist, str(name) + '_' + str(num_samples) + '_' + str(sample_dims) + '.tfrecords')
     save_as_tfrecord(hists_to_dump, hists_file_name)
 
 def _bytes_feature(value):

@@ -88,7 +88,6 @@ if __name__ == "__main__":
 	params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
 	params['file_input'] = True
 	params['samples_dir_paths'] = utils.get_3d_hists_dir_paths('../3d_smaller_cubes/')
-	params['num_samples_in_each_file'] = 100
 
 	wgan = CosmoGAN(params, WGanModel, is_3d=True)
 	wgan.train(images)
