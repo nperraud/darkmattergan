@@ -136,35 +136,74 @@ def makeit_square(x):
         new_x = x
     return new_x
 
+def num_images_each_row(x_dim):
+    num_images_in_each_row = int(x_dim**0.5)
+    while x_dim % num_images_in_each_row != 0:#smallest number that is larger than square root of x_dim and divides x_dim
+        num_images_in_each_row += 1    
+
+    return num_images_in_each_row
 
 def tile_cube_slices(cube, epoch, batch, label, save_images=False):
-        '''
-        cube = [:, :, :]
-        arrange cube as tile of squares
-        '''
-        x_dim = cube.shape[0]
-        y_dim = cube.shape[1]
-        z_dim = cube.shape[2]
-        v_stacks = []
-        num = 0
-        for i in range(x_dim//8):
-            h_stacks = []
-            for j in range(8): # show 8 squares from the cube in one row
-                h_stacks.append(cube[num, :, :])
-                num += 1
-            v_stacks.append( np.hstack(h_stacks) )
+    '''
+    cube = [:, :, :]
+    arrange cube as tile of squares
+    '''
+    x_dim = cube.shape[0]
+    y_dim = cube.shape[1]
+    z_dim = cube.shape[2]
+    v_stacks = []
+    num = 0
+    num_images_in_each_row = num_images_each_row(x_dim)
 
-        tile = np.vstack(v_stacks)
+    for i in range(x_dim//num_images_in_each_row):
+        h_stacks = []
+        for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
+            h_stacks.append(cube[num, :, :])
+            num += 1
+        v_stacks.append( np.hstack(h_stacks) )
 
-        if save_images:
-            dir_path = '../saved_result/Images/' + label
-            if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
+    tile = np.vstack(v_stacks)
 
-            file_name = epoch + '_' + batch + '.jpg'
-            scipy.misc.imsave(dir_path + '/' + file_name, tile)
+    if save_images:
+        dir_path = '../saved_result/Images/' + label
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
-        return tile.reshape([1, *(tile.shape), 1])
+        file_name = epoch + '_' + batch + '.jpg'
+        scipy.misc.imsave(dir_path + '/' + file_name, tile)
+
+    return tile.reshape([1, *(tile.shape), 1])
+
+def tile_cube_to_2d(cube):
+    '''
+    cube = [:, :, :]
+    arrange cube as tile of squares
+    '''
+    x_dim = cube.shape[0]
+    y_dim = cube.shape[1]
+    z_dim = cube.shape[2]
+    v_stacks = []
+    num = 0
+    num_images_in_each_row = num_images_each_row(x_dim)
+
+    for i in range(x_dim//num_images_in_each_row):
+        h_stacks = []
+        for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
+            h_stacks.append(cube[num, :, :])
+            num += 1
+        v_stacks.append( np.hstack(h_stacks) )
+
+    tile = np.vstack(v_stacks)
+    return tile
+
+def get_3d_hists_dir_paths(path_3d_hists):
+    dir_paths = []
+    for item in os.listdir(path_3d_hists):
+        dir_path = os.path.join(path_3d_hists, item)
+        if os.path.isdir(dir_path) and item.endswith('hist'): # the directories where the 3d histograms are saved end with 'hist'
+            dir_paths.append(dir_path)
+
+    return dir_paths
 
 
 # def make_batches(bs, *args):
@@ -197,14 +236,24 @@ def tile_cube_slices(cube, epoch, batch, label, save_images=False):
 #     return itertools.zip_longest(fillvalue=fillvalue, *args)
 
 
-def save_hdf5(data, filename, dataset_name='data'):
-    h5f = h5py.File(filename, 'w')
-    h5f.create_dataset(dataset_name, data=data)
+def save_hdf5(data, filename, dataset_name='data', mode='w'):
+    h5f = h5py.File(filename, mode)
+    h5f.create_dataset(dataset_name, data=data, dtype='float32')
     h5f.close()
 
 
-def load_hdf5(filename, dataset_name='data'):
-    h5f = h5py.File(filename, 'r')
+def load_hdf5(filename, dataset_name='data', mode='r'):
+    h5f = h5py.File(filename, mode)
     data = h5f[dataset_name][:]
     h5f.close()
     return data
+
+def load_hdf5_all_datasets(filename, num=100):
+    lst = []
+    h5f = h5py.File(filename, 'r')
+    for i in range(num):
+        data = h5f['data' + str(i)][:]
+        lst.append(data)
+
+    h5f.close()
+    return lst

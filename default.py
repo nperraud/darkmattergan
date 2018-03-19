@@ -2,6 +2,10 @@ def default_params(params=dict()):
 
     # Global parameters
     # -----------------
+    params['file_input'] = params.get('file_input', False)
+    # Whether samples to be read from files
+    params['samples_dir_paths'] = params.get('samples_dir_paths', '')
+    # The directory paths on disk where the samples are stored as files
     params['print_every'] = params.get('print_every', 100)
     # Print the losses in the consol every 'print_every' iterations
     params['save_every'] = params.get('save_every', 100)
@@ -19,6 +23,9 @@ def default_params(params=dict()):
     # Prior distribution to sample from ('Gaussian','Uniform',...)
     params['num_classes'] = params.get('num_classes', 1)
     # Number of classes to condition on
+    params['image_size'] = params.get('image_size', [16, 16, 16])
+    # size of input image
+
 
     # Discriminator parameters
     # ------------------------
@@ -65,5 +72,6 @@ def default_params_cosmology(params=dict()):
     # Apply a guausian filter to remove high frequency before executing the computations
     params['cosmology']['k'] = params['cosmology'].get('k', 10)
     params['cosmology']['Npsd'] = params['cosmology'].get('Npsd', 500)
+    params['cosmology']['max_num_psd'] = params['cosmology'].get('max_num_psd', 100)
 
     return params

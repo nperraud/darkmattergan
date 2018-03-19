@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.contrib.data import Iterator
 import numpy as np
 import time
 import os
@@ -12,6 +13,7 @@ from scipy import ndimage
 
 from plot_summary import PlotSummaryLog
 from default import default_params, default_params_cosmology
+import data
 
 
 class GAN(object):
@@ -76,6 +78,11 @@ class GAN(object):
 
         global_step = tf.Variable(0, name="global_step", trainable=False)
 
+        # If input to be taken from files, create a dataset object, which will be initialized in train().
+        # This dataset is intialized only once for the whole lifetime of the object
+        if self.params['file_input']:
+            self.dataset = None
+
         optimizer_D, optimizer_G, optimizer_E = self._build_optmizer()
 
         grads_and_vars_d = optimizer_D.compute_gradients(
@@ -100,19 +107,18 @@ class GAN(object):
 
         # Summaries
         if self.is_3d:
-            x_dim = self.params['image_size'][0]
-            y_dim = self.params['image_size'][1]
-            z_dim = self.params['image_size'][2]
+            x_dim, y_dim, z_dim = self.params['image_size']
+            num_images_in_each_row = utils.num_images_each_row(x_dim)
 
             self.real_placeholder = tf.placeholder(
                 dtype=tf.float32,
                 shape=[
-                    1, y_dim * x_dim//8, z_dim * 8, 1
+                    1, y_dim * (x_dim//num_images_in_each_row), z_dim * num_images_in_each_row, 1
                 ])
             self.fake_placeholder = tf.placeholder(
                 dtype=tf.float32,
                 shape=[
-                    1, y_dim * x_dim//8, z_dim * 8, 1
+                    1, y_dim * (x_dim//num_images_in_each_row), z_dim * num_images_in_each_row, 1
                 ])
 
             self.summary_op_real_image = tf.summary.image(
@@ -223,8 +229,7 @@ class GAN(object):
 
         return optimizer_D, optimizer_G, optimizer_E
 
-    def _buid_opt_summaries(self, optimizer_D, grads_and_vars_d, optimizer_G,
-                            grads_and_vars_g, optimizer_E):
+    def _buid_opt_summaries(self, optimizer_D, grads_and_vars_d, optimizer_G, grads_and_vars_g, optimizer_E):
 
         grad_norms_d = [
             tf.sqrt(tf.nn.l2_loss(g[0]) * 2) for g in grads_and_vars_d
@@ -279,9 +284,24 @@ class GAN(object):
                 optim_learning_rate_D,
                 collections=["Training"])
 
-    def train(self, X, resume=False):
+    def train(self, X=None, resume=False):
+        if self.params['file_input']: # samples to be read from file, rather than feeding on fly as numpy array
+            if self.dataset is None:
+                samples_dir_paths = self.params['samples_dir_paths']
+                self.dataset, self.num_samples = data.create_input_pipeline(dir_paths=samples_dir_paths, 
+                                                batch_size=self.batch_size, 
+                                                k=self.params['cosmology']['k'])
+                # create a reinitializable iterator given the dataset structure
+                self.iterator = self.dataset.make_initializable_iterator()
+                self.next_batch = self.iterator.get_next()
+                # Op for initializing the iterator
+                self.training_init_op = self.iterator.initializer
 
-        n_data = len(X)
+            n_data = self.num_samples
+
+        else:
+            n_data = len(X)
+
         self._counter = 1
         self._n_epoch = self.params['optimization']['epoch']
         self._total_iter = self._n_epoch * (n_data // self.batch_size) - 1
@@ -315,6 +335,10 @@ class GAN(object):
                 prev_iter_time = start_time
 
                 while epoch < self._n_epoch:
+                    if self.params['file_input']:
+                        # Initialize iterator with the training dataset
+                        self._sess.run(self.training_init_op)
+
                     idx = 0
                     while idx < self._n_batch:
                         if resume:
@@ -327,9 +351,15 @@ class GAN(object):
                             self.params['curr_idx'] = idx
                             self.params['curr_counter'] = self._counter
 
-                        X_real = X[idx * self.batch_size:(
-                            idx + 1) * self.batch_size]
+
+                        if self.params['file_input']:
+                            # Initialize iterator with the training dataset
+                            X_real = self._sess.run(self.next_batch)
+                        else:
+                            X_real = X[idx * self.batch_size:(idx + 1) * self.batch_size]
+                            
                         X_real.resize([*X_real.shape, 1])
+                        
                         for _ in range(5):
                             sample_z = self._sample_latent(self.batch_size)
                             _, loss_d = self._sess.run(
@@ -340,8 +370,8 @@ class GAN(object):
                                     [self._E_solver, self._E_loss],
                                     feed_dict=self._get_dict(
                                         sample_z, X_real))
-                        sample_z = self._sample_latent(self.batch_size)
 
+                        sample_z = self._sample_latent(self.batch_size)
                         _, loss_g, v, m = self._sess.run(
                             [
                                 self._G_solver, self._G_loss, self._var,
@@ -369,7 +399,7 @@ class GAN(object):
                                        loss_d, loss_g))
                             prev_iter_time = current_time
 
-                        self._train_log(self._get_dict(sample_z, X_real), X)
+                        self._train_log(self._get_dict(sample_z, X_real), X, epoch=epoch, batch_num=idx)
 
                         if (np.mod(self._counter, self.params['save_every'])
                                 == 0) | self._save_current_step:
@@ -382,7 +412,7 @@ class GAN(object):
                 pass
             self._save(self._savedir, self._counter)
 
-    def _train_log(self, feed_dict, X):
+    def _train_log(self, feed_dict, X, epoch=None, batch_num=None):
         if np.mod(self._counter, self.params['viz_every']) == 0:
             summary_str, real_arr, fake_arr = self._sess.run(
                 [self.summary_op_img, self._X, self._G_fake],
@@ -753,16 +783,30 @@ class CosmoGAN(GAN):
         self.summary_op_metrics = tf.summary.merge(
             tf.get_collection("Metrics"))
 
-    def train(self, X, resume=False):
-
+    def _compute_real_psd(self, X=None):
+        '''
+        Compute the real PSD on 'max_num_psd' data
+        '''
         self._Npsd = self.params['cosmology']['Npsd']
-        # Compute the real PSD on all data! May take some time
-        psd_real, _ = metrics.power_spectrum_batch_phys(
-            X1=utils.backward_map(X, self.params['cosmology']['k']),
-            is_3d=self.is_3d)
-        self._psd_real = np.mean(psd_real, axis=0)
-        del psd_real
-        if self.params['num_classes'] > 1:
+        self._max_num_psd = self.params['cosmology']['max_num_psd']
+
+        if self.params['file_input']: # training samples stored in files
+            #X, _ = data.load_3d_hists(self.params['samples_dir_path'], self.params['cosmology']['k'])
+            psd_real = metrics.power_spectrum_batch_phys_from_file_input(self.params['samples_dir_paths'],
+                                        self.params['image_size'],
+                                        self.params['cosmology']['k'], 
+                                        self._max_num_psd,
+                                        is_3d=self.is_3d)
+            self._psd_real = np.mean(psd_real, axis=0)
+
+        else: # training samples passed as numpy ndarray
+            psd_real, _ = metrics.power_spectrum_batch_phys(
+                X1=utils.backward_map(X, self.params['cosmology']['k']), 
+                                        is_3d=self.is_3d)
+            self._psd_real = np.mean(psd_real, axis=0)
+            del psd_real
+        
+        if self.params['num_classes'] > 1: # this block will not work with file inputs!!
             self._c_psd_real = []
             for i in range(self.params['num_classes']):
                 psd_real, _ = metrics.power_spectrum_batch_phys(
@@ -771,6 +815,12 @@ class CosmoGAN(GAN):
                     is_3d=self.is_3d)
                 self._c_psd_real.append(np.mean(psd_real, axis=0))
                 del psd_real
+
+    def train(self, X=None, resume=False):
+        if X is not None and self.params['file_input']:
+            print("Warning: A numpy array as well as a file location for training set is provided!!")
+
+        self._compute_real_psd(X)
 
         if resume:
             self.best_psd = self.params['cosmology']['best_psd']
@@ -808,20 +858,49 @@ class CosmoGAN(GAN):
                 self._sess, x, self._c_psd_real[i], psd_gen)
             self._summary_writer.add_summary(summary_str, self._counter)
 
-
-    def _train_log(self, feed_dict, X):
-        super()._train_log(feed_dict, X)
-        if np.mod(self._counter, self.params['sum_every']) == 0:
-            if self.params['num_classes'] > 1:
-                self._multiclass_l2_psd(feed_dict, X)
+    def _sample_real_data(self, X):
+        '''
+        Sample from training data, where training data coould be both, a numpy array or files saved on disk
+        '''
+        if X is not None: # training set provided as numpy array
             ind = np.random.randint(0, len(X), size=[self._Npsd])
             Xsel = X[ind]
             real = utils.backward_map(Xsel, self.params['cosmology']['k'])
-            z_sel = self._sample_latent(self._Npsd)
+        else:        
+            num_dir = len(self.params['samples_dir_paths'])
+            num_samples_each_dir = [ self._Npsd//num_dir for i in range(num_dir)]
+            num_samples_each_dir[0] += (self._Npsd % num_dir) # remainder samples sampled from 0th directory
 
+            for i, dir_path in enumerate(self.params['samples_dir_paths']): # sample from each directory
+                forward_mapped_data, _ = data.read_tfrecords_from_dir(dir_path, 
+                                                    self.params['image_size'], 
+                                                    self.params['cosmology']['k']) # load all the samples in the current directory
+
+                ind = np.random.randint(0, len(forward_mapped_data), num_samples_each_dir[i]) 
+
+                if i == 0:
+                    Xsel = forward_mapped_data[ind] # sample only required number
+                    real = utils.backward_map(Xsel, self.params['cosmology']['k'])
+                else:
+                    Xsel = np.vstack((Xsel, forward_mapped_data[ind] ))
+                    real = utils.backward_map(Xsel, self.params['cosmology']['k'])
+
+        return real, Xsel
+
+    def _train_log(self, feed_dict, X, epoch=None, batch_num=None):
+        super()._train_log(feed_dict, X, epoch, batch_num)
+
+        if np.mod(self._counter, self.params['sum_every']) == 0:
+            if self.params['num_classes'] > 1:
+                self._multiclass_l2_psd(feed_dict, X)
+            
+            real, Xsel = self._sample_real_data(X)
+
+            z_sel = self._sample_latent(self._Npsd)
             _, fake = self._generate_sample_safe(
-                z_sel, Xsel.reshape([self._Npsd, *X.shape[1:], 1]))
-            fake.resize([self._Npsd, *X.shape[1:]])
+                z_sel, Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1]))
+
+            fake.resize([self._Npsd, *Xsel.shape[1:]])
 
             psd_gen, x = metrics.power_spectrum_batch_phys(
                 X1=fake, is_3d=self.is_3d)
