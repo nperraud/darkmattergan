@@ -2,7 +2,9 @@ import io
 import tensorflow as tf
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+import socket
+if 'nid' in socket.gethostname():
+    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # Inspired by Andres

@@ -9,7 +9,7 @@ sys.path.insert(0, '../')
 
 import data
 import numpy as np
-from model import WGanModel, LapGanModel
+from model import LapGanModel, LapGanModelTanh
 from gan import CosmoGAN
 import utils
 
@@ -19,7 +19,7 @@ ns = 128
 nsamples = 7500
 k = 10
 scalings = [2,2,2]
-try_resume = False
+try_resume = True
 
 
 
@@ -40,18 +40,19 @@ new_ns = ns//np.prod(scalings[:level])
 latent_dim = (new_ns//up_scaling)**2
 bn = False
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 2 , 1, 1]
-params_discriminator['nfilter'] = [16, 128, 256, 128, 64]
-params_discriminator['shape'] = [[5, 5],[5, 5], [3, 3], [3, 3]]
+params_discriminator['stride'] = [2, 2, 2, 2 , 1]
+params_discriminator['nfilter'] = [64, 256, 512, 256, 64]
+params_discriminator['shape'] = [[5, 5], [5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn]
-params_discriminator['full'] = [32]
+params_discriminator['full'] = [64]
 params_discriminator['summary'] = True
-params_discriminator['minibatch_reg'] = False
+params_discriminator['non_lin'] = None
+params_discriminator['minibatch_reg'] = True
 
 params_generator = dict()
 params_generator['stride'] = [1, 1, 2, 1, 1, 1]
 params_generator['latent_dim'] = latent_dim
-params_generator['nfilter'] = [16, 128, 256, 128, 64,  1]
+params_generator['nfilter'] = [64, 256, 512, 256, 64, 1]
 params_generator['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['summary'] = True
@@ -65,10 +66,10 @@ params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 3e-5
 params_optimization['gen_learning_rate'] = 3e-5
-params_optimization['beta1'] = 0.9
-params_optimization['beta2'] = 0.999
+params_optimization['beta1'] = 0.5
+params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
-params_optimization['epoch'] = 50
+params_optimization['epoch'] = 75
 
 
 params_cosmology = dict()
