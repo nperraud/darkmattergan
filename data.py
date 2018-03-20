@@ -1,7 +1,7 @@
 import numpy as np
 import os, random
 import utils
-from Data import gaussian_synthetic_data
+from data import gaussian_synthetic_data
 import socket
 from ast import literal_eval as make_tuple
 import tensorflow as tf
