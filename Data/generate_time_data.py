@@ -58,7 +58,7 @@ def main():
             del sim
             gc.collect()
         if filename.endswith(".info"):
-            redshift = os.path.splitext(filename)[0]
+            redshift = (os.path.splitext(filename)[0]).split("_")[1]
             h5f = h5py.File(path_new_data + "nbody_" + str(params["mpc"]) + "Mpc_" + redshift + ".h5", 'w')
             h5f.create_dataset("data", data=hist)
             h5f.close()
