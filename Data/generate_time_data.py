@@ -48,7 +48,6 @@ def main():
         os.makedirs(path_new_data)
 
     hist = np.zeros((resolution, resolution, resolution))
-    redshift = "out_z0p000"
     for filename in sorted(os.listdir(path_og_data)):
         if not filename.endswith(".txt") and not filename.endswith(".dat") and not filename.endswith(".info"):
             print("Loading file {}... ".format(filename))
@@ -59,11 +58,11 @@ def main():
             del sim
             gc.collect()
         if filename.endswith(".info"):
+            redshift = os.path.splitext(filename)[0]
             h5f = h5py.File(path_new_data + "nbody_" + str(params["mpc"]) + "Mpc_" + redshift + ".h5", 'w')
             h5f.create_dataset("data", data=hist)
             h5f.close()
             hist = np.zeros(hist.shape)
-            redshift = os.path.splitext(filename)[0]
     return 0
 
 
