@@ -65,29 +65,50 @@ def sample_latent(m, n, prior="uniform", normalize=False):
         raise ValueError(' [!] distribution not defined')
 
 
-def forward_map(x, k=10.):
-    return 2 * (x / (x + k)) - 1
+def forward_map(x, k=10., scale=0.99):
+    ''' maps real positive numbers to a [-scale, scale] range 
+
+    Numpy version
+    '''
+
+    return scale * (2 * (x / (x + k)) - 1)
 
 
-def backward_map(y, k=10.):
-    simple_max = forward_map(1e8, k)
-    y_clipped = np.clip(y, -1.0, simple_max)
+def backward_map(y, k=10., scale=0.99, real_max=1e8):
+    ''' Inverse of the function forward map
+        
+    Numpy version
+    '''
+
+    simple_max = forward_map(real_max, k, scale)
+    simple_min = forward_map(0, k, scale)
+
+    y_clipped = np.clip(y, simple_min, simple_max)/scale
     return k * (y_clipped + 1) / (1 - y_clipped)
 
 
-def pre_process(X_raw, k=10.):
-    k = tf.constant(k, dtype=tf.float32)
+def pre_process(X_raw, k=10., scale=0.99):
+    ''' maps real positive numbers to a [-scale, scale] range 
 
-    # maps real positive numbers to a [-1,1] range  2 * (x/(x+10)) - 1
-    X = tf.subtract(2.0 * (X_raw / tf.add(X_raw, k)), 1.0)
+    Tensorflow version
+    '''
+
+    k = tf.constant(k, dtype=tf.float32)
+    X = tf.subtract(2.0 * (X_raw / tf.add(X_raw, k)), 1.0)*scale
 
     return X
 
 
-def inv_pre_process(X, k=10.):
-    simple_max = forward_map(
-        1e8, k)  # clipping the values to a max of 1e10 particles
-    X_clipped = tf.clip_by_value(X, -1.0, simple_max)
+def inv_pre_process(X, k=10., scale=0.99, real_max=1e8):
+    ''' Inverse of the function forward map
+        
+    Tensorflow version
+    '''
+
+    simple_max = forward_map(real_max, k, scale)
+    simple_min = forward_map(0, k, scale)
+
+    X_clipped = tf.clip_by_value(X, simple_min, simple_max)/scale
     X_raw = tf.multiply((X_clipped + 1.0) / (1.0 - X_clipped), k)
     return X_raw
 

@@ -8,7 +8,7 @@ class Dataset(object):
         Transform should probably be False for a classical GAN.
     '''
 
-    def __init__(self, X, shuffle=True, transform=None, batch_size=None):
+    def __init__(self, X, shuffle=True, transform=None):
         ''' Initialize a Dataset object
 
         Arguments
@@ -28,26 +28,10 @@ class Dataset(object):
         else:
             self._p = np.arange(self._N)
         self._X = X[self._p]
-        self._batch_size = batch_size
+        # self._batch_size = batch_size
 
-    @property
-    def batch_size(self):
-        if self._batch_size is None:
-            raise RuntimeError('Set the batch_size property')
-        return self._batch_size
-
-    @batch_size.setter
-    def batch_size(self, value):
-        ''' Set the batch_size 
-
-        This function should be called before the `next` function.
-        '''
-        if not value or value < 0:
-            raise ValueError('Should be a possitive number')
-        self._batch_size = value
-
-    def get_dataset(self):
-        ''' Return all the dataset (shuffled) '''
+    def get_all_data(self):
+        ''' Return all the data (shuffled) '''
         return self._X
 
     def get_samples(self, N=100, transform=True):
@@ -57,17 +41,41 @@ class Dataset(object):
         else:
             return self._X[:N]
 
-    def __iter__(self):
-        for data in grouper(itertools.cycle(self._X), self.batch_size):
+    def iter(self, batch_size=1):
+        return self.__iter__(batch_size)
+
+    def __iter__(self, batch_size=1):
+        for data in grouper(itertools.cycle(self._X), batch_size):
             if self._transform:
                 yield self._transform(np.array(data))
             else:
                 yield np.array(data)
 
+    # @property
+    # def batch_size(self):
+    #     if self._batch_size is None:
+    #         raise RuntimeError('Set the batch_size property')
+    #     return self._batch_size
+
+    # @batch_size.setter
+    # def batch_size(self, value):
+    #     ''' Set the batch_size 
+
+    #     This function should be called before the `next` function.
+    #     '''
+    #     if not value or value < 0:
+    #         raise ValueError('Should be a possitive number')
+    #     self._batch_size = value
+
     @property
     def shuffle(self):
         ''' Is the dataset suffled? '''
         return self._shuffle
+
+    @property
+    def N(self):
+        ''' Number of element in the dataset '''
+        return self._N
 
     # def __getitem__(self, key):
     #     if isinstance(key, slice):

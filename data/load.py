@@ -60,15 +60,15 @@ def load_2d_synthetic_samples(nsamples, dim, k):
 
 def load_samples(nsamples=1000, permute=False, k=10, spix=256):
     ''' This function will be removed in the near futur'''
-    path = path.data_path(spix)
+    pathfolder = path.data_path(spix)
     input_pattern = 'Box_70*snapshot_050'
     file_ext = '.dat'
 
     queue = []
-    for file in os.listdir(path):
+    for file in os.listdir(pathfolder):
         if file.endswith(file_ext) and (np.all(
             [x in file for x in input_pattern.split("*")])):
-            queue.append(os.path.join(path, file))
+            queue.append(os.path.join(pathfolder, file))
     if nsamples > len(queue):
         print('They are {} "{}" files.'.format(len(queue), file_ext))
         raise ValueError("The number of samples must be smaller "
@@ -103,12 +103,13 @@ def load_samples_2d_raw(nsamples=None, resolution=256, Mpch=70):
     rootpath = path.root_path()
     input_pattern = '{}_nbody_{}Mpc'.format(resolution, Mpch)
     file_ext = '.h5'
-
     queue = []
     for file in os.listdir(rootpath):
         if file.endswith(file_ext) and input_pattern in file:
             queue.append(os.path.join(rootpath, file))
 
+    if len(queue) == 0:
+        ValueError('No file founds, check path and parameters')
     raw_images = []
     for file_path in queue:
         raw_images.append(
@@ -119,7 +120,7 @@ def load_samples_2d_raw(nsamples=None, resolution=256, Mpch=70):
                 "Data stroed in file {} is not of type np.ndarray".format(
                     file_path))
 
-    raw_images = np.vstack(raw_images)
+    raw_images = np.vstack(raw_images).astype(np.float32)
 
     if nsamples is None:
         return raw_images
