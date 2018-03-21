@@ -1,30 +1,31 @@
 
-# coding: utf-8
-
-import os, sys
-import pickle
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import sys
 sys.path.insert(0, '../')
 
+import matplotlib
+matplotlib.use('Agg')
+
 import data
-import numpy as np
-from model import WGanModel, LapGanModel
+from model import WGanModel
 from gan import CosmoGAN
 import utils
 
 # Parameters
 
 ns = 32
-nsamples = 7500
-k = 10
+scaling = 4
+k = 20
 try_resume = False
-scaling = [4]
+Mpch=350
+scaling = 4
 
 
 
 
-time_str = 'quarter_img'
+time_str = 'quarter_img_{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 latent_dim = 100
@@ -93,16 +94,12 @@ resume, params = utils.test_resume(try_resume, params)
 
 # Build the model
 
-wgan = CosmoGAN(params, WGanModel)
+obj = CosmoGAN(params, WGanModel)
 
-images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)
-images = data.make_smaller_samples(images, 128)
-raw_images = data.make_smaller_samples(raw_images, 128)   
-down_sampled_images = data.down_sample_images(images, scaling)
-
+dataset = data.load.load_2d_dataset(resolution=256,Mpch=Mpch, k=k,spix=ns, scaling=scaling)
 
 # Train the model
-wgan.train(down_sampled_images[1], resume=resume)
+obj.train(dataset, resume=resume)
 
 
 

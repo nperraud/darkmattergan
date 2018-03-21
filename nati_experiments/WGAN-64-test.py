@@ -1,11 +1,11 @@
-
-# coding: utf-8
-
-import os,sys
-import pickle
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import sys
 sys.path.insert(0, '../')
+
+import matplotlib
+matplotlib.use('Agg')
 
 import data
 from model import WGanModel
@@ -15,19 +15,12 @@ import utils
 # Parameters
 
 ns = 64
-nsamples = 4000
-k = 10
-try_resume = True
+k = 20
+try_resume = False
+Mpch=350
 
 
-# def current_time_str():
-#     import time, datetime
-#     d = datetime.datetime.fromtimestamp(time.time())
-#     return str(d.year)+ '_' + str(d.month)+ '_' + str(d.day)+ '_' + str(d.hour)+ '_' + str(d.minute)
-
-# time_str = current_time_str()
-
-time_str = 'test'
+time_str = 'single_{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -93,11 +86,8 @@ resume, params = utils.test_resume(try_resume, params)
 
 # Build the model
 
-wgan = CosmoGAN(params, WGanModel)
+obj = CosmoGAN(params, WGanModel)
 
-images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)
-images = data.make_smaller_samples(images, ns)
-raw_images = data.make_smaller_samples(raw_images, ns)   
+dataset = data.load.load_2d_dataset(resolution=256,Mpch=Mpch, k=k,spix=ns)
 
-# Train the model
-wgan.train(images, resume=resume)
+obj.train(dataset=dataset, resume=resume)

@@ -7,6 +7,8 @@ from data import path
 from data import transformation
 from data.Dataset import Dataset
 
+import blocks
+
 
 def load_data_from_dir(dir_path, k=10):
     '''
@@ -142,7 +144,8 @@ def load_2d_dataset(
         raw=False,
         k=10,
         spix=128,
-        augmentation=True):
+        augmentation=True,
+        scaling=1):
     ''' Load a 2D dataset object 
 
      Arguments
@@ -155,6 +158,7 @@ def load_2d_dataset(
     * k : parameter for the tranformation of the data (default 10)
     * spix : resolution of the image (default 128)
     * augmentation : use data augmentation (default True)
+    * scaling : downscale the image by a factor (default 1)
     '''
 
     # 1) Load raw images
@@ -165,6 +169,9 @@ def load_2d_dataset(
         images = raw_images
     else:
         images = utils.forward_map(raw_images, k)
+
+    if scaling>1:
+        images = blocks.downsample(images, scaling)
 
     if augmentation:
         # 3) Select the good tranformation for data augmentation
