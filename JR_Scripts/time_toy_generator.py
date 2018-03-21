@@ -6,7 +6,7 @@ import h5py
 
 def gen_dataset(images_per_time_step=1000, num_time_steps=10, width=64, num_gaussians=42,
                 filename=None, point_density_factor=400, size_decay=0.8, offset=10,
-                border_width_fraction = 0.1):
+                border_width_fraction = 0.1, shift_gaussians = True):
     border_width = int(np.round(width * border_width_fraction))
     dataset = np.zeros((num_time_steps, images_per_time_step, width, width))
     num_points = point_density_factor * (width + 2 * border_width) * (width + 2 * border_width) / num_gaussians
@@ -20,7 +20,14 @@ def gen_dataset(images_per_time_step=1000, num_time_steps=10, width=64, num_gaus
         for gaussian in range(num_gaussians):
             mu_x = np.random.randint(0, width + 2 * border_width)
             mu_y = np.random.randint(0, width + 2 * border_width)
+            shift_x = 0
+            shift_y = 0
+            if shift_gaussians:
+                shift_x = np.random.randint(-1, 2)
+                shift_y = np.random.randint(-1, 2)
             for time_step in range(num_time_steps):
+                mu_x = np.clip(mu_x + shift_x, 0, width + 2 * border_width)
+                mu_y = np.clip(mu_y + shift_y, 0, width + 2 * border_width)
                 dataset[time_step][image] = dataset[time_step][image]\
                                             + pdf_mat[time_step][mu_x:mu_x+width, mu_y:mu_y+width]
         for time_step in range(num_time_steps):
