@@ -203,9 +203,10 @@ class TemporalGanModelv3(GanModel):
         z_shape = tf.shape(zn)
         scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
         scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
-        y = tf.constant(scaling, dtype=tf.float32, name='y')
-        y = y[:z_shape[0]]
-        zn = tf.multiply(zn, y)
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        zn = tf.multiply(zn, t)
 
         self.G_fake = self.generator(zn, reuse=False)
 

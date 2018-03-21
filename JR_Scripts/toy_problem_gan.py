@@ -18,7 +18,8 @@ def main():
     # Load parameters
     param_paths = sys.argv[1]
     params = dict_reader.read_gan_dict(param_paths)
-    params['name'] = 'WGAN{}'.format(params['image_size'][0])
+    if 'name' not in params:
+        params['name'] = 'WGAN{}'.format(params['image_size'][0])
     time_str = current_time_str()
     if 'save_dir' in params:
         params['summary_dir'] = params['summary_dir'] + '/' + params['name'] + '_' + time_str + '_summary/'
@@ -53,7 +54,7 @@ def main():
         num_gaussians = params['num_gaussians']
 
     # Generate data
-    data = time_toy_generator.gen_sanity_dataset(images_per_time_step=params['num_samples_per_class'],
+    data = time_toy_generator.gen_dataset(images_per_time_step=params['num_samples_per_class'],
                                           width=params['image_size'][0],
                                           num_gaussians=num_gaussians,
                                           point_density_factor=3)
@@ -71,7 +72,7 @@ def main():
     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     data = data.astype(np.float32)
     data = utils.forward_map(data, params['cosmology']['k'])
-    data = data / 1.25
+    data = data / 1.02
 
     # Train model
     cosmo_gan.train(data)
