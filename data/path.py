@@ -2,9 +2,12 @@ import socket
 import os
 
 def data_path(spix=256):  
+    ''' Will be removed in the futur '''
     return root_path() + 'size{}_splits1000_n500x3/'.format(spix)
 
 def root_path():
+    ''' Defining the different root path using the host name '''
+
     # Check if we are on pizdaint
     if 'nid' in socket.gethostname():
         # Mhis to the store folder to be able to all use it?

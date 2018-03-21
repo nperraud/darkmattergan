@@ -257,3 +257,11 @@ def load_hdf5_all_datasets(filename, num=100):
 
     h5f.close()
     return lst
+
+
+def compose2(first,second):
+    ''' Return the composed function `second(first(arg))` '''
+    return lambda x: second(first(x))
+
+def compose(*functions):
+    return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)

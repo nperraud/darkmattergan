@@ -1,10 +1,11 @@
 import numpy as np
 import os, random
 import utils
+import functools
 from data import gaussian_synthetic_data
 from data import path
-from data import Dataset
 from data import transformation
+from data.Dataset import Dataset
 
 
 def load_data_from_dir(dir_path, k=10):
@@ -140,7 +141,7 @@ def load_2d_dataset(
         raw=False,
         k=10,
         spix=128,
-        transform=None):
+        augmentation=True):
     ''' Load a 2D dataset object 
 
      Arguments
@@ -152,11 +153,11 @@ def load_2d_dataset(
     * raw : use the raw data (default False)
     * k : parameter for the tranformation of the data (default 10)
     * spix : resolution of the image (default 128)
-
+    * augmentation : use data augmentation (default True)
     '''
 
     # 1) Load raw images
-    raw_images = load_samples_2d_raw(nsamples=1000, resolution=256, Mpch=70)
+    raw_images = load_samples_2d_raw(nsamples=nsamples, resolution=resolution, Mpch=Mpch)
 
     # 2) Apply forward map if necessary
     if raw:
@@ -164,9 +165,18 @@ def load_2d_dataset(
     else:
         images = utils.forward_map(raw_images, k)
 
-    # 3) Cut the image to the correct size
-    images = transformation.make_smaller_samples(images, spix)
+    if augmentation:
+        # 3) Select the good tranformation for data augmentation
+        t = transformation.random_transformation_2d
 
-    # 4) Make a dataset
+        # 4) Add the cropping if necessary (to get smaller samples)
+        if spix<resolution:
+            c = functools.partial(transformation.random_crop_2d, nx=spix)
+            t = utils.compose2(t, c)
+    else:
+        t = None
+    
+    # 5) Make a dataset
+    dataset = Dataset(images, shuffle=shuffle, transform=t)
 
-    dataset = Dataset(images, shuffle=shuffle, transform=transform)
+    return dataset

@@ -1,5 +1,4 @@
 import itertools
-from data import transformation
 import numpy as np
 
 
@@ -51,16 +50,19 @@ class Dataset(object):
         ''' Return all the dataset (shuffled) '''
         return self._X
 
-    def get_samples(self, N=100):
+    def get_samples(self, N=100, transform=True):
         ''' Get the `N` first samples '''
-        return self._X[:N]
+        if self._transform and transform:
+            return self._transform(self._X[:N])
+        else:
+            return self._X[:N]
 
     def __iter__(self):
         for data in grouper(itertools.cycle(self._X), self.batch_size):
             if self._transform:
-                yield self._transform(data)
+                yield self._transform(np.array(data))
             else:
-                yield data
+                yield np.array(data)
 
     @property
     def shuffle(self):
