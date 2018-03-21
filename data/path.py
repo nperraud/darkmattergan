@@ -12,9 +12,9 @@ def root_path():
     if 'nid' in hostname:
         # Mhis to the store folder to be able to all use it?
         # For reading it is ok.
-        rootpath = '/scratch/snx3000/nperraud/nati-gpu/data/' 
+        rootpath = '/scratch/snx3000/nperraud/pre_processed_data/' 
     elif 'omenx' in hostname:
-        rootpath = '/store/nati/datasets/comsology/pre_processed_data'         
+        rootpath = '/store/nati/datasets/comsology/pre_processed_data/'         
     else:
         # This should be done in a different way
         utils_module_path = os.path.dirname(__file__)
