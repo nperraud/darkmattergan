@@ -58,6 +58,8 @@ def main():
                                           width=params['image_size'][0],
                                           num_gaussians=num_gaussians,
                                           point_density_factor=3)
+    if params['num_classes'] == 8:
+        data = np.asarray([data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]])
     if params['num_classes'] == 5:
         data = np.asarray([data[1], data[3], data[5], data[7], data[9]])
     if params['num_classes'] == 4:
