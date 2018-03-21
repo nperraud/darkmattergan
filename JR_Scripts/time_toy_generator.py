@@ -26,8 +26,8 @@ def gen_dataset(images_per_time_step=1000, num_time_steps=10, width=64, num_gaus
                 shift_x = np.random.randint(-1, 2)
                 shift_y = np.random.randint(-1, 2)
             for time_step in range(num_time_steps):
-                mu_x = np.clip(mu_x + shift_x, 0, width + 2 * border_width)
-                mu_y = np.clip(mu_y + shift_y, 0, width + 2 * border_width)
+                mu_x = np.clip(mu_x + shift_x, 0, width + 2 * border_width - 1)
+                mu_y = np.clip(mu_y + shift_y, 0, width + 2 * border_width - 1)
                 dataset[time_step][image] = dataset[time_step][image]\
                                             + pdf_mat[time_step][mu_x:mu_x+width, mu_y:mu_y+width]
         for time_step in range(num_time_steps):
