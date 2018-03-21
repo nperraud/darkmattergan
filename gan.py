@@ -854,9 +854,9 @@ class CosmoGAN(GAN):
             feed_dict[self._md['c' + str(i) + '_l1_psd']] = l1
             feed_dict[self._md['c' + str(i) + '_log_l1_psd']] = logel1
 
-            summary_str = self._c_psd_plot[i].produceSummaryToWrite(
-                self._sess, x, self._c_psd_real[i], psd_gen)
-            self._summary_writer.add_summary(summary_str, self._counter)
+            # summary_str = self._c_psd_plot[i].produceSummaryToWrite(
+            #     self._sess, x, self._c_psd_real[i], psd_gen)
+            # self._summary_writer.add_summary(summary_str, self._counter)
 
     def _sample_real_data(self, X):
         '''
