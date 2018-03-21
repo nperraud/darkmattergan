@@ -67,7 +67,7 @@ def main_time():
 def main_2d():
     # TODO Non hardcoded params
     params = dict()
-    params['mpc'] = 70
+    params['mpc'] = 350
     params['resolution'] = 512
     params['nboxes'] = 10
     resolution = params["resolution"]
@@ -99,4 +99,5 @@ def main_2d():
     
     return 0
 
-main_2d()
+if __name__ == '__main__':
+    main_2d()
