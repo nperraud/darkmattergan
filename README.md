@@ -30,13 +30,19 @@ https://github.com/nperraud/CodeGAN/blob/master/WGAN%20demo.ipynb
 * modely.py : contains the different network architecture
 * data.py : to load the different datasets
 * blocks.py : basic tensorflow units
-* utils.py : useful function
+* utils.py : useful functions
 * default.py : default parameters
 * metrics.py : computation of the different error functions
 * plot.py : helper for the different plots
 
 ## Paths
+
+### CSCS
 * CSCS Project path `/store/sdsc/sd00/comosology/`
+* CSCS Raw data path `/store/sdsc/sd00/comosology/data/nbody_raw_boxes/`
+* CSCS Preprocessed data path `/store/sdsc/sd00/comosology/data/pre_processed_data/`
+
+### Plempy
 * Old path on plempy (Original PICOLA DATA) `/home/ipa/refreg/temp/Janis/AndresBoxes`
 * Old path on plempy (Procesed data) `/home/ipa/refreg/temp/andresro/data/dat`
 
