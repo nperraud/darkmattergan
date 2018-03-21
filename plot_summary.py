@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib
 import socket
-if 'nid' in socket.gethostname():
+if 'nid' in socket.gethostname() or 'lo-' in socket.gethostname():
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
