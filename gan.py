@@ -789,7 +789,7 @@ class CosmoGAN(GAN):
         if self.params['cosmology']['clip_max_real']:
             self._clip_max = np.max(real)
         else:
-            self._clip_max = 1e10
+            self._clip_max = 1e8
         psd_real, _ = metrics.power_spectrum_batch_phys(X1=real, is_3d=self.is_3d)
         self._psd_real = np.mean(psd_real, axis=0)
         del psd_real

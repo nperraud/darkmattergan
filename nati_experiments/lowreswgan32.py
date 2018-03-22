@@ -63,7 +63,7 @@ params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 50
 
 params_cosmology = dict()
-params_cosmology['clip_max_real'] = False
+params_cosmology['clip_max_real'] = True
 params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
 params_cosmology['k'] = k
