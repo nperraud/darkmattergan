@@ -580,7 +580,8 @@ class CosmoGAN(GAN):
 
         self._Npsd = params['cosmology']['Npsd']
 
-
+        # TODO: Make a variable to contain the clip max
+        # tf.variable
         self._G_raw = utils.inv_pre_process(self._G_fake,
                                             self.params['cosmology']['k'])
         self._X_raw = utils.inv_pre_process(self._X,

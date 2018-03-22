@@ -46,7 +46,7 @@ params_optimization['gen_learning_rate'] = 3e-5
 params_optimization['beta1'] = 0.5
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
-params_optimization['epoch'] = 100
+params_optimization['epoch'] = 2000
 
 
 

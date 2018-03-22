@@ -56,7 +56,7 @@ params_optimization['gen_learning_rate'] = 3e-5
 params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.999
 params_optimization['epsilon'] = 1e-8
-params_optimization['epoch'] = 50
+params_optimization['epoch'] = 1000
 
 params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
