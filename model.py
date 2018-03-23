@@ -693,7 +693,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         rprint('------------------------------------------------------------\n', reuse)
     return x
 
-def do_deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d=False):
+def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d=False):
     if is_3d:
         output_shape = [bs, sx, sx, sx, n_filters]
         out_tensor = deconv3d(in_tensor,
@@ -748,7 +748,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
-            x = do_deconv(in_tensor=x, 
+            x = deconv(in_tensor=x, 
                             bs=bs, 
                             sx=sx,
                             n_filters=params['nfilter'][i],

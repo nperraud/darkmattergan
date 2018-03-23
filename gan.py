@@ -107,37 +107,34 @@ class GAN(object):
 
         # Summaries
         if self.is_3d:
-            x_dim, y_dim, z_dim = self.params['image_size']
-            num_images_in_each_row = utils.num_images_each_row(x_dim)
+        	tile_shape = utils.get_tile_shape_from_3d_image(self.params['image_size'])
 
-            self.real_placeholder = tf.placeholder(
+        	self.real_placeholder = tf.placeholder(
                 dtype=tf.float32,
-                shape=[
-                    1, y_dim * (x_dim//num_images_in_each_row), z_dim * num_images_in_each_row, 1
-                ])
-            self.fake_placeholder = tf.placeholder(
-                dtype=tf.float32,
-                shape=[
-                    1, y_dim * (x_dim//num_images_in_each_row), z_dim * num_images_in_each_row, 1
-                ])
+                shape=[1, *tile_shape, 1])
 
-            self.summary_op_real_image = tf.summary.image(
+        	self.fake_placeholder = tf.placeholder(
+                dtype=tf.float32,
+                shape=[1, *tile_shape, 1])
+
+        	self.summary_op_real_image = tf.summary.image(
                 "training/plot_real", self.real_placeholder)
-            self.summary_op_fake_image = tf.summary.image(
+
+        	self.summary_op_fake_image = tf.summary.image(
                 "training/plot_fake", self.fake_placeholder)
 
-            if self.normalized():
-                tf.summary.image(
+        	if self.normalized(): # displaying only one slice from the normalized 3d image
+        		tf.summary.image(
                     "training/Real_Image_normalized",
-                    self._normalize(self._X[:, 1, :, :, :]),
-                    max_outputs=4,
-                    collections=['Images'])
-                tf.summary.image(
-                    "training/Fake_Image_normalized",
-                    self._normalize(self._G_fake[:, 1, :, :, :]),
+                    (self._normalize(self._X))[:, 1, :, :, :],
                     max_outputs=4,
                     collections=['Images'])
 
+        		tf.summary.image(
+                    "training/Fake_Image_normalized",
+                    (self._normalize(self._G_fake))[:, 1, :, :, :],
+                    max_outputs=4,
+                    collections=['Images'])
         else:
             tf.summary.image(
                 "training/Real_Image",
@@ -412,10 +409,8 @@ class GAN(object):
                 real_summary, fake_summary = self._sess.run(
                     [self.summary_op_real_image, self.summary_op_fake_image],
                     feed_dict={
-                        self.real_placeholder:
-                        utils.tile_cube_slices(real_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'real', True),
-                        self.fake_placeholder:
-                        utils.tile_cube_slices(fake_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'fake', True)
+                        self.real_placeholder: utils.tile_cube_slices(real_arr[0, :, :, :, 0]),
+                        self.fake_placeholder: utils.tile_cube_slices(fake_arr[0, :, :, :, 0])
                     })
 
                 self._summary_writer.add_summary(real_summary, self._counter)
