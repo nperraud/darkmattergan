@@ -45,19 +45,19 @@ def load_data_from_file(file_path, k=10):
 
 
 def load_3d_synthetic_samples(nsamples, dim, k):
-    images = 2 * gaussian_synthetic_data.generate_cubes(
+    images = 2 * gaussian_synthetic_data.generate_cubes( # Forward mapped
         nsamples=nsamples, cube_dim=dim) - 1.0
     raw_images = utils.backward_map(images)
 
-    return images, raw_images
+    return Dataset(images, shuffle=False, transform=None)
 
 
 def load_2d_synthetic_samples(nsamples, dim, k):
-    images = 2 * gaussian_synthetic_data.generate_squares(
+    images = 2 * gaussian_synthetic_data.generate_squares( # Forward mapped
         nsamples=nsamples, square_dim=dim) - 1.0
     raw_images = utils.backward_map(images)
 
-    return images, raw_images
+    return Dataset(images, shuffle=False, transform=None)
 
 
 def load_samples(nsamples=1000, permute=False, k=10, spix=256):

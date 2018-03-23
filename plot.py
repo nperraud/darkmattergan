@@ -257,3 +257,35 @@ def plot_images_psd(images, title, filename=None, sigma_smooth=None):
             filename, bbox_inches='tight', dpi=my_dpi
         )  # bbox_extra_artists=(txt_top)) #, txt_left))  # Save Image
     plt.show()
+
+
+def tile_cube_to_2d(cube):
+    '''
+    cube = [:, :, :]
+    arrange cube as tile of squares
+    '''
+    x_dim = cube.shape[0]
+    y_dim = cube.shape[1]
+    z_dim = cube.shape[2]
+    v_stacks = []
+    num = 0
+    num_images_in_each_row = utils.num_images_each_row(x_dim)
+
+    for i in range(x_dim//num_images_in_each_row):
+        h_stacks = []
+        for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
+            h_stacks.append(cube[num, :, :])
+            num += 1
+        v_stacks.append( np.hstack(h_stacks) )
+
+    tile = np.vstack(v_stacks)
+    return tile
+
+def tile_and_plot_3d_image(image):
+    '''
+    Take a 3d cube as input.
+    Tile the cube as slices, and display it.
+    '''
+    tile = tile_cube_to_2d(image)
+    plot = plt.gca()
+    plot.imshow(tile, interpolation='none')

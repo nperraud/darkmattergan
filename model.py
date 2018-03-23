@@ -693,9 +693,28 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         rprint('------------------------------------------------------------\n', reuse)
     return x
 
+def do_deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d=False):
+    if is_3d:
+        output_shape = [bs, sx, sx, sx, n_filters]
+        out_tensor = deconv3d(in_tensor,
+                 output_shape=output_shape,
+                 shape=shape,
+                 stride=stride,
+                 name='{}_deconv_3d'.format(conv_num),
+                 summary=summary)
+    else:
+        output_shape = [bs, sx, sx, n_filters]
+        out_tensor = deconv2d(in_tensor,
+                 output_shape=output_shape,
+                 shape=shape,
+                 stride=stride,
+                 name='{}_deconv'.format(conv_num),
+                 summary=summary)
+
+    return out_tensor
 
 def generator(x, params, y=None, reuse=True, scope="generator"):
-    conv = get_conv(params['is_3d'])
+
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
@@ -729,26 +748,21 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
-            if params['is_3d']:
-                x = deconv3d(x,
-                         output_shape=[bs, sx, sx, sx, params['nfilter'][i]],
-                         shape=params['shape'][i],
-                         stride=params['stride'][i],
-                         name='{}_deconv_3d'.format(i),
-                         summary=params['summary'])
-            else:
-                output_shape = [bs, sx, sx, params['nfilter'][i]]
-                x = deconv2d(x,
-                         output_shape=output_shape,
-                         shape=params['shape'][i],
-                         stride=params['stride'][i],
-                         name='{}_deconv'.format(i),
-                         summary=params['summary'])
-                # If we are running on Leonhard we need to reshape in order for TF
-                # to explicitly know the shape of the tensor. Machines with newer
-                # TensorFlow versions do not need this.
-                if tf.__version__ == '1.3.0':
-                    x = tf.reshape(x, output_shape)
+            x = do_deconv(in_tensor=x, 
+                            bs=bs, 
+                            sx=sx,
+                            n_filters=params['nfilter'][i],
+                            shape=params['shape'][i],
+                            stride=params['stride'][i],
+                            summary=params['summary'],
+                            conv_num=i,
+                            is_3d=params['is_3d'])
+
+            # If we are running on Leonhard we need to reshape in order for TF
+            # to explicitly know the shape of the tensor. Machines with newer
+            # TensorFlow versions do not need this.
+            if tf.__version__ == '1.3.0':
+                x = tf.reshape(x, output_shape)
 
             rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
             if i < nconv-1:

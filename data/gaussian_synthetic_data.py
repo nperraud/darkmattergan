@@ -58,7 +58,6 @@ def generate_square(square_dim):
 
 
 	f = f.reshape(x.shape)  # THE CUBE OF DATA WITH DIM = [square_dim, square_dim]
-	print(np.shape(f))
 	return f
 
 def generate_squares(nsamples, square_dim):
