@@ -409,10 +409,8 @@ class GAN(object):
                 real_summary, fake_summary = self._sess.run(
                     [self.summary_op_real_image, self.summary_op_fake_image],
                     feed_dict={
-                        self.real_placeholder:
-                        utils.tile_cube_slices(real_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'real', True),
-                        self.fake_placeholder:
-                        utils.tile_cube_slices(fake_arr[0, :, :, :, 0], str(epoch), str(batch_num), 'fake', True)
+                        self.real_placeholder: utils.tile_cube_slices(real_arr[0, :, :, :, 0]),
+                        self.fake_placeholder: utils.tile_cube_slices(fake_arr[0, :, :, :, 0])
                     })
 
                 self._summary_writer.add_summary(real_summary, self._counter)

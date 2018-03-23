@@ -174,7 +174,7 @@ def num_images_each_row(x_dim):
 
     return num_images_in_each_row
 
-def tile_cube_slices(cube, epoch, batch, label, save_images=False):
+def tile_cube_slices(cube):
     '''
     cube = [:, :, :]
     arrange cube as tile of squares
@@ -194,15 +194,6 @@ def tile_cube_slices(cube, epoch, batch, label, save_images=False):
         v_stacks.append( np.hstack(h_stacks) )
 
     tile = np.vstack(v_stacks)
-
-    if save_images:
-        dir_path = '../saved_result/Images/' + label
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-
-        file_name = epoch + '_' + batch + '.jpg'
-        scipy.misc.imsave(dir_path + '/' + file_name, tile)
-
     return tile.reshape([1, *(tile.shape), 1])
 
 def get_3d_hists_dir_paths(path_3d_hists):

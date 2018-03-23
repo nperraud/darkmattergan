@@ -12,6 +12,8 @@ def read_tfrecords_from_file(file_path, image_size, k=10.):
     record_iterator = tf.python_io.tf_record_iterator(path=file_path)
     cubes = []
     for string_record in record_iterator:
+
+        # Parse each record out from the tf records file
         example = tf.train.Example()
         example.ParseFromString(string_record)
 
