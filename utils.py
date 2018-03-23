@@ -195,28 +195,6 @@ def tile_cube_slices(cube, epoch, batch, label, save_images=False):
 
     return tile.reshape([1, *(tile.shape), 1])
 
-def tile_cube_to_2d(cube):
-    '''
-    cube = [:, :, :]
-    arrange cube as tile of squares
-    '''
-    x_dim = cube.shape[0]
-    y_dim = cube.shape[1]
-    z_dim = cube.shape[2]
-    v_stacks = []
-    num = 0
-    num_images_in_each_row = num_images_each_row(x_dim)
-
-    for i in range(x_dim//num_images_in_each_row):
-        h_stacks = []
-        for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
-            h_stacks.append(cube[num, :, :])
-            num += 1
-        v_stacks.append( np.hstack(h_stacks) )
-
-    tile = np.vstack(v_stacks)
-    return tile
-
 def get_3d_hists_dir_paths(path_3d_hists):
     dir_paths = []
     for item in os.listdir(path_3d_hists):
