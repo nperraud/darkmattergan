@@ -575,12 +575,12 @@ class CosmoGAN(GAN):
 
         # TODO: Make a variable to contain the clip max
         # tf.variable
-        self._G_raw = utils.inv_pre_process(self._G_fake,
-                                            self.params['cosmology']['k'], 
-                                            scale=self.params['cosmology']['map_scale'])
-        self._X_raw = utils.inv_pre_process(self._X,
-                                            self.params['cosmology']['k'], 
-                                            scale=self.params['cosmology']['map_scale'])
+        # self._G_raw = utils.inv_pre_process(self._G_fake,
+        #                                     self.params['cosmology']['k'], 
+        #                                     scale=self.params['cosmology']['map_scale'])
+        # self._X_raw = utils.inv_pre_process(self._X,
+        #                                     self.params['cosmology']['k'], 
+        #                                     scale=self.params['cosmology']['map_scale'])
 
         self._md = dict()
 
@@ -678,16 +678,6 @@ class CosmoGAN(GAN):
             "Pixel/Fake", self._G_fake, collections=['Metrics'])
         tf.summary.histogram("Pixel/Real", self._X, collections=['Metrics'])
 
-        # This summary needs clipping
-        clip_max = 1e10
-        tf.summary.histogram(
-            "Pixel/Fake_Raw",
-            tf.clip_by_value(self._G_raw, 0, clip_max),
-            collections=['Metrics'])
-        tf.summary.histogram(
-            "Pixel/Real_Raw",
-            tf.clip_by_value(self._X_raw, 0, clip_max),
-            collections=['Metrics'])
 
         self._md['l2_psd'] = tf.placeholder(tf.float32, name='l2_psd')
         self._md['log_l2_psd'] = tf.placeholder(tf.float32, name='log_l2_psd')
@@ -825,8 +815,9 @@ class CosmoGAN(GAN):
         real = utils.backward_map(Xsel, self.params['cosmology']['k'], scale=self.params['cosmology']['map_scale'])
         z_sel = self._sample_latent(self._Npsd)
 
-        _, fake = self._generate_sample_safe(
+        fake_image = self._generate_sample_safe(
             z_sel, Xsel.reshape([self._Npsd, *X.shape[1:], 1]))
+        fake = utils.backward_map(fake_image, self.params['cosmology']['k'], scale=self.params['cosmology']['map_scale'])
         fake.resize([self._Npsd, *X.shape[1:]])
 
         nc = self.params['num_classes']
@@ -863,7 +854,7 @@ class CosmoGAN(GAN):
             Xsel = next(self._sum_data_iterator)
 
             z_sel = self._sample_latent(self._Npsd)
-            fake_image, _ = self._generate_sample_safe(
+            fake_image = self._generate_sample_safe(
                 z_sel, Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1]))
 
 
@@ -875,20 +866,6 @@ class CosmoGAN(GAN):
 
             # real = utils.makeit_square(real)
             # fake = utils.makeit_square(fake)
-
-
-            # fake = np.clip(
-            #     np.nan_to_num(fake), self.params['cosmology']['log_clip'],
-            #     clip_max)
-            # real = np.clip(
-            #     np.nan_to_num(real), self.params['cosmology']['log_clip'],
-            #     clip_max)
-
-            # if self.params['cosmology']['sigma_smooth'] is not None:
-            #     fake = ndimage.gaussian_filter(
-            #         fake, sigma=self.params['cosmology']['sigma_smooth'])
-            #     real = ndimage.gaussian_filter(
-            #         real, sigma=self.params['cosmology']['sigma_smooth'])
 
 
             psd_gen, x = metrics.power_spectrum_batch_phys(
@@ -1025,6 +1002,3 @@ class CosmoGAN(GAN):
                 self.best_log_psd, self._save_current_step = logel2psd, True
             print(' {} current PSD L2 {}, logL2 {}'.format(
                 self._counter, l2psd, logel2psd))
-
-    def _get_sample_args(self):
-        return [self._G_fake, self._G_raw]
