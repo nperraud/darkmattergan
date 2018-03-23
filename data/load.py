@@ -146,12 +146,10 @@ def load_2d_dataset(
         resolution=256,
         Mpch=70,
         shuffle=True,
-        raw=False,
-        k=10,
+        forward_map = None,
         spix=128,
         augmentation=True,
-        scaling=1,
-        map_scale=1.):
+        scaling=1):
     ''' Load a 2D dataset object 
 
      Arguments
@@ -160,23 +158,20 @@ def load_2d_dataset(
     * resolution : [256, 512] (default 256)
     * Mpch : [70, 350] (default 70)
     * shuffle: shuffle the data (default True)
-    * raw : use the raw data (default False)
-    * k : parameter for the tranformation of the data (default 10)
+    * foward : foward mapping use None for raw data (default None)
     * spix : resolution of the image (default 128)
     * augmentation : use data augmentation (default True)
     * scaling : downscale the image by a factor (default 1)
-    * map_scale : the parameter scale for the forward map
     '''
 
     # 1) Load raw images
-    raw_images = load_samples_raw(nsamples=nsamples, resolution=resolution, Mpch=Mpch)
+    images = load_samples_raw(nsamples=nsamples, resolution=resolution, Mpch=Mpch)
 
     # 2) Apply forward map if necessary
-    if raw:
-        images = raw_images
-    else:
-        images = utils.forward_map(raw_images, k, scale=map_scale)
+    if forward_map:
+        images = forward_map(images)
 
+    # 2p) Apply downscaling if necessary
     if scaling>1:
         images = blocks.downsample(images, scaling)
 
