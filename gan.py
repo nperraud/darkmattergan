@@ -583,9 +583,11 @@ class CosmoGAN(GAN):
         # TODO: Make a variable to contain the clip max
         # tf.variable
         self._G_raw = utils.inv_pre_process(self._G_fake,
-                                            self.params['cosmology']['k'])
+                                            self.params['cosmology']['k'], 
+                                            scale=self.params['cosmology']['map_scale'])
         self._X_raw = utils.inv_pre_process(self._X,
-                                            self.params['cosmology']['k'])
+                                            self.params['cosmology']['k'], 
+                                            scale=self.params['cosmology']['map_scale'])
 
         self._md = dict()
 
@@ -786,7 +788,9 @@ class CosmoGAN(GAN):
         self._Npsd = self.params['cosmology']['Npsd']
         self._max_num_psd = self.params['cosmology']['max_num_psd']
 
-        real = utils.backward_map(X, self.params['cosmology']['k'])
+        real = utils.backward_map(X, 
+                                  self.params['cosmology']['k'], 
+                                  scale=self.params['cosmology']['map_scale'])
         if self.params['cosmology']['clip_max_real']:
             self._clip_max = np.max(real)
         else:
@@ -801,7 +805,8 @@ class CosmoGAN(GAN):
             for i in range(self.params['num_classes']):
                 psd_real, _ = metrics.power_spectrum_batch_phys(
                     X1=utils.backward_map(X[i::self.params['num_classes']],
-                                          self.params['cosmology']['k']),
+                                          self.params['cosmology']['k'], 
+                                          scale=self.params['cosmology']['map_scale']),
                     is_3d=self.is_3d)
                 self._c_psd_real.append(np.mean(psd_real, axis=0))
                 del psd_real
@@ -824,7 +829,7 @@ class CosmoGAN(GAN):
 
     def _multiclass_l2_psd(self, feed_dict, X):
         Xsel = X[0:self._Npsd]
-        real = utils.backward_map(Xsel, self.params['cosmology']['k'])
+        real = utils.backward_map(Xsel, self.params['cosmology']['k'], scale=self.params['cosmology']['map_scale'])
         z_sel = self._sample_latent(self._Npsd)
 
         _, fake = self._generate_sample_safe(
@@ -869,9 +874,9 @@ class CosmoGAN(GAN):
                 z_sel, Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1]))
 
 
-            fake = utils.backward_map(fake_image, k=self.params['cosmology']['k'], real_max=self._clip_max)
+            fake = utils.backward_map(fake_image, k=self.params['cosmology']['k'], real_max=self._clip_max, scale=self.params['cosmology']['map_scale'])
             fake.resize([self._Npsd, *Xsel.shape[1:]])
-            real = utils.backward_map(Xsel, k=self.params['cosmology']['k'], real_max=self._clip_max)
+            real = utils.backward_map(Xsel, k=self.params['cosmology']['k'], real_max=self._clip_max, scale=self.params['cosmology']['map_scale'])
 
             
 

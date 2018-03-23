@@ -71,6 +71,10 @@ def default_params_cosmology(params=dict()):
     params['cosmology']['clip_max_real'] = True
     # This is needed for now as othersie the code may bug
 
+    params['cosmology']['map_scale'] = params['cosmology'].get(
+        'map_scale', 1)
+    # Scaling of the forward map
+
     params['cosmology']['log_clip'] = params['cosmology'].get('log_clip', 0.1)
     params['cosmology']['sigma_smooth'] = params['cosmology'].get(
         'sigma_smooth', 1)

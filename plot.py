@@ -81,6 +81,7 @@ def draw_images(images,
         axes.plot(x, y, color='r', linestyle='-', linewidth=2)
     axes.get_xaxis().set_visible(False)
     axes.get_yaxis().set_visible(False)
+    return axes
 
 
 def plot_array_pil(x,

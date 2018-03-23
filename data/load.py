@@ -60,7 +60,7 @@ def load_2d_synthetic_samples(nsamples, dim, k):
     return images, raw_images
 
 
-def load_samples(nsamples=1000, permute=False, k=10, spix=256):
+def load_samples(nsamples=1000, shuffle=False, k=10, spix=256, map_scale=1., transform=None):
     ''' This function will be removed in the near futur'''
     pathfolder = path.data_path(spix)
     input_pattern = 'Box_70*snapshot_050'
@@ -83,13 +83,14 @@ def load_samples(nsamples=1000, permute=False, k=10, spix=256):
                 range(nsamples))))
     raw_images.resize([nsamples, spix, spix])
 
-    if permute:
+    if shuffle:
         p = np.random.permutation(nsamples)
         raw_images = raw_images[p]
 
-    images = utils.forward_map(raw_images, k)
+    images = utils.forward_map(raw_images, k=k, scale=map_scale)
 
-    return images, raw_images
+    dataset = Dataset(images, shuffle=False, transform=transform)
+    return dataset
 
 
 def load_samples_2d_raw(nsamples=None, resolution=256, Mpch=70):
@@ -145,7 +146,8 @@ def load_2d_dataset(
         k=10,
         spix=128,
         augmentation=True,
-        scaling=1):
+        scaling=1,
+        map_scale=1.):
     ''' Load a 2D dataset object 
 
      Arguments
@@ -159,6 +161,7 @@ def load_2d_dataset(
     * spix : resolution of the image (default 128)
     * augmentation : use data augmentation (default True)
     * scaling : downscale the image by a factor (default 1)
+    * map_scale : the parameter scale for the forward map
     '''
 
     # 1) Load raw images
@@ -168,7 +171,7 @@ def load_2d_dataset(
     if raw:
         images = raw_images
     else:
-        images = utils.forward_map(raw_images, k)
+        images = utils.forward_map(raw_images, k, scale=map_scale)
 
     if scaling>1:
         images = blocks.downsample(images, scaling)
