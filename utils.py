@@ -157,6 +157,16 @@ def makeit_square(x):
         new_x = x
     return new_x
 
+def get_tile_shape_from_3d_image(image_size):
+    '''
+    given a 3d image, tile it as a rectangle with slices of the 3d image,
+    and return the shape of the rectangle
+    '''
+    x_dim, y_dim, z_dim = image_size
+    num_images_in_each_row = num_images_each_row(x_dim)
+    tile_shape = ( y_dim * (x_dim//num_images_in_each_row), z_dim * num_images_in_each_row)
+    return tile_shape
+
 def num_images_each_row(x_dim):
     num_images_in_each_row = int(x_dim**0.5)
     while x_dim % num_images_in_each_row != 0:#smallest number that is larger than square root of x_dim and divides x_dim

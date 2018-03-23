@@ -40,6 +40,7 @@ def read_tfrecords_from_dir(dir_path, image_size, k):
         file_path = os.path.join(dir_path, file_name)
         forward_mapped_data, data = read_tfrecords_from_file(file_path, image_size, k)
         if first:
+            first = False
             vstacked_forward = forward_mapped_data
             vstacked_raw = data
         else:
