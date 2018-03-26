@@ -6,6 +6,7 @@ from data import gaussian_synthetic_data
 from data import path
 from data import transformation
 from data.Dataset import Dataset
+from data.Dataset import Dataset_3d
 
 import blocks
 
@@ -92,8 +93,8 @@ def load_samples(nsamples=1000, permute=False, k=10, spix=256):
     return images, raw_images
 
 
-def load_samples_2d_raw(nsamples=None, resolution=256, Mpch=70):
-    ''' Load 2D raw images
+def load_samples_raw(nsamples=None, resolution=256, Mpch=70, is_3d=False):
+    ''' Load 2D or 3D raw images
 
     Arguments
     ---------
@@ -122,7 +123,10 @@ def load_samples_2d_raw(nsamples=None, resolution=256, Mpch=70):
                 "Data stroed in file {} is not of type np.ndarray".format(
                     file_path))
 
-    raw_images = np.vstack(raw_images).astype(np.float32)
+    if is_3d:
+        raw_images = np.array(raw_images).astype(np.float32)
+    else:
+        raw_images = np.vstack(raw_images).astype(np.float32)
 
     if nsamples is None:
         return raw_images
@@ -162,7 +166,7 @@ def load_2d_dataset(
     '''
 
     # 1) Load raw images
-    raw_images = load_samples_2d_raw(nsamples=nsamples, resolution=resolution, Mpch=Mpch)
+    raw_images = load_samples_raw(nsamples=nsamples, resolution=resolution, Mpch=Mpch)
 
     # 2) Apply forward map if necessary
     if raw:
@@ -188,3 +192,41 @@ def load_2d_dataset(
     dataset = Dataset(images, shuffle=shuffle, transform=t)
 
     return dataset
+
+def load_3d_dataset(
+        nsamples=None,
+        resolution=512,
+        Mpch=350,
+        shuffle=True,
+        raw=False,
+        k=10,
+        spix=64,
+        augmentation=True):
+    ''' 
+    Load a 2D dataset object
+    ''' 
+
+    # 1) Load raw images
+    raw_images = load_samples_raw(nsamples=nsamples, resolution=resolution, Mpch=Mpch, is_3d=True)
+
+    # 2) Apply forward map if necessary
+    if raw:
+        images = raw_images
+    else:
+        images = utils.forward_map(raw_images, k)
+
+    if augmentation:
+        # 3) First rotate the bigger histogram, then translate it
+        t = utils.compose2(transformation.rotate_3d, transformation.translate_3d)
+    else:
+        t = None
+
+    # 5) Make a dataset
+    dataset = Dataset_3d(images, spix=spix, shuffle=shuffle, transform=t)
+    return dataset
+
+
+
+
+    
+

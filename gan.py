@@ -328,6 +328,10 @@ class GAN(object):
                         # Initialize iterator with the training dataset
                         self._sess.run(self.training_init_op)
 
+                    if self.is_3d: ## re-initialize iterator at the beginning of every epoch
+                    	del data_iterator
+                    	data_iterator = dataset.iter(self.batch_size)
+
                     idx = 0
                     while idx < self._n_batch:
                         if resume:

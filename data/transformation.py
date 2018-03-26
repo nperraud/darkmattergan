@@ -63,3 +63,25 @@ def down_sample_images(images, scalings):
         down_sampled_images.append(downsample(down_sampled_images[-1], scale))
 
     return down_sampled_images
+
+def rotate_3d(hist_3d):
+    '''
+    random rotation along a plane by multiple of 90 degree
+    '''
+    k = np.random.choice([0, 1, 2, 3]) # Number of times to rotate by 90 degree
+    axes_rot = [(0,1), (0,2), (1,0), (1,2), (2,0), (2,1)] # plane of rotation
+    axes_rot_choice = np.random.choice(len(axes_rot))
+    axes_rot = axes_rot[axes_rot_choice]
+
+    hist_3d_rot = np.rot90(hist_3d, k, axes_rot)
+    return hist_3d_rot
+
+def translate_3d(hist_3d, shift_pix=40):
+    '''
+    random translation along an axis by some pixels greater than 40
+    '''
+    trans = np.random.choice(range(shift_pix, hist_3d.shape[0])) # Magnitude of translation
+    axis_trans = np.random.choice([0, 1, 2]) # Axis along which translation will be done 
+
+    hist_3d_trans = np.roll(hist_3d, trans, axis_trans)
+    return hist_3d_trans
