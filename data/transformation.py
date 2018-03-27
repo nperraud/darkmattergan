@@ -23,8 +23,6 @@ def random_flip_2d(images):
 def random_transformation_2d(images):
     return random_flip_2d(random_shift_2d(images))
 
-
-
 def make_smaller_samples(images, nx, ny=None):
     ''' This function will be deleted in the future '''
     if ny is None:
@@ -63,3 +61,37 @@ def down_sample_images(images, scalings):
         down_sampled_images.append(downsample(down_sampled_images[-1], scale))
 
     return down_sampled_images
+
+def random_flip_3d(images):
+    ''' Apply a random flip to 3d images'''
+    out = images
+    if np.random.rand(1) > 0.5: 
+        out = np.flip(out,axis=1)
+    if np.random.rand(1) > 0.5: 
+        out = np.flip(out,axis=2)
+    if np.random.rand(1) > 0.5: 
+        out = np.flip(out,axis=3)
+    return out
+
+def random_transpose_3d(images):
+    '''
+    Apply a random transpose to 3d images
+    '''
+    transposes = [(0, 1,2,3),(0, 1,3,2),(0, 2,1,3),(0, 2,3,1),(0, 3,1,2),(0, 3,2,1)] # all possible transposes
+    transpose = transposes[ np.random.choice(len(transposes)) ]
+    return np.transpose(images, axes=transpose)
+
+def rotate_3d(images):
+    '''
+    random rotation of 3d images by multiple of 90 degree
+    '''
+    return random_transpose_3d( random_flip_3d(images) )
+
+def translate_3d(images, shift_pix=0):
+    '''
+    random translation of 3d images along an axis by some pixels greater than shift_pix
+    '''
+    trans = np.random.choice(range(shift_pix, images.shape[1])) # Magnitude of translation
+    axis_trans = np.random.choice([1, 2, 3]) # Axis along which translation will be done 
+
+    return np.roll(images, trans, axis_trans)
