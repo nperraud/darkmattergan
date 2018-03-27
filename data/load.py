@@ -6,7 +6,7 @@ from data import gaussian_synthetic_data
 from data import path
 from data import transformation
 from data.Dataset import Dataset
-from data.Dataset import Dataset_3d
+from data.Dataset_3d import Dataset_3d
 
 import blocks
 

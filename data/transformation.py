@@ -23,8 +23,6 @@ def random_flip_2d(images):
 def random_transformation_2d(images):
     return random_flip_2d(random_shift_2d(images))
 
-
-
 def make_smaller_samples(images, nx, ny=None):
     ''' This function will be deleted in the future '''
     if ny is None:
@@ -64,24 +62,36 @@ def down_sample_images(images, scalings):
 
     return down_sampled_images
 
-def rotate_3d(hist_3d):
-    '''
-    random rotation along a plane by multiple of 90 degree
-    '''
-    k = np.random.choice([0, 1, 2, 3]) # Number of times to rotate by 90 degree
-    axes_rot = [(0,1), (0,2), (1,0), (1,2), (2,0), (2,1)] # plane of rotation
-    axes_rot_choice = np.random.choice(len(axes_rot))
-    axes_rot = axes_rot[axes_rot_choice]
+def random_flip_3d(images):
+    ''' Apply a random flip to 3d images'''
+    out = images
+    if np.random.rand(1) > 0.5: 
+        out = np.flip(out,axis=1)
+    if np.random.rand(1) > 0.5: 
+        out = np.flip(out,axis=2)
+    if np.random.rand(1) > 0.5: 
+        out = np.flip(out,axis=3)
+    return out
 
-    hist_3d_rot = np.rot90(hist_3d, k, axes_rot)
-    return hist_3d_rot
-
-def translate_3d(hist_3d, shift_pix=40):
+def random_transpose_3d(images):
     '''
-    random translation along an axis by some pixels greater than 40
+    Apply a random transpose to 3d images
     '''
-    trans = np.random.choice(range(shift_pix, hist_3d.shape[0])) # Magnitude of translation
-    axis_trans = np.random.choice([0, 1, 2]) # Axis along which translation will be done 
+    transposes = [(0, 1,2,3),(0, 1,3,2),(0, 2,1,3),(0, 2,3,1),(0, 3,1,2),(0, 3,2,1)] # all possible transposes
+    transpose = transposes[ np.random.choice(len(transposes)) ]
+    return np.transpose(images, axes=transpose)
 
-    hist_3d_trans = np.roll(hist_3d, trans, axis_trans)
-    return hist_3d_trans
+def rotate_3d(images):
+    '''
+    random rotation of 3d images by multiple of 90 degree
+    '''
+    return random_transpose_3d( random_flip_3d(images) )
+
+def translate_3d(images, shift_pix=0):
+    '''
+    random translation of 3d images along an axis by some pixels greater than shift_pix
+    '''
+    trans = np.random.choice(range(shift_pix, images.shape[1])) # Magnitude of translation
+    axis_trans = np.random.choice([1, 2, 3]) # Axis along which translation will be done 
+
+    return np.roll(images, trans, axis_trans)
