@@ -1,31 +1,32 @@
-import os, sys
-import pickle
-import numpy as np
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import sys
 sys.path.insert(0, '../')
 
-import data
-import utils
+import matplotlib
+matplotlib.use('Agg')
 
+import data
 from model import LapPatchWGANsingleModel
 from gan import CosmoGAN
+import utils
+
 
 # # Parameters
 
-# In[4]:
-
 
 ns = 128
-scalings = [4]
-nsamples = 7500
-k = 10
+scaling = 4
+k = 20
+try_resume = False
+Mpch=350
 
 try_resume = True
 
 
 
-time_str = 'single_no_reg'
+time_str = 'single_{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 name = 'LapPatchWGAN{}'.format(ns)
@@ -45,14 +46,13 @@ params_optimization['gen_learning_rate'] = 3e-5
 params_optimization['beta1'] = 0.5
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
-params_optimization['epoch'] = 100
+params_optimization['epoch'] = 2000
 
 
 
-level = 0
 
-up_scaling = scalings[level]
-new_ns = ns//np.prod(scalings[:level+1])
+up_scaling = scaling
+new_ns = ns//scaling
 latent_dim = new_ns**2
 bn = False
 params_discriminator = dict()
@@ -77,7 +77,7 @@ params_generator['non_lin'] = 'tanh'
 params_generator['upsampling'] = up_scaling
 
 params_cosmology = dict()
-params_cosmology['clip_max_real'] = False
+params_cosmology['clip_max_real'] = True
 params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
 params_cosmology['k'] = k
@@ -107,17 +107,7 @@ obj = CosmoGAN(params, LapPatchWGANsingleModel)
 
 
 
-images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)
-images = data.make_smaller_samples(images, ns)
-raw_images = data.make_smaller_samples(raw_images, ns)
+dataset = data.load.load_2d_dataset(resolution=256,Mpch=Mpch, k=k,spix=ns)
 
 
-# In[6]:
-
-
-
-down_sampled_images = data.down_sample_images(images, scalings)
-
-
-
-obj.train(X=down_sampled_images[level], resume=resume)
+obj.train(dataset=dataset, resume=resume)

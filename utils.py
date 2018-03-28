@@ -65,29 +65,50 @@ def sample_latent(m, n, prior="uniform", normalize=False):
         raise ValueError(' [!] distribution not defined')
 
 
-def forward_map(x, k=10.):
-    return 2 * (x / (x + k)) - 1
+def forward_map(x, k=10., scale=1.):
+    ''' maps real positive numbers to a [-scale, scale] range 
+
+    Numpy version
+    '''
+
+    return scale * (2 * (x / (x + k)) - 1)
 
 
-def backward_map(y, k=10.):
-    simple_max = forward_map(1e8, k)
-    y_clipped = np.clip(y, -1.0, simple_max)
+def backward_map(y, k=10., scale=1., real_max=1e8):
+    ''' Inverse of the function forward map
+        
+    Numpy version
+    '''
+
+    simple_max = forward_map(real_max, k, scale)
+    simple_min = forward_map(0, k, scale)
+
+    y_clipped = np.clip(y, simple_min, simple_max)/scale
     return k * (y_clipped + 1) / (1 - y_clipped)
 
 
-def pre_process(X_raw, k=10.):
-    k = tf.constant(k, dtype=tf.float32)
+def pre_process(X_raw, k=10., scale=1.):
+    ''' maps real positive numbers to a [-scale, scale] range 
 
-    # maps real positive numbers to a [-1,1] range  2 * (x/(x+10)) - 1
-    X = tf.subtract(2.0 * (X_raw / tf.add(X_raw, k)), 1.0)
+    Tensorflow version
+    '''
+
+    k = tf.constant(k, dtype=tf.float32)
+    X = tf.subtract(2.0 * (X_raw / tf.add(X_raw, k)), 1.0)*scale
 
     return X
 
 
-def inv_pre_process(X, k=10.):
-    simple_max = forward_map(
-        1e8, k)  # clipping the values to a max of 1e10 particles
-    X_clipped = tf.clip_by_value(X, -1.0, simple_max)
+def inv_pre_process(X, k=10., scale=1., real_max=1e8):
+    ''' Inverse of the function forward map
+        
+    Tensorflow version
+    '''
+
+    simple_max = forward_map(real_max, k, scale)
+    simple_min = forward_map(0, k, scale)
+
+    X_clipped = tf.clip_by_value(X, simple_min, simple_max)/scale
     X_raw = tf.multiply((X_clipped + 1.0) / (1.0 - X_clipped), k)
     return X_raw
 
@@ -136,6 +157,16 @@ def makeit_square(x):
         new_x = x
     return new_x
 
+def get_tile_shape_from_3d_image(image_size):
+    '''
+    given a 3d image, tile it as a rectangle with slices of the 3d image,
+    and return the shape of the rectangle
+    '''
+    x_dim, y_dim, z_dim = image_size
+    num_images_in_each_row = num_images_each_row(x_dim)
+    tile_shape = ( y_dim * (x_dim//num_images_in_each_row), z_dim * num_images_in_each_row)
+    return tile_shape
+
 def num_images_each_row(x_dim):
     num_images_in_each_row = int(x_dim**0.5)
     while x_dim % num_images_in_each_row != 0:#smallest number that is larger than square root of x_dim and divides x_dim
@@ -143,7 +174,7 @@ def num_images_each_row(x_dim):
 
     return num_images_in_each_row
 
-def tile_cube_slices(cube, epoch, batch, label, save_images=False):
+def tile_cube_slices(cube):
     '''
     cube = [:, :, :]
     arrange cube as tile of squares
@@ -163,38 +194,7 @@ def tile_cube_slices(cube, epoch, batch, label, save_images=False):
         v_stacks.append( np.hstack(h_stacks) )
 
     tile = np.vstack(v_stacks)
-
-    if save_images:
-        dir_path = '../saved_result/Images/' + label
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-
-        file_name = epoch + '_' + batch + '.jpg'
-        scipy.misc.imsave(dir_path + '/' + file_name, tile)
-
     return tile.reshape([1, *(tile.shape), 1])
-
-def tile_cube_to_2d(cube):
-    '''
-    cube = [:, :, :]
-    arrange cube as tile of squares
-    '''
-    x_dim = cube.shape[0]
-    y_dim = cube.shape[1]
-    z_dim = cube.shape[2]
-    v_stacks = []
-    num = 0
-    num_images_in_each_row = num_images_each_row(x_dim)
-
-    for i in range(x_dim//num_images_in_each_row):
-        h_stacks = []
-        for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
-            h_stacks.append(cube[num, :, :])
-            num += 1
-        v_stacks.append( np.hstack(h_stacks) )
-
-    tile = np.vstack(v_stacks)
-    return tile
 
 def get_3d_hists_dir_paths(path_3d_hists):
     dir_paths = []
@@ -257,3 +257,11 @@ def load_hdf5_all_datasets(filename, num=100):
 
     h5f.close()
     return lst
+
+
+def compose2(first,second):
+    ''' Return the composed function `second(first(arg))` '''
+    return lambda x: second(first(x))
+
+def compose(*functions):
+    return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
