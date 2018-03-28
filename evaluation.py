@@ -35,11 +35,11 @@ def generate_samples(N, obj, pathgan, checkpoint=None, y=None):
     return gen_sample, gen_sample_raw
 
 
-def compute_and_plot_psd(raw_images, gen_sample_raw, display=True):
-    psd_real, x = metrics.power_spectrum_batch_phys(X1=raw_images)
+def compute_and_plot_psd(raw_images, gen_sample_raw, display=True, is_3d=False):
+    psd_real, x = metrics.power_spectrum_batch_phys(X1=raw_images, is_3d=is_3d)
     psd_real_mean = np.mean(psd_real, axis=0)
 
-    psd_gen, x = metrics.power_spectrum_batch_phys(X1=gen_sample_raw)
+    psd_gen, x = metrics.power_spectrum_batch_phys(X1=gen_sample_raw, is_3d=is_3d)
     psd_gen_mean = np.mean(psd_gen, axis=0)
     l2, logel2, l1, logel1 = metrics.diff_vec(psd_real_mean, psd_gen_mean)
 
