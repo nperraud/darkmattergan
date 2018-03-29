@@ -489,7 +489,13 @@ class GAN(object):
                  X=None,
                  y=None,
                  sess=None,
-                 file_name=None):
+                 checkpoint=None):
+
+        if checkpoint:
+            file_name = self._savedir+self._model_name+'-'+checkpoint
+        else:
+            file_name = None
+
         if N and z:
             ValueError('Please choose between N and z')
         if sess is not None:
@@ -1006,8 +1012,8 @@ class CosmoGAN(GAN):
                  X=None,
                  y=None,
                  sess=None,
-                 file_name=None):
-        images = super().generate(N=N,z=z,X=X,y=y,sess=sess,file_name=file_name)
+                 checkpoint=None):
+        images = super().generate(N=N,z=z,X=X,y=y,sess=sess,checkpoint=checkpoint)
 
         raw_images = self._backward_map(images)
 
