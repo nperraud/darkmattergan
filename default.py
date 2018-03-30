@@ -63,6 +63,17 @@ def default_params(params=dict()):
 
 def default_params_cosmology(params=dict()):
 
+    # forward = utils.forward_map
+    # backward = utils.backward_map
+    def forward(X):
+        return np.log(np.sqrt(X)+np.e)-2
+
+    def backward(Xmap, max_value=2e5):
+        Xmap = np.clip(Xmap, -1.0, forward(max_value))
+        tmp = np.exp(Xmap+2)-np.e
+        return np.round(tmp*tmp)
+
+
     params = default_params(params)
     # Cosmology parameters
     # --------------------
@@ -73,10 +84,6 @@ def default_params_cosmology(params=dict()):
     params['cosmology']['clip_max_real'] = True
     # This is needed for now as othersie the code may bug
 
-    params['cosmology']['map_scale'] = params['cosmology'].get(
-        'map_scale', 1)
-    # Scaling of the forward map
-
     params['cosmology']['log_clip'] = params['cosmology'].get('log_clip', 0.1)
     params['cosmology']['sigma_smooth'] = params['cosmology'].get(
         'sigma_smooth', 1)
@@ -84,9 +91,6 @@ def default_params_cosmology(params=dict()):
     params['cosmology']['Npsd'] = params['cosmology'].get('Npsd', 500)
     params['cosmology']['max_num_psd'] = params['cosmology'].get('max_num_psd', 100)
     # Is this parameter used right now?
-
-    forward = utils.forward_map
-    backward = utils.backward_map
 
     params['cosmology']['forward_map'] = params['cosmology'].get('forward_map', forward)
     params['cosmology']['backward_map'] = params['cosmology'].get('backward_map', backward)

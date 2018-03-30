@@ -48,7 +48,7 @@ class Dataset(object):
         ''' Return all the data (shuffled) '''
         return self._data_process(self._X)[self._p]
 
-    def get_samples(self, N=100, transform=True):
+    def get_samples(self, N=100):
         ''' Get the `N` first samples '''
         return self._data_process(self._X)[self._p[:N]]
 
@@ -109,6 +109,27 @@ class Dataset_2d(Dataset):
         super().__init__(X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
 
 
+class Dataset_2d_patch(Dataset):
+    def __init__(self, X, spix=128, shuffle=True, transform=None):
+        ''' Initialize a Dataset object for the 2d patch case
+        Arguments
+        ---------
+        * X         : numpy array containing the data
+        * shuffle   : True if the data should be shuffled
+        * transform : Function to be applied to each bigger cube in the dataset
+                      for data augmentation
+        '''
+        
+        slice_fn = functools.partial(slice_2d_patch, spix=spix)
+        super().__init__(X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+
+    def get_samples_full(self, N=100):
+        X = self.get_samples(N=N)
+        X_d = np.concatenate([X[:,:,:,1],X[:,:,:,0]],axis=1)
+        X_u = np.concatenate([X[:,:,:,3],X[:,:,:,2]],axis=1)
+        X_r =  np.squeeze(np.concatenate([X_u,X_d],axis=2))
+        return X_r
+
 
 def grouper(iterable, n, fillvalue=None):
     """
@@ -163,3 +184,40 @@ def slice_3d(cubes, spix=64):
     sliced_dim3 = np.vstack(np.split(sliced_dim2, num_slices, axis=3)) 
 
     return sliced_dim3
+
+
+def slice_2d_patch(img0, spix=64):
+
+    # Handle the dimesnsions
+    l = len(img0.shape)
+    if l<2:
+        ValueError('Not enough dimensions')
+    elif l==2:
+        img0 = img0.reshape([1,*img0.shape])
+    elif l==4:
+        s = img0.shape
+        img0 = img0.reshape([s[0]*s[1],s[2],s[3]])
+    elif l>4:
+        ValueError('To many dimensions')    
+    _ , sx, sy = img0.shape
+    nx = sx//spix
+    ny = sy//spix
+
+    # 1) Create the different subparts
+    img1 = np.roll(img0,spix,axis=1)
+    img1[:,:spix,:] = 0
+
+    img2 = np.roll(img0,spix,axis=2)
+    img2[:,:,:spix] = 0
+
+    img3 = np.roll(img1,spix,axis=2)
+    img3[:,:,:spix] = 0
+
+    # 2) Concatenate
+    img = np.stack([img0,img1,img2,img3],axis=3)
+
+    # 3) Slice the image
+    img = np.vstack(np.split(img,nx,axis=1))
+    img = np.vstack(np.split(img,ny,axis=2))
+
+    return img
