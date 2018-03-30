@@ -489,7 +489,13 @@ class GAN(object):
                  X=None,
                  y=None,
                  sess=None,
-                 file_name=None):
+                 checkpoint=None):
+
+        if checkpoint:
+            file_name = self._savedir+self._model_name+'-'+checkpoint
+        else:
+            file_name = None
+
         if N and z:
             ValueError('Please choose between N and z')
         if sess is not None:
@@ -569,18 +575,18 @@ class CosmoGAN(GAN):
         super().__init__(params=params, model=model, is_3d=is_3d)
 
         self.params = default_params_cosmology(self.params)
-        assert (self.params['cosmology']['k'] > 0)
-
+        self._backward_map = params['cosmology']['backward_map']
+        self._forward_map = params['cosmology']['forward_map']
         self._Npsd = params['cosmology']['Npsd']
 
         # TODO: Make a variable to contain the clip max
         # tf.variable
-        self._G_raw = utils.inv_pre_process(self._G_fake,
-                                            self.params['cosmology']['k'], 
-                                            scale=self.params['cosmology']['map_scale'])
-        self._X_raw = utils.inv_pre_process(self._X,
-                                            self.params['cosmology']['k'], 
-                                            scale=self.params['cosmology']['map_scale'])
+        # self._G_raw = utils.inv_pre_process(self._G_fake,
+        #                                     self.params['cosmology']['k'], 
+        #                                     scale=self.params['cosmology']['map_scale'])
+        # self._X_raw = utils.inv_pre_process(self._X,
+        #                                     self.params['cosmology']['k'], 
+        #                                     scale=self.params['cosmology']['map_scale'])
 
         self._md = dict()
 
@@ -678,16 +684,6 @@ class CosmoGAN(GAN):
             "Pixel/Fake", self._G_fake, collections=['Metrics'])
         tf.summary.histogram("Pixel/Real", self._X, collections=['Metrics'])
 
-        # This summary needs clipping
-        clip_max = 1e10
-        tf.summary.histogram(
-            "Pixel/Fake_Raw",
-            tf.clip_by_value(self._G_raw, 0, clip_max),
-            collections=['Metrics'])
-        tf.summary.histogram(
-            "Pixel/Real_Raw",
-            tf.clip_by_value(self._X_raw, 0, clip_max),
-            collections=['Metrics'])
 
         self._md['l2_psd'] = tf.placeholder(tf.float32, name='l2_psd')
         self._md['log_l2_psd'] = tf.placeholder(tf.float32, name='log_l2_psd')
@@ -781,9 +777,7 @@ class CosmoGAN(GAN):
         self._Npsd = self.params['cosmology']['Npsd']
         self._max_num_psd = self.params['cosmology']['max_num_psd']
 
-        real = utils.backward_map(X, 
-                                  self.params['cosmology']['k'], 
-                                  scale=self.params['cosmology']['map_scale'])
+        real = self._backward_map(X)
         if self.params['cosmology']['clip_max_real']:
             self._clip_max = np.max(real)
         else:
@@ -797,9 +791,7 @@ class CosmoGAN(GAN):
             self._c_psd_real = []
             for i in range(self.params['num_classes']):
                 psd_real, _ = metrics.power_spectrum_batch_phys(
-                    X1=utils.backward_map(X[i::self.params['num_classes']],
-                                          self.params['cosmology']['k'], 
-                                          scale=self.params['cosmology']['map_scale']),
+                    X1=self._backward_map(X[i::self.params['num_classes']]),
                     is_3d=self.is_3d)
                 self._c_psd_real.append(np.mean(psd_real, axis=0))
                 del psd_real
@@ -822,11 +814,12 @@ class CosmoGAN(GAN):
 
     def _multiclass_l2_psd(self, feed_dict, X):
         Xsel = X[0:self._Npsd]
-        real = utils.backward_map(Xsel, self.params['cosmology']['k'], scale=self.params['cosmology']['map_scale'])
+        real = self._backward_map(Xsel)
         z_sel = self._sample_latent(self._Npsd)
 
-        _, fake = self._generate_sample_safe(
+        fake_image = self._generate_sample_safe(
             z_sel, Xsel.reshape([self._Npsd, *X.shape[1:], 1]))
+        fake = self._backward_map(fake_image)
         fake.resize([self._Npsd, *X.shape[1:]])
 
         nc = self.params['num_classes']
@@ -863,32 +856,18 @@ class CosmoGAN(GAN):
             Xsel = next(self._sum_data_iterator)
 
             z_sel = self._sample_latent(self._Npsd)
-            fake_image, _ = self._generate_sample_safe(
+            fake_image = self._generate_sample_safe(
                 z_sel, Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1]))
 
 
-            fake = utils.backward_map(fake_image, k=self.params['cosmology']['k'], real_max=self._clip_max, scale=self.params['cosmology']['map_scale'])
+            fake = self._backward_map(fake_image)
             fake.resize([self._Npsd, *Xsel.shape[1:]])
-            real = utils.backward_map(Xsel, k=self.params['cosmology']['k'], real_max=self._clip_max, scale=self.params['cosmology']['map_scale'])
+            real = self._backward_map(Xsel)
 
             
 
             # real = utils.makeit_square(real)
             # fake = utils.makeit_square(fake)
-
-
-            # fake = np.clip(
-            #     np.nan_to_num(fake), self.params['cosmology']['log_clip'],
-            #     clip_max)
-            # real = np.clip(
-            #     np.nan_to_num(real), self.params['cosmology']['log_clip'],
-            #     clip_max)
-
-            # if self.params['cosmology']['sigma_smooth'] is not None:
-            #     fake = ndimage.gaussian_filter(
-            #         fake, sigma=self.params['cosmology']['sigma_smooth'])
-            #     real = ndimage.gaussian_filter(
-            #         real, sigma=self.params['cosmology']['sigma_smooth'])
 
 
             psd_gen, x = metrics.power_spectrum_batch_phys(
@@ -1026,5 +1005,16 @@ class CosmoGAN(GAN):
             print(' {} current PSD L2 {}, logL2 {}'.format(
                 self._counter, l2psd, logel2psd))
 
-    def _get_sample_args(self):
-        return [self._G_fake, self._G_raw]
+
+    def generate(self,
+                 N=None,
+                 z=None,
+                 X=None,
+                 y=None,
+                 sess=None,
+                 checkpoint=None):
+        images = super().generate(N=N,z=z,X=X,y=y,sess=sess,checkpoint=checkpoint)
+
+        raw_images = self._backward_map(images)
+
+        return images, raw_images

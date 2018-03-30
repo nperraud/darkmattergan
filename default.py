@@ -1,3 +1,5 @@
+import utils
+
 def default_params(params=dict()):
 
     # Global parameters
@@ -79,8 +81,15 @@ def default_params_cosmology(params=dict()):
     params['cosmology']['sigma_smooth'] = params['cosmology'].get(
         'sigma_smooth', 1)
     # Apply a guausian filter to remove high frequency before executing the computations
-    params['cosmology']['k'] = params['cosmology'].get('k', 10)
     params['cosmology']['Npsd'] = params['cosmology'].get('Npsd', 500)
     params['cosmology']['max_num_psd'] = params['cosmology'].get('max_num_psd', 100)
+    # Is this parameter used right now?
+
+    forward = utils.forward_map
+    backward = utils.backward_map
+
+    params['cosmology']['forward_map'] = params['cosmology'].get('forward_map', forward)
+    params['cosmology']['backward_map'] = params['cosmology'].get('backward_map', backward)
+    # Default transformation for the data
 
     return params
