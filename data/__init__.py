@@ -10,4 +10,4 @@ The data module contains all the function to preprocess, transform and load the 
 from data import load
 from data import transformation
 from data import path
-from data.Dataset import Dataset
+from data import Dataset

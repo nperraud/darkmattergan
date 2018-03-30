@@ -45,8 +45,8 @@ class WGanModel(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        self._D_loss = D_loss_f - D_loss_r + D_gp
-        self._G_loss = -D_loss_f
+        self._D_loss =  D_loss_r - D_loss_f + D_gp
+        self._G_loss = D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
 
     def generator(self, z, reuse):
@@ -69,9 +69,9 @@ class WNGanModel(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        self._D_loss = D_loss_f - D_loss_r + D_gp
-        self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
+        self._D_loss = D_loss_r - D_loss_f + D_gp
+        self._G_loss = D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
