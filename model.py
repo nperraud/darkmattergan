@@ -47,7 +47,7 @@ class WGanModel(GanModel):
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         self._D_loss =  D_loss_r - D_loss_f + D_gp
         self._G_loss = D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, -D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, -D_loss_f, D_loss_r)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -71,7 +71,7 @@ class WNGanModel(GanModel):
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         self._D_loss = D_loss_r - D_loss_f + D_gp
         self._G_loss = D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -92,7 +92,7 @@ class CondWGanModel(GanModel):
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         self._D_loss = D_loss_f - D_loss_r + D_gp
         self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], y=self.y, reuse=reuse)
@@ -121,7 +121,7 @@ class TemporalGanModel(GanModel):
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         self._D_loss = D_loss_f - D_loss_r + D_gp
         self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -170,7 +170,7 @@ class TempGanModelv2(GanModel):
         self._D_loss = D_loss_f - D_loss_r + D_c_loss_f - D_c_loss_r + D_gp + D_c_gp
         self._G_loss = -D_loss_f -D_c_loss_f
 
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -219,7 +219,7 @@ class TemporalGanModelv3(GanModel):
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         self._D_loss = D_loss_f - D_loss_r + D_gp
         self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -268,7 +268,7 @@ class WVeeGanModel(GanModel):
         tf.summary.scalar("Enc/Loss_l2", self._E_loss, collections=["Training"])
         tf.summary.scalar("Gen/Loss_f", -D_loss_f, collections=["Training"])
 
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -305,7 +305,7 @@ class LapGanModel(GanModel):
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
         self._D_loss = D_loss_f + D_loss_r + D_gp
         self._G_loss = - tf.reduce_mean(self.D_fake)
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
         tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
@@ -339,7 +339,7 @@ class LapGanModelTanh(GanModel):
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
         self._D_loss = D_loss_f + D_loss_r + D_gp
         self._G_loss = - tf.reduce_mean(self.D_fake)
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
         tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
@@ -365,7 +365,7 @@ class Gan12Model(GanModel):
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         self._D_loss = D_loss_f - D_loss_r + D_gp
         self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
     def generator(self, z, X, reuse):
         return generator12(z, X, self.params['generator'], reuse=reuse)
@@ -435,7 +435,7 @@ class LapPatchWGANModel(GanModel):
         self._G_loss = tf.reduce_mean(self.D_fake)
 
         # G) Summaries
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
         tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
@@ -535,7 +535,7 @@ class LapPatchWGANsingleModel(GanModel):
         self._G_loss = tf.reduce_mean(self.D_fake)
 
         # G) Summaries
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
         tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
@@ -587,7 +587,7 @@ class LapPatchWGANsimpleModel(GanModel):
 
         # E) Discriminator
         self.Xsu = up_sampler(self.y, s=self.upsampling)
-        self.D_real = self.discriminator(X0, self.Xsu, flip_border, reuse=False)
+        self.D_real = - self.discriminator(X0, self.Xsu, flip_border, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, self.Xsu, flip_border, reuse=True)
 
         # F) Losses
@@ -596,21 +596,21 @@ class LapPatchWGANsimpleModel(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu, flip_border], [X0, self.Xsu, flip_border])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
-        self._D_loss = D_loss_r - D_loss_f + D_gp
-        self._G_loss = D_loss_f
+        self._D_loss = D_loss_r + D_loss_f + D_gp
+        self._G_loss = - D_loss_f
 
         # G) Summaries
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
         tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Real_Diff", X0 - self.Xsu, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Fake_Diff", self.G_fake - self.Xsu, max_outputs=2, collections=['Images'])
         if True:
             # D) Concatenate back
-            top = tf.concat([X3,X2], axis=2)
-            bottom = tf.concat([X1,X0], axis=2)
-            bottom_g = tf.concat([X1,self.G_fake], axis=2)
-            full_img = tf.concat([top,bottom], axis=1)
-            full_img_fake = tf.concat([top,bottom_g], axis=1)
+            top = tf.concat([X3,X2], axis=1)
+            bottom = tf.concat([X1,X0], axis=1)
+            bottom_g = tf.concat([X1,self.G_fake], axis=1)
+            full_img = tf.concat([top,bottom], axis=2)
+            full_img_fake = tf.concat([top,bottom_g], axis=2)
             tf.summary.image("training/full_img_real", full_img, max_outputs=4, collections=['Images'])
             tf.summary.image("training/full_img_fake", full_img_fake, max_outputs=4, collections=['Images'])
             tf.summary.image("training/X0", X0, max_outputs=2, collections=['Images'])
@@ -645,11 +645,10 @@ class LapPatchWGANsimpleModel(GanModel):
         
 #         return G_fake, D_real, D_fake, Xs, G_fake_s
 
-def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r, D_gp):
+def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r):
     tf.summary.scalar("Disc/Loss", D_loss, collections=["Training"])
     tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
     tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
-    tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
     tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
 
 def fisher_gan_regularization(D_real, D_fake, rho=1):
