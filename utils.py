@@ -10,6 +10,11 @@ import scipy
 
 
 def test_resume(try_resume, params):
+    ''' Try to load the parameters saved in `params['save_dir']+'params.pkl',` 
+
+        Not sure we should implement this function that way.
+    '''
+
     resume = False
 
     if try_resume:
