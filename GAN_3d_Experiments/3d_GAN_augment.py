@@ -1,14 +1,14 @@
 import sys
 sys.path.insert(0, '../')
 
-import matplotlib
-matplotlib.use('Agg')
+#import matplotlib
+#matplotlib.use('Agg')
 
 import numpy as np
 import tensorflow as tf
-import os, sys, time
-import utils, optimization, metrics, plot, data
-from model import WGanModel, LapGanModel
+import os
+import data
+from model import WGanModel
 from gan import CosmoGAN
 
 def current_time_str():
@@ -22,13 +22,13 @@ def load_3d_synthetic_samples():
 	print("raw_images shape: ", np.shape(raw_images))
 
 if __name__ == "__main__":
-	ns = 64
+	ns = 32
 	nsamples = 1000
 	k = 10
 
 	#images, raw_images = load_3d_synthetic_samples(nsamples = nsamples,dim=ns, k=k)
 
-	dataset =  data.load.load_3d_dataset()
+	dataset =  data.load.load_3d_dataset(spix=32)
 
 	time_str = current_time_str() 
 	global_path = '../saved_result/'
@@ -37,19 +37,19 @@ if __name__ == "__main__":
 	bn = False
 
 	params_discriminator = dict()
-	params_discriminator['stride'] = [2, 2, 2, 1]
-	params_discriminator['nfilter'] = [32, 32, 32, 16]
-	params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [3, 3, 3], [3, 3, 3]]
-	params_discriminator['batch_norm'] = [bn, bn, bn, bn]
+	params_discriminator['stride'] = [2, 2, 2, 1, 1]
+	params_discriminator['nfilter'] = [64, 32, 32, 16, 16]
+	params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [3, 3, 3], [3, 3, 3], [3, 3, 3]]
+	params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn]
 	params_discriminator['full'] = [32]
 	params_discriminator['summary'] = True
 
 	params_generator = dict()
-	params_generator['stride'] = [2, 2, 2, 2, 2]
+	params_generator['stride'] = [2, 2, 2, 2, 1, 1]
 	params_generator['latent_dim'] = 100
-	params_generator['nfilter'] = [8, 32, 64, 64, 1]
-	params_generator['shape'] = [[3, 3, 3], [3, 3, 3], [5, 5, 5], [5, 5, 5], [5, 5, 5]]
-	params_generator['batch_norm'] = [bn, bn, bn, bn]
+	params_generator['nfilter'] = [8, 32, 64, 128, 64, 1]
+	params_generator['shape'] = [[3, 3, 3], [3, 3, 3], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5]]
+	params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 	params_generator['full'] = [2*2*2*8]
 	params_generator['summary'] = True
 	params_generator['non_lin'] = 'tanh'

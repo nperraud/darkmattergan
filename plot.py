@@ -281,11 +281,11 @@ def tile_cube_to_2d(cube):
     tile = np.vstack(v_stacks)
     return tile
 
-def tile_and_plot_3d_image(image):
+def tile_and_plot_3d_image(axis, image):
     '''
     Take a 3d cube as input.
     Tile the cube as slices, and display it.
     '''
     tile = tile_cube_to_2d(image)
-    plot = plt.gca()
-    plot.imshow(tile, interpolation='none')
+    #plot = plt.gca()
+    axis.imshow(tile, interpolation='none')
