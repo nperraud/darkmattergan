@@ -10,6 +10,7 @@ import scipy.ndimage.filters as filters
 import utils
 import metrics
 from scipy import ndimage
+import itertools
 
 from plot_summary import PlotSummaryLog
 from default import default_params, default_params_cosmology
@@ -48,8 +49,18 @@ class GAN(object):
             tf.float32,
             shape=[None, self.params['generator']['latent_dim']],
             name='z')
-        self._X = tf.placeholder(
-            tf.float32, shape=[None, *self.params['image_size'], 1], name='X')
+        if is_3d:
+            if len(self.params['image_size'])==3:
+                shape = [None, *self.params['image_size'], 1]
+            else:
+                shape = [None, *self.params['image_size']]
+        else:
+            if len(self.params['image_size'])==2:
+                shape = [None, *self.params['image_size'], 1]
+            else:
+                shape = [None, *self.params['image_size']]
+
+        self._X = tf.placeholder(tf.float32, shape=shape, name='X')
 
         name = params['name']
         self._model = model(
@@ -340,8 +351,11 @@ class GAN(object):
                             # self.params['curr_idx'] = idx
                             self.params['curr_counter'] = self._counter
 
-
-                        X_real = np.resize(batch_real, [*batch_real.shape, 1])
+                        # This should be done better
+                        if not self._is_3d and len(batch_real.shape)==4:
+                            X_real = batch_real
+                        else:
+                            X_real = np.resize(batch_real, [*batch_real.shape, 1])
                         
                         for _ in range(5):
                             sample_z = self._sample_latent(self.batch_size)
@@ -514,7 +528,7 @@ class GAN(object):
             if N is None:
                 N = self.batch_size
         z = self._sample_latent(N)
-        return self._generate_sample_safe(z, X, y)
+        return self._generate_sample_safe(z=z, X=X, y=y)
 
     def _get_sample_args(self):
         return self._G_fake
@@ -538,7 +552,7 @@ class GAN(object):
             for i in range(nb):
                 gi = self._sess.run(
                     self._get_sample_args(),
-                    feed_dict=self._get_dict(z, X, y, slice(sind, sind + bs)))
+                    feed_dict=self._get_dict(z=z, X=X, y=y, index=slice(sind, sind + bs)))
                 gen_images.append(gi)
                 sind = sind + bs
         gi = self._sess.run(
@@ -782,6 +796,11 @@ class CosmoGAN(GAN):
             self._clip_max = np.max(real)
         else:
             self._clip_max = 1e8
+
+        # This line should be improved
+        if not self._is_3d and len(real.shape)>3:
+            real = real[:,:,:,0]
+
         psd_real, _ = metrics.power_spectrum_batch_phys(X1=real, is_3d=self.is_3d)
         self._psd_real = np.mean(psd_real, axis=0)
         del psd_real
@@ -797,9 +816,9 @@ class CosmoGAN(GAN):
                 del psd_real
 
     def train(self, dataset, resume=False):
-        self._sum_data_iterator = dataset.iter(self._Npsd)
+        self._sum_data_iterator = itertools.cycle(dataset.iter(self._Npsd))
 
-        self._compute_real_psd(dataset.get_samples(N=dataset.N))
+        self._compute_real_psd(dataset.get_all_data())
 
         if resume:
             self.best_psd = self.params['cosmology']['best_psd']
@@ -856,13 +875,13 @@ class CosmoGAN(GAN):
             Xsel = next(self._sum_data_iterator)
 
             z_sel = self._sample_latent(self._Npsd)
-            fake_image = self._generate_sample_safe(
-                z_sel, Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1]))
-
-
+            # TODO better
+            if self._is_3d or not(len(Xsel) == 4):
+                Xsel = Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1])
+            fake_image = self._generate_sample_safe(z_sel, Xsel)
             fake = self._backward_map(fake_image)
-            fake.resize([self._Npsd, *Xsel.shape[1:]])
-            real = self._backward_map(Xsel)
+            fake = np.squeeze(fake)
+            real = np.squeeze(self._backward_map(Xsel[:,:,:,0]))
 
             
 
