@@ -16,20 +16,14 @@ def load_gan(pathgan, GANtype=CosmoGAN):
 
     with open(pathgan + 'params.pkl', 'rb') as f:
         params = pickle.load(f)
+    params['save_dir'] = pathgan
     obj = GANtype(params)
 
     return obj
 
 
-def generate_samples(N, obj, pathgan, checkpoint=None, y=None):
-    if checkpoint is None:
-        gen_sample, gen_sample_raw = obj.generate(N=N, y=y)
-    else:
-        file_name = pathgan + obj.model_name + '-' + checkpoint
-
-        gen_sample, gen_sample_raw = obj.generate(
-            N=N, y=y, file_name=file_name)
-
+def generate_samples(obj, N=None, checkpoint=None, **kwards):
+    gen_sample, gen_sample_raw = obj.generate(N=N, checkpoint=checkpoint, **kwards)
     gen_sample = np.squeeze(gen_sample)
     gen_sample_raw = np.squeeze(gen_sample_raw)
     return gen_sample, gen_sample_raw

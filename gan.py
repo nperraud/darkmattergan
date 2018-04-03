@@ -444,7 +444,7 @@ class GAN(object):
             return np.repeat(latent, self.params['num_classes'], axis=0)[:bs]
         return utils.sample_latent(bs, latent_dim, self._prior_distribution)
 
-    def _get_dict(self, z=None, X=None, y=None, index=None):
+    def _get_dict(self, z=None, X=None, index=None, **kwargs):
         feed_dict = dict()
         if z is not None:
             if index is not None:
@@ -456,11 +456,12 @@ class GAN(object):
                 feed_dict[self._X] = X[index]
             else:
                 feed_dict[self._X] = X
-        if y is not None:
-            if index is not None:
-                feed_dict[self._model.y] = y[index]
-            else:
-                feed_dict[self._model.y] = y
+        for key, value in kwargs.items():
+            if value is not None:
+                if index is not None:
+                    feed_dict[getattr(self._model, key)] = value[index]
+                else:
+                    feed_dict[getattr(self._model, key)] = value
 
         return feed_dict
 
@@ -501,12 +502,27 @@ class GAN(object):
                  N=None,
                  z=None,
                  X=None,
-                 y=None,
                  sess=None,
-                 checkpoint=None):
+                 checkpoint=None,
+                 **kwargs):
+        """Generate new samples.
+
+        The user can chose between different options depending on the model.
+
+        **kwargs contains all possible optional arguments defined in the model.
+
+        Arguments
+        ---------
+        * N : number of sample (Default None)
+        * z : latent variable (Default None)
+        * X : training image (Default None)
+        * sess : tensorflow Session (Default None)
+        * checkpoint : number of the checkpoint (Default None)
+        * kwargs : keywords arguments that are defined in the model
+        """
 
         if checkpoint:
-            file_name = self._savedir+self._model_name+'-'+checkpoint
+            file_name = self._savedir+self._model_name+'-'+str(checkpoint)
         else:
             file_name = None
 
@@ -515,20 +531,20 @@ class GAN(object):
         if sess is not None:
             self._sess = sess
             return self._generate_sample(
-                N=N, z=z, X=X, y=y, file_name=file_name)
+                N=N, z=z, X=X, file_name=file_name, **kwargs)
         with tf.Session() as self._sess:
             return self._generate_sample(
-                N=N, z=z, X=X, y=y, file_name=file_name)
+                N=N, z=z, X=X, file_name=file_name, **kwargs)
 
-    def _generate_sample(self, N=None, z=None, X=None, y=None,
-                         file_name=None):
+    def _generate_sample(self, N=None, z=None, X=None,
+                         file_name=None, **kwargs):
         self._load(file_name=file_name)
 
         if z is None:
             if N is None:
                 N = self.batch_size
         z = self._sample_latent(N)
-        return self._generate_sample_safe(z=z, X=X, y=y)
+        return self._generate_sample_safe(z=z, X=X, **kwargs)
 
     def _get_sample_args(self):
         return self._G_fake
@@ -542,7 +558,7 @@ class GAN(object):
                 s.append(np.vstack([el[j] for el in gi]))
             return tuple(s)
 
-    def _generate_sample_safe(self, z=None, X=None, y=None):
+    def _generate_sample_safe(self, z=None, X=None, **kwargs):
         gen_images = []
         N = len(z)
         sind = 0
@@ -550,14 +566,13 @@ class GAN(object):
         if N > bs:
             nb = (N - 1) // bs
             for i in range(nb):
-                gi = self._sess.run(
-                    self._get_sample_args(),
-                    feed_dict=self._get_dict(z=z, X=X, y=y, index=slice(sind, sind + bs)))
+                feed_dict = self._get_dict(
+                    z=z, X=X, index=slice(sind, sind + bs), **kwargs)
+                gi = self._sess.run(self._get_sample_args(), feed_dict=feed_dict)
                 gen_images.append(gi)
                 sind = sind + bs
-        gi = self._sess.run(
-            self._get_sample_args(),
-            feed_dict=self._get_dict(z, X, y, slice(sind, N)))
+        feed_dict = self._get_dict(z=z, X=X, index=slice(sind, N), **kwargs)
+        gi = self._sess.run(self._get_sample_args(), feed_dict=feed_dict)
         gen_images.append(gi)
 
         return self._special_vstack(gen_images)
@@ -876,7 +891,7 @@ class CosmoGAN(GAN):
 
             z_sel = self._sample_latent(self._Npsd)
             # TODO better
-            if self._is_3d or not(len(Xsel) == 4):
+            if self._is_3d or not(len(Xsel.shape) == 4):
                 Xsel = Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1])
             fake_image = self._generate_sample_safe(z_sel, Xsel)
             fake = self._backward_map(fake_image)
@@ -1029,10 +1044,10 @@ class CosmoGAN(GAN):
                  N=None,
                  z=None,
                  X=None,
-                 y=None,
                  sess=None,
-                 checkpoint=None):
-        images = super().generate(N=N,z=z,X=X,y=y,sess=sess,checkpoint=checkpoint)
+                 checkpoint=None,
+                 **kwargs):
+        images = super().generate(N=N,z=z,X=X,sess=sess,checkpoint=checkpoint,**kwargs)
 
         raw_images = self._backward_map(images)
 
