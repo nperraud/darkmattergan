@@ -1,12 +1,12 @@
-import h5py
-import numpy as np
+"""Utility functions."""
 import os
+import functools
 import shutil
+import pickle
+import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-import pickle
-
-import scipy
+import h5py
 
 
 def test_resume(try_resume, params):
@@ -44,28 +44,28 @@ def sample_latent(m, n, prior="uniform", normalize=False):
         else:
             df = 3
         return np.random.standard_t(df, size=[m, n])
-    elif prior.startswith('chi2'):
-        prior_ = prior.split('-')
-        if len(prior_) >= 2:
-            df = int(prior_[1])
-            if len(prior_) >= 3:
-                k = float(prior_[2])
-            else:
-                k = 7
-        else:
-            df, k = 3, 7
-        return simple_numpy(np.random.chisquare(df, size=[m, n]), k)
-    elif prior.startswith('gamma'):
-        prior_ = prior.split('-')
-        if len(prior_) >= 2:
-            df = float(prior_[1])
-            if len(prior_) >= 3:
-                k = float(prior_[2])
-            else:
-                k = 4
-        else:
-            df, k = 1, 4
-        return simple_numpy(np.random.gamma(df, size=[m, n]), k)
+    # elif prior.startswith('chi2'):
+    #     prior_ = prior.split('-')
+    #     if len(prior_) >= 2:
+    #         df = int(prior_[1])
+    #         if len(prior_) >= 3:
+    #             k = float(prior_[2])
+    #         else:
+    #             k = 7
+    #     else:
+    #         df, k = 3, 7
+    #     return simple_numpy(np.random.chisquare(df, size=[m, n]), k)
+    # elif prior.startswith('gamma'):
+    #     prior_ = prior.split('-')
+    #     if len(prior_) >= 2:
+    #         df = float(prior_[1])
+    #         if len(prior_) >= 3:
+    #             k = float(prior_[2])
+    #         else:
+    #             k = 4
+    #     else:
+    #         df, k = 1, 4
+    #     return simple_numpy(np.random.gamma(df, size=[m, n]), k)
     else:
         raise ValueError(' [!] distribution not defined')
 
@@ -206,15 +206,16 @@ def load_hdf5(filename, dataset_name='data', mode='r'):
     h5f.close()
     return data
 
-def load_hdf5_all_datasets(filename, num=100):
-    lst = []
-    h5f = h5py.File(filename, 'r')
-    for i in range(num):
-        data = h5f['data' + str(i)][:]
-        lst.append(data)
+# Nati: This is a strange function. I do not think we need it.
+# def load_hdf5_all_datasets(filename, num=100):
+#     lst = []
+#     h5f = h5py.File(filename, 'r')
+#     for i in range(num):
+#         data = h5f['data' + str(i)][:]
+#         lst.append(data)
 
-    h5f.close()
-    return lst
+#     h5f.close()
+#     return lst
 
 
 def compose2(first,second):

@@ -10,6 +10,7 @@ import scipy.ndimage.filters as filters
 import utils
 import metrics
 from scipy import ndimage
+import itertools
 
 from plot_summary import PlotSummaryLog
 from default import default_params, default_params_cosmology
@@ -351,10 +352,10 @@ class GAN(object):
                             self.params['curr_counter'] = self._counter
 
                         # This should be done better
-                        if not self._is_3d and len(batch_real)==3:
-                            X_real = np.resize(batch_real, [*batch_real.shape, 1])
-                        else:
+                        if not self._is_3d and len(batch_real.shape)==4:
                             X_real = batch_real
+                        else:
+                            X_real = np.resize(batch_real, [*batch_real.shape, 1])
                         
                         for _ in range(5):
                             sample_z = self._sample_latent(self.batch_size)
@@ -795,8 +796,9 @@ class CosmoGAN(GAN):
             self._clip_max = np.max(real)
         else:
             self._clip_max = 1e8
+
         # This line should be improved
-        if not self._is_3d:
+        if not self._is_3d and len(real.shape)>3:
             real = real[:,:,:,0]
 
         psd_real, _ = metrics.power_spectrum_batch_phys(X1=real, is_3d=self.is_3d)
@@ -814,7 +816,7 @@ class CosmoGAN(GAN):
                 del psd_real
 
     def train(self, dataset, resume=False):
-        self._sum_data_iterator = dataset.iter(self._Npsd)
+        self._sum_data_iterator = itertools.cycle(dataset.iter(self._Npsd))
 
         self._compute_real_psd(dataset.get_all_data())
 
@@ -874,7 +876,7 @@ class CosmoGAN(GAN):
 
             z_sel = self._sample_latent(self._Npsd)
             # TODO better
-            if not self._is_3d and len(Xsel) == 3:
+            if self._is_3d or not(len(Xsel) == 4):
                 Xsel = Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1])
             fake_image = self._generate_sample_safe(z_sel, Xsel)
             fake = self._backward_map(fake_image)

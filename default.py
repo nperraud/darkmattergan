@@ -1,4 +1,6 @@
-import utils
+import data.fmap as fmap
+import numpy as np
+
 
 def default_params(params=dict()):
 
@@ -63,16 +65,8 @@ def default_params(params=dict()):
 
 def default_params_cosmology(params=dict()):
 
-    # forward = utils.forward_map
-    # backward = utils.backward_map
-    def forward(X):
-        return np.log(np.sqrt(X)+np.e)-2
-
-    def backward(Xmap, max_value=2e5):
-        Xmap = np.clip(Xmap, -1.0, forward(max_value))
-        tmp = np.exp(Xmap+2)-np.e
-        return np.round(tmp*tmp)
-
+    forward = fmap.forward
+    backward = fmap.backward 
 
     params = default_params(params)
     # Cosmology parameters

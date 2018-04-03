@@ -3,8 +3,10 @@ import numpy as np
 from utils import compose2
 import functools
 
+
 def do_noting(x):
     return x
+
 
 class Dataset(object):
     ''' Dataset oject for GAN and CosmoGAN classes
@@ -23,7 +25,6 @@ class Dataset(object):
                       This allows extend the dataset.
         * slice_fn : Slicing function to cut the data into smaller parts
         '''
-
 
         self._shuffle = shuffle
         if slice_fn:
@@ -58,13 +59,14 @@ class Dataset(object):
     def __iter__(self, batch_size=1):
 
         if batch_size > self.N:
-            raise ValueError('Batch size greater than total number of samples available!')
+            raise ValueError(
+                'Batch size greater than total number of samples available!')
 
         # Reshuffle the data
         if self.shuffle:
             self._p = np.random.permutation(self._N)
         for data in grouper(self._data_process(self._X)[self._p], batch_size):
-                yield np.array(data)
+            yield np.array(data)
 
     @property
     def shuffle(self):
@@ -77,9 +79,6 @@ class Dataset(object):
         return self._N
 
 
-
-
-
 class Dataset_3d(Dataset):
     def __init__(self, X, spix=64, shuffle=True, transform=None):
         ''' Initialize a Dataset object
@@ -90,9 +89,11 @@ class Dataset_3d(Dataset):
         * transform : Function to be applied to each bigger cube in the dataset
                       for data augmentation
         '''
-        
+
         slice_fn = functools.partial(slice_3d, spix=spix)
-        super().__init__(X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+        super().__init__(
+            X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+
 
 class Dataset_2d(Dataset):
     def __init__(self, X, spix=128, shuffle=True, transform=None):
@@ -104,9 +105,10 @@ class Dataset_2d(Dataset):
         * transform : Function to be applied to each bigger cube in the dataset
                       for data augmentation
         '''
-        
+
         slice_fn = functools.partial(slice_2d, spix=spix)
-        super().__init__(X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+        super().__init__(
+            X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
 
 
 class Dataset_2d_patch(Dataset):
@@ -119,15 +121,16 @@ class Dataset_2d_patch(Dataset):
         * transform : Function to be applied to each bigger cube in the dataset
                       for data augmentation
         '''
-        
+
         slice_fn = functools.partial(slice_2d_patch, spix=spix)
-        super().__init__(X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+        super().__init__(
+            X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
 
     def get_samples_full(self, N=100):
         X = self.get_samples(N=N)
-        X_d = np.concatenate([X[:,:,:,1],X[:,:,:,0]],axis=1)
-        X_u = np.concatenate([X[:,:,:,3],X[:,:,:,2]],axis=1)
-        X_r =  np.squeeze(np.concatenate([X_u,X_d],axis=2))
+        X_d = np.concatenate([X[:, :, :, 1], X[:, :, :, 0]], axis=1)
+        X_u = np.concatenate([X[:, :, :, 3], X[:, :, :, 2]], axis=1)
+        X_r = np.squeeze(np.concatenate([X_u, X_d], axis=2))
         return X_r
 
 
@@ -141,26 +144,29 @@ def grouper(iterable, n, fillvalue=None):
     return itertools.zip_longest(fillvalue=fillvalue, *args)
 
 
-
-
 def slice_2d(cubes, spix=64):
     '''
     slice each cube in cubes to smaller cubes,
     and return all the smaller cubes
     '''
     s = cubes.shape
+    # The last dimension is used for the samples
+    cubes = cubes.transpose([0, 3, 1, 2])
 
-    cubes = cubes.reshape([s[0]*s[1],s[2],s[3]])
+    cubes = cubes.reshape([s[0] * s[3], s[1], s[2]])
+
+    # compute the number of slices (We assume square images)
     num_slices = s[2] // spix
 
     # To ensure left over pixels in each dimension are ignored
-    limit = num_slices * spix  
+    limit = num_slices * spix
     cubes = cubes[:, :limit, :limit]
-    
+
     # split along first dimension
-    sliced_dim1 = np.vstack(np.split(cubes,       num_slices, axis=1)) 
+    sliced_dim1 = np.vstack(np.split(cubes, num_slices, axis=1))
+
     # split along second dimension
-    sliced_dim2 = np.vstack(np.split(sliced_dim1, num_slices, axis=2)) 
+    sliced_dim2 = np.vstack(np.split(sliced_dim1, num_slices, axis=2))
 
     return sliced_dim2
 
@@ -173,15 +179,15 @@ def slice_3d(cubes, spix=64):
     num_slices = cubes.shape[1] // spix
 
     # To ensure left over pixels in each dimension are ignored
-    limit = num_slices * spix  
+    limit = num_slices * spix
     cubes = cubes[:, :limit, :limit, :limit]
-    
+
     # split along first dimension
-    sliced_dim1 = np.vstack(np.split(cubes,       num_slices, axis=1)) 
+    sliced_dim1 = np.vstack(np.split(cubes, num_slices, axis=1))
     # split along second dimension
-    sliced_dim2 = np.vstack(np.split(sliced_dim1, num_slices, axis=2)) 
+    sliced_dim2 = np.vstack(np.split(sliced_dim1, num_slices, axis=2))
     # split along third dimension
-    sliced_dim3 = np.vstack(np.split(sliced_dim2, num_slices, axis=3)) 
+    sliced_dim3 = np.vstack(np.split(sliced_dim2, num_slices, axis=3))
 
     return sliced_dim3
 
@@ -190,34 +196,34 @@ def slice_2d_patch(img0, spix=64):
 
     # Handle the dimesnsions
     l = len(img0.shape)
-    if l<2:
+    if l < 2:
         ValueError('Not enough dimensions')
-    elif l==2:
-        img0 = img0.reshape([1,*img0.shape])
-    elif l==4:
+    elif l == 2:
+        img0 = img0.reshape([1, *img0.shape])
+    elif l == 4:
         s = img0.shape
-        img0 = img0.reshape([s[0]*s[1],s[2],s[3]])
-    elif l>4:
-        ValueError('To many dimensions')    
-    _ , sx, sy = img0.shape
-    nx = sx//spix
-    ny = sy//spix
+        img0 = img0.reshape([s[0] * s[1], s[2], s[3]])
+    elif l > 4:
+        ValueError('To many dimensions')
+    _, sx, sy = img0.shape
+    nx = sx // spix
+    ny = sy // spix
 
     # 1) Create the different subparts
-    img1 = np.roll(img0,spix,axis=1)
-    img1[:,:spix,:] = 0
+    img1 = np.roll(img0, spix, axis=1)
+    img1[:, :spix, :] = 0
 
-    img2 = np.roll(img0,spix,axis=2)
-    img2[:,:,:spix] = 0
+    img2 = np.roll(img0, spix, axis=2)
+    img2[:, :, :spix] = 0
 
-    img3 = np.roll(img1,spix,axis=2)
-    img3[:,:,:spix] = 0
+    img3 = np.roll(img1, spix, axis=2)
+    img3[:, :, :spix] = 0
 
     # 2) Concatenate
-    img = np.stack([img0,img1,img2,img3],axis=3)
+    img = np.stack([img0, img1, img2, img3], axis=3)
 
     # 3) Slice the image
-    img = np.vstack(np.split(img,nx,axis=1))
-    img = np.vstack(np.split(img,ny,axis=2))
+    img = np.vstack(np.split(img, nx, axis=1))
+    img = np.vstack(np.split(img, ny, axis=2))
 
     return img
