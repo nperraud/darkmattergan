@@ -343,7 +343,7 @@ class GAN(object):
 
                         X_real = np.resize(batch_real, [*batch_real.shape, 1])
                         
-                        for _ in range(5):
+                        for _ in range(self.params['optimization']['n_critic']):
                             sample_z = self._sample_latent(self.batch_size)
                             _, loss_d = self._sess.run(
                                 [self._D_solver, self._D_loss],
@@ -797,9 +797,10 @@ class CosmoGAN(GAN):
                 del psd_real
 
     def train(self, dataset, resume=False):
-        self._sum_data_iterator = dataset.iter(self._Npsd)
+        self.dataset = dataset
+        self._sum_data_iterator = self.dataset.iter(self._Npsd)
 
-        self._compute_real_psd(dataset.get_samples(N=dataset.N))
+        self._compute_real_psd(self.dataset.get_samples(N=dataset.N))
 
         if resume:
             self.best_psd = self.params['cosmology']['best_psd']
@@ -1004,6 +1005,10 @@ class CosmoGAN(GAN):
                 self.best_log_psd, self._save_current_step = logel2psd, True
             print(' {} current PSD L2 {}, logL2 {}'.format(
                 self._counter, l2psd, logel2psd))
+
+        ## reinitialize the iterator
+        del self._sum_data_iterator
+        self._sum_data_iterator = self.dataset.iter(self._Npsd)
 
 
     def generate(self,

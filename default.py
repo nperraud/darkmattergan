@@ -52,6 +52,8 @@ def default_params(params=dict()):
         'enc_learning_rate', 3e-5)
     params['optimization']['disc_learning_rate'] = params['optimization'].get(
         'disc_learning_rate', 3e-5)
+    params['optimization']['n_critic'] = params['optimization'].get(
+        'n_critic', 5)
 
     # Generator parameters
     # --------------------

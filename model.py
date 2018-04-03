@@ -45,9 +45,11 @@ class WGanModel(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        self._D_loss =  D_loss_r - D_loss_f + D_gp
-        self._G_loss = D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, -D_loss_r, D_gp)
+
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        self._G_loss = -D_loss_f                     # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        
+        wgan_summaries(-1*self._D_loss, self._G_loss, D_loss_f, D_loss_r, D_gp)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -575,12 +577,12 @@ class LapPatchWGANsingleModel(GanModel):
         
 #         return G_fake, D_real, D_fake, Xs, G_fake_s
 
-def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r, D_gp):
-    tf.summary.scalar("Disc/Loss", D_loss, collections=["Training"])
-    tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
-    tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
-    tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
-    tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
+def wgan_summaries(neg_D_loss, G_loss, D_loss_f, D_loss_r, D_gp):
+    tf.summary.scalar("Disc/Negative_Loss", neg_D_loss, collections=["Training"])
+    tf.summary.scalar(       "Disc/Loss_f",   D_loss_f, collections=["Training"])
+    tf.summary.scalar(       "Disc/Loss_r",   D_loss_r, collections=["Training"])
+    tf.summary.scalar(      "Disc/GradPen",       D_gp, collections=["Training"])
+    tf.summary.scalar(          "Gen/Loss",     G_loss, collections=["Training"])
 
 def fisher_gan_regularization(D_real, D_fake, rho=1):
     with tf.variable_scope("discriminator", reuse=False):
