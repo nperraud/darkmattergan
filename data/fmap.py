@@ -5,6 +5,7 @@ import numpy as np
 def forward(X):
     return np.log(np.sqrt(X)+np.e)-2
 
+
 def backward(Xmap, max_value=2e5):
     Xmap = np.clip(Xmap, -1.0, forward(max_value))
     tmp = np.exp((Xmap+2))-np.e

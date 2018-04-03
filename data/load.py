@@ -5,7 +5,7 @@ import functools
 from data import gaussian_synthetic_data
 from data import path
 from data import transformation
-from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch
+from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset
 
 import blocks
 
@@ -45,7 +45,7 @@ def load_data_from_file(file_path, k=10):
 
 
 def load_3d_synthetic_samples(nsamples, dim, k):
-    images = 2 * gaussian_synthetic_data.generate_cubes( # Forward mapped
+    images = 2 * gaussian_synthetic_data.generate_cubes(  # Forward mapped
         nsamples=nsamples, cube_dim=dim) - 1.0
     raw_images = utils.backward_map(images)
 
@@ -53,14 +53,19 @@ def load_3d_synthetic_samples(nsamples, dim, k):
 
 
 def load_2d_synthetic_samples(nsamples, dim, k):
-    images = 2 * gaussian_synthetic_data.generate_squares( # Forward mapped
+    images = 2 * gaussian_synthetic_data.generate_squares(  # Forward mapped
         nsamples=nsamples, square_dim=dim) - 1.0
     raw_images = utils.backward_map(images)
 
     return Dataset(images, shuffle=False, transform=None)
 
 
-def load_samples(nsamples=1000, shuffle=False, k=10, spix=256, map_scale=1., transform=None):
+def load_samples(nsamples=1000,
+                 shuffle=False,
+                 k=10,
+                 spix=256,
+                 map_scale=1.,
+                 transform=None):
     ''' This function will be removed in the near futur'''
     pathfolder = path.data_path(spix)
     input_pattern = 'Box_70*snapshot_050'
@@ -125,7 +130,6 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
 
     raw_images = np.array(raw_images).astype(np.float32)
 
-
     if nsamples is None:
         return raw_images
     else:
@@ -138,17 +142,16 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
         return raw_images[:nsamples]
 
 
-def load_dataset(
-        nsamples=None,
-        resolution=256,
-        Mpch=70,
-        shuffle=True,
-        forward_map = None,
-        spix=128,
-        augmentation=True,
-        scaling=1,
-        is_3d=False,
-        patch=False):
+def load_dataset(nsamples=None,
+                 resolution=256,
+                 Mpch=70,
+                 shuffle=True,
+                 forward_map=None,
+                 spix=128,
+                 augmentation=True,
+                 scaling=1,
+                 is_3d=False,
+                 patch=False):
     ''' Load a 2D dataset object 
 
      Arguments
@@ -166,32 +169,33 @@ def load_dataset(
     '''
 
     # 1) Load raw images
-    images = load_samples_raw(nsamples=nsamples, resolution=resolution, Mpch=Mpch)
+    images = load_samples_raw(
+        nsamples=nsamples, resolution=resolution, Mpch=Mpch)
 
     # 2) Apply forward map if necessary
     if forward_map:
         images = forward_map(images)
 
     # 2p) Apply downscaling if necessary
-    if scaling>1:
+    if scaling > 1:
         images = blocks.downsample(images, scaling)
 
     if augmentation:
         t = transformation.random_transformation_3d
     else:
         t = None
-    
+
     # 5) Make a dataset
 
     if patch:
-        dataset = Dataset_2d_patch(images, spix=spix, shuffle=shuffle, transform=t)
+        dataset = Dataset_2d_patch(
+            images, spix=spix, shuffle=shuffle, transform=t)
     else:
         if is_3d:
-            dataset = Dataset_3d(images, spix=spix, shuffle=shuffle, transform=t)
+            dataset = Dataset_3d(
+                images, spix=spix, shuffle=shuffle, transform=t)
         else:
-            dataset = Dataset_2d(images, spix=spix, shuffle=shuffle, transform=t)
+            dataset = Dataset_2d(
+                images, spix=spix, shuffle=shuffle, transform=t)
 
     return dataset
-
-    
-
