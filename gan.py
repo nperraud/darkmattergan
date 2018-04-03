@@ -528,7 +528,7 @@ class GAN(object):
             if N is None:
                 N = self.batch_size
         z = self._sample_latent(N)
-        return self._generate_sample_safe(z, X, y)
+        return self._generate_sample_safe(z=z, X=X, y=y)
 
     def _get_sample_args(self):
         return self._G_fake
@@ -552,7 +552,7 @@ class GAN(object):
             for i in range(nb):
                 gi = self._sess.run(
                     self._get_sample_args(),
-                    feed_dict=self._get_dict(z, X, y, slice(sind, sind + bs)))
+                    feed_dict=self._get_dict(z=z, X=X, y=y, index=slice(sind, sind + bs)))
                 gen_images.append(gi)
                 sind = sind + bs
         gi = self._sess.run(

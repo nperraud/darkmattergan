@@ -65,7 +65,9 @@ class Dataset(object):
         # Reshuffle the data
         if self.shuffle:
             self._p = np.random.permutation(self._N)
-        for data in grouper(self._data_process(self._X)[self._p], batch_size):
+        nel = (self._N // batch_size) * batch_size
+        transformed_data = self._data_process(self._X)[self._p[range(nel)]]
+        for data in grouper(transformed_data, batch_size):
             yield np.array(data)
 
     @property
