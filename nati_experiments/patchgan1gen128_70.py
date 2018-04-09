@@ -18,7 +18,7 @@ import numpy as np
 
 ns = 128
 scaling = 4
-try_resume = False
+try_resume = True
 Mpch=70
 
 def forward(X):

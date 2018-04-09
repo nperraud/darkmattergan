@@ -580,7 +580,7 @@ class LapPatchWGANsimpleModel(GanModel):
         X1f = tf.reverse(X1, axis=[1])
         X2f = tf.reverse(X2, axis=[2])
         X3f = tf.reverse(X3, axis=[1,2])
-        flip_border = tf.concat([X1f,X2f,X3f], axis=3)
+        flip_border = tf.concat([X1f, X2f, X3f], axis=3)
 
         self.G_fake = self.generator(y=self.y, z=z, border=flip_border, reuse=False, scope='generator')
 
@@ -626,6 +626,75 @@ class LapPatchWGANsimpleModel(GanModel):
 
     def discriminator(self, X, Xsu, border, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu, border], axis=3), self.params['discriminator'], reuse=reuse)
+
+
+
+class LapPatchWGANsimpleUnfoldModel(GanModel):
+    def __init__(self, params, X, z, name='lapgansimpleunfold', is_3d=False):
+        ''' z must have the same dimension as X'''
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        
+        # A) Down sampling the image
+        self.upsampling = params['generator']['upsampling']
+
+        X0, border = tf.split(X, [1,3],axis=3)
+        self.Xs = down_sampler(X0, s=self.upsampling)
+
+        # The input is the downsampled image
+        inshape = self.Xs.shape.as_list()[1:]
+        self.y = tf.placeholder_with_default(self.Xs, shape=[None, *inshape], name='y')
+        # The border is a different input
+        inshape = border.shape.as_list()[1:]
+        self.border = tf.placeholder_with_default(border, shape=[None, *inshape], name='border')
+        X1, X2, X3 = tf.split(self.border, [1,1,1],axis=3)
+        X1f = tf.reverse(X1, axis=[1])
+        X2f = tf.reverse(X2, axis=[2])
+        X3f = tf.reverse(X3, axis=[1,2])
+        flip_border = tf.concat([X1f, X2f, X3f], axis=3)
+
+        self.G_fake = self.generator(y=self.y, z=z, border=flip_border, reuse=False, scope='generator')
+
+        # D) Concatenate back
+        top = tf.concat([X3,X2], axis=1)
+        bottom = tf.concat([X1,X0], axis=1)
+        bottom_g = tf.concat([X1,self.G_fake], axis=1)
+        X_real = tf.concat([top,bottom], axis=2)
+        G_fake = tf.concat([top,bottom_g], axis=2)
+        Xs_full = down_sampler(X_real, s=self.upsampling)
+
+        # E) Discriminator
+        self.Xsu = up_sampler(Xs_full, s=self.upsampling)
+        self.D_real = - self.discriminator(X_real, self.Xsu, reuse=False)
+        self.D_fake = self.discriminator(G_fake, self.Xsu, reuse=True)
+
+        # F) Losses
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, self.Xsu], [X_real, self.Xsu])
+        #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
+        self._D_loss = D_loss_r + D_loss_f + D_gp
+        self._G_loss = - D_loss_f
+
+        # G) Summaries
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+        tf.summary.image("training/Input_Image", X_real, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Real_Diff", X_real - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_Diff", G_fake - self.Xsu, max_outputs=2, collections=['Images'])
+        if True:
+            tf.summary.image("training/X0", X0, max_outputs=2, collections=['Images'])
+            tf.summary.image("training/X1", X1, max_outputs=1, collections=['Images'])
+            tf.summary.image("training/X2", X2, max_outputs=1, collections=['Images'])
+            tf.summary.image("training/X3", X3, max_outputs=1, collections=['Images'])
+            tf.summary.image("training/X1f", X1f, max_outputs=1, collections=['Images'])
+            tf.summary.image("training/X2f", X2f, max_outputs=1, collections=['Images'])
+            tf.summary.image("training/X3f", X3f, max_outputs=1, collections=['Images'])
+
+    def generator(self, y, z, border, reuse, scope):
+        return generator_up(y, z, self.params['generator'], y=border, reuse=reuse, scope=scope)
+
+    def discriminator(self, X, Xsu, reuse):
+        return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
 # class GanUpSampler(object):
 #     def __init__(self, name='gan_upsampler'):

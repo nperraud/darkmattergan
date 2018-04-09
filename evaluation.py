@@ -144,7 +144,10 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
 
 
 def upscale_image(obj, small, checkpoint=None):
-    """Upscale image using the lappachsimple model."""
+    """Upscale image using the lappachsimple model.
+
+    This function can be accelerated if the model is created only once.
+    """
     # Number of sample to produce
     N = small.shape[0]
 

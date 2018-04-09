@@ -1,35 +1,34 @@
 
 # coding: utf-8
 
-import pickle
-
 import sys
 sys.path.insert(0, '../')
+
+import matplotlib
+matplotlib.use('Agg')
 
 import data
 from model import WGanModel
 from gan import CosmoGAN
 import utils
+import numpy as np
 
+# # Parameters
 
-
-# Parameters
 
 ns = 256
-nsamples = 15000
-k = 10
 try_resume = True
+Mpch = 70
 
+def forward(X):
+    return np.log(X**(1/2)+np.e)-2
 
+def backward(Xmap, max_value=2e5):
+    Xmap = np.clip(Xmap, -1.0, forward(max_value))
+    tmp = np.exp((Xmap+2))-np.e
+    return np.round(tmp*tmp)
 
-# def current_time_str():
-#     import time, datetime
-#     d = datetime.datetime.fromtimestamp(time.time())
-#     return str(d.year)+ '_' + str(d.month)+ '_' + str(d.day)+ '_' + str(d.hour)+ '_' + str(d.minute)
-
-# time_str = current_time_str()
-
-time_str = 'final'
+time_str = 'final_{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -53,7 +52,7 @@ params_generator['shape'] = [[3, 3], [5, 5], [5, 5], [5, 5], [5, 5], [5, 5], [5,
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
 params_generator['full'] = [8*8*32]
 params_generator['summary'] = True
-params_generator['non_lin'] = 'tanh'
+params_generator['non_lin'] = None
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
@@ -68,11 +67,12 @@ params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 100
 
 params_cosmology = dict()
-params_cosmology['clip_max_real'] = False
+params_cosmology['clip_max_real'] = True
 params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
-params_cosmology['k'] = k
-params_cosmology['Npsd'] = 500
+params_cosmology['forward_map'] = forward
+params_cosmology['backward_map'] = backward
+params_cosmology['Npsd'] = 1000
 
 params = dict()
 params['generator'] = params_generator
@@ -96,10 +96,6 @@ resume, params = utils.test_resume(try_resume, params)
 
 wgan = CosmoGAN(params, WGanModel)
 
-# Load data
-images, raw_images = data.load_samples(nsamples = nsamples, permute=True, k=k)
-# images = data.make_smaller_samples(images, ns)
-# raw_images = data.make_smaller_samples(raw_images, ns)   
+dataset = data.load.load_dataset(resolution=256,Mpch=Mpch, forward_map=forward, spix=ns)
 
-# Train the model
-wgan.train(images, resume=resume)
+wgan.train(dataset=dataset, resume=resume)

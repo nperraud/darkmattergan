@@ -807,14 +807,15 @@ class CosmoGAN(GAN):
         self._max_num_psd = self.params['cosmology']['max_num_psd']
 
         real = self._backward_map(X)
+
         if self.params['cosmology']['clip_max_real']:
             self._clip_max = np.max(real)
         else:
             self._clip_max = 1e8
 
         # This line should be improved
-        if not self._is_3d and len(real.shape)>3:
-            real = real[:,:,:,0]
+        if not self._is_3d and len(real.shape) > 3:
+            real = real[:, :, :, 0]
 
         psd_real, _ = metrics.power_spectrum_batch_phys(X1=real, is_3d=self.is_3d)
         self._psd_real = np.mean(psd_real, axis=0)
@@ -832,8 +833,8 @@ class CosmoGAN(GAN):
 
     def train(self, dataset, resume=False):
         self._sum_data_iterator = itertools.cycle(dataset.iter(self._Npsd))
-
-        self._compute_real_psd(dataset.get_all_data())
+        X = dataset.get_all_data()
+        self._compute_real_psd(X)
 
         if resume:
             self.best_psd = self.params['cosmology']['best_psd']
@@ -896,7 +897,7 @@ class CosmoGAN(GAN):
             fake_image = self._generate_sample_safe(z_sel, Xsel)
             fake = self._backward_map(fake_image)
             fake = np.squeeze(fake)
-            real = np.squeeze(self._backward_map(Xsel[:,:,:,0]))
+            real = np.squeeze(self._backward_map(Xsel[:, :, :, 0]))
 
             
 
@@ -1052,3 +1053,4 @@ class CosmoGAN(GAN):
         raw_images = self._backward_map(images)
 
         return images, raw_images
+
