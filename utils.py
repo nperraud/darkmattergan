@@ -228,19 +228,19 @@ def save_dict_for_humans(filename, dict_):
 
         if 'discriminator' in dict_:
             outfile.write("\nDiscriminator Params")
-            outfile.write(str(dict['discriminator']))
+            outfile.write(str(dict_['discriminator']))
 
         if 'discriminator' in dict_:
             outfile.write("\nGenerator Params")
-            outfile.write(str(dict['generator']))
+            outfile.write(str(dict_['generator']))
 
         if 'discriminator' in dict_:
             outfile.write("\nOptimization Params")
-            outfile.write(str(dict['optimization']))
+            outfile.write(str(dict_['optimization']))
 
         if 'discriminator' in dict_:
             outfile.write("\nCosmology Params")
-            outfile.write(str(dict['cosmology']))
+            outfile.write(str(dict_['cosmology']))
 
 
 # Nati: This is a strange function. I do not think we need it.
