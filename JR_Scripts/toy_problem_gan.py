@@ -53,6 +53,9 @@ def main():
     print(params['cosmology'])
     print()
 
+    save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
+    save_dict_pickle(params['save_dir'] + 'params.pkl', params)
+
     # Initialize model
     if params['model_idx'] == 0:
         model = WGanModel

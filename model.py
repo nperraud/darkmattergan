@@ -206,7 +206,6 @@ class TemporalGanModelv3(GanModel):
         default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
         self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
         t = self.y[:z_shape[0]]
-        t = tf.sqrt(t)
         zn = tf.multiply(zn, t)
 
         self.G_fake = self.generator(zn, reuse=False)
