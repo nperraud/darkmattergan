@@ -6,6 +6,19 @@ from JR_Scripts import dict_reader, time_toy_generator
 from model import WGanModel, WNGanModel, TemporalGanModelv3
 from gan import CosmoGAN
 import numpy as np
+import yaml
+
+
+def load_dict_yaml(filename):
+    d = dict()
+    with open(filename, 'r') as infile:
+        d = yaml.load(infile)
+    return d
+
+
+def save_dict_yaml(filename, dict_):
+    with open(filename, 'w') as outfile:
+        yaml.dump(dict_, outfile)
 
 
 def current_time_str():
