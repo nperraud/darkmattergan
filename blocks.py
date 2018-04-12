@@ -192,6 +192,12 @@ def deconv2d(imgs,
             'biases', [output_shape[-1]], initializer=const)
         deconv = tf.nn.bias_add(deconv, biases)
 
+        # If we are running on Leonhard we need to reshape in order for TF
+        # to explicitly know the shape of the tensor. Machines with newer
+        # TensorFlow versions do not need this.
+        if tf.__version__ == '1.3.0':
+            deconv = tf.reshape(deconv, output_shape)
+
         if summary:
             tf.summary.histogram("Bias_sum", biases, collections=["metrics"])
             # we put it in metrics so we don't store it too often

@@ -714,8 +714,8 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d
 
     return out_tensor
 
-def generator(x, params, y=None, reuse=True, scope="generator"):
 
+def generator(x, params, y=None, reuse=True, scope="generator"):
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
@@ -758,12 +758,6 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                             summary=params['summary'],
                             conv_num=i,
                             is_3d=params['is_3d'])
-
-            # If we are running on Leonhard we need to reshape in order for TF
-            # to explicitly know the shape of the tensor. Machines with newer
-            # TensorFlow versions do not need this.
-            if tf.__version__ == '1.3.0':
-                x = tf.reshape(x, output_shape)
 
             rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
             if i < nconv-1:
