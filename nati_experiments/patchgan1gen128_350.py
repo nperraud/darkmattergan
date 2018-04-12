@@ -1,5 +1,5 @@
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"]="0"
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import sys
 sys.path.insert(0, '../')
@@ -12,18 +12,24 @@ from model import LapPatchWGANsingleModel
 from gan import CosmoGAN
 import utils
 
+import numpy as np
+
 
 # # Parameters
 
 
 ns = 128
 scaling = 4
-k = 20
 try_resume = False
 Mpch=350
 
-try_resume = True
+def forward(X):
+    return np.log(X**(1/2)+np.e)-2
 
+def backward(Xmap, max_value=2e5):
+    Xmap = np.clip(Xmap, -1.0, forward(max_value))
+    tmp = np.exp((Xmap+2))-np.e
+    return np.round(tmp*tmp)
 
 
 time_str = 'single_{}'.format(Mpch)
@@ -73,14 +79,15 @@ params_generator['shape'] = [[3, 3], [5, 5], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = []
 params_generator['summary'] = True
-params_generator['non_lin'] = 'tanh'
+params_generator['non_lin'] = None
 params_generator['upsampling'] = up_scaling
 
 params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
 params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
-params_cosmology['k'] = k
+params_cosmology['forward_map'] = forward
+params_cosmology['backward_map'] = backward
 params_cosmology['Npsd'] = 500
 
 params = dict()
@@ -107,7 +114,7 @@ obj = CosmoGAN(params, LapPatchWGANsingleModel)
 
 
 
-dataset = data.load.load_2d_dataset(resolution=256,Mpch=Mpch, k=k,spix=ns)
+dataset = data.load.load_dataset(resolution=256,Mpch=Mpch, forward_map=forward,spix=ns)
 
 
 obj.train(dataset=dataset, resume=resume)

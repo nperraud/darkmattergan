@@ -54,14 +54,21 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
         return bn
 
 
-def downsample(imgs, s):
+def downsample(imgs, s, is_3d=False):
+    if is_3d:
+        NotImplementedError('Ankit, this is for you.')
+
     # To be rewritten in numpy
-    imgs = np.expand_dims(imgs, axis=3)
-    x = tf.placeholder(tf.float32, shape=imgs.shape, name='x')
+    if len(imgs.shape)<3:
+        imgs = np.expand_dims(imgs, axis=3)
+    x = tf.placeholder(tf.float32, shape=[*imgs.shape[:3],1], name='x')
     xd = down_sampler(x, s=s)
     with tf.Session() as sess:
-        img_d = sess.run(xd, feed_dict={x: imgs})
-    return np.squeeze(img_d)
+        img_d = []
+        for i in range(imgs.shape[3]):
+            curr_img = np.expand_dims(imgs[:,:,:,i], axis=3)
+            img_d.append(sess.run(xd, feed_dict={x: curr_img}))
+    return np.squeeze(np.concatenate(img_d, axis=3))
 
 
 def down_sampler(x, s=2):

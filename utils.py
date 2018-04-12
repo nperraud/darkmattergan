@@ -1,15 +1,20 @@
-import h5py
-import numpy as np
+"""Utility functions."""
 import os
+import functools
 import shutil
+import pickle
+import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-import pickle
-
-import scipy
+import h5py
 
 
 def test_resume(try_resume, params):
+    ''' Try to load the parameters saved in `params['save_dir']+'params.pkl',` 
+
+        Not sure we should implement this function that way.
+    '''
+
     resume = False
 
     if try_resume:
@@ -39,78 +44,31 @@ def sample_latent(m, n, prior="uniform", normalize=False):
         else:
             df = 3
         return np.random.standard_t(df, size=[m, n])
-    elif prior.startswith('chi2'):
-        prior_ = prior.split('-')
-        if len(prior_) >= 2:
-            df = int(prior_[1])
-            if len(prior_) >= 3:
-                k = float(prior_[2])
-            else:
-                k = 7
-        else:
-            df, k = 3, 7
-        return simple_numpy(np.random.chisquare(df, size=[m, n]), k)
-    elif prior.startswith('gamma'):
-        prior_ = prior.split('-')
-        if len(prior_) >= 2:
-            df = float(prior_[1])
-            if len(prior_) >= 3:
-                k = float(prior_[2])
-            else:
-                k = 4
-        else:
-            df, k = 1, 4
-        return simple_numpy(np.random.gamma(df, size=[m, n]), k)
+    # elif prior.startswith('chi2'):
+    #     prior_ = prior.split('-')
+    #     if len(prior_) >= 2:
+    #         df = int(prior_[1])
+    #         if len(prior_) >= 3:
+    #             k = float(prior_[2])
+    #         else:
+    #             k = 7
+    #     else:
+    #         df, k = 3, 7
+    #     return simple_numpy(np.random.chisquare(df, size=[m, n]), k)
+    # elif prior.startswith('gamma'):
+    #     prior_ = prior.split('-')
+    #     if len(prior_) >= 2:
+    #         df = float(prior_[1])
+    #         if len(prior_) >= 3:
+    #             k = float(prior_[2])
+    #         else:
+    #             k = 4
+    #     else:
+    #         df, k = 1, 4
+    #     return simple_numpy(np.random.gamma(df, size=[m, n]), k)
     else:
         raise ValueError(' [!] distribution not defined')
 
-
-def forward_map(x, k=10., scale=1.):
-    ''' maps real positive numbers to a [-scale, scale] range 
-
-    Numpy version
-    '''
-
-    return scale * (2 * (x / (x + k)) - 1)
-
-
-def backward_map(y, k=10., scale=1., real_max=1e8):
-    ''' Inverse of the function forward map
-        
-    Numpy version
-    '''
-
-    simple_max = forward_map(real_max, k, scale)
-    simple_min = forward_map(0, k, scale)
-
-    y_clipped = np.clip(y, simple_min, simple_max)/scale
-    return k * (y_clipped + 1) / (1 - y_clipped)
-
-
-def pre_process(X_raw, k=10., scale=1.):
-    ''' maps real positive numbers to a [-scale, scale] range 
-
-    Tensorflow version
-    '''
-
-    k = tf.constant(k, dtype=tf.float32)
-    X = tf.subtract(2.0 * (X_raw / tf.add(X_raw, k)), 1.0)*scale
-
-    return X
-
-
-def inv_pre_process(X, k=10., scale=1., real_max=1e8):
-    ''' Inverse of the function forward map
-        
-    Tensorflow version
-    '''
-
-    simple_max = forward_map(real_max, k, scale)
-    simple_min = forward_map(0, k, scale)
-
-    X_clipped = tf.clip_by_value(X, simple_min, simple_max)/scale
-    X_raw = tf.multiply((X_clipped + 1.0) / (1.0 - X_clipped), k)
-    return X_raw
 
 
 def show_all_variables():
@@ -248,15 +206,16 @@ def load_hdf5(filename, dataset_name='data', mode='r'):
     h5f.close()
     return data
 
-def load_hdf5_all_datasets(filename, num=100):
-    lst = []
-    h5f = h5py.File(filename, 'r')
-    for i in range(num):
-        data = h5f['data' + str(i)][:]
-        lst.append(data)
+# Nati: This is a strange function. I do not think we need it.
+# def load_hdf5_all_datasets(filename, num=100):
+#     lst = []
+#     h5f = h5py.File(filename, 'r')
+#     for i in range(num):
+#         data = h5f['data' + str(i)][:]
+#         lst.append(data)
 
-    h5f.close()
-    return lst
+#     h5f.close()
+#     return lst
 
 
 def compose2(first,second):

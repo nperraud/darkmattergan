@@ -38,9 +38,9 @@ https://github.com/nperraud/CodeGAN/blob/master/WGAN%20demo.ipynb
 ## Paths
 
 ### CSCS
-* CSCS Project path `/store/sdsc/sd00/comosology/`
-* CSCS Raw data path `/store/sdsc/sd00/comosology/data/nbody_raw_boxes/`
-* CSCS Preprocessed data path `/store/sdsc/sd00/comosology/data/pre_processed_data/`
+* CSCS Project path `/store/sdsc/sd01/cosmology/`
+* CSCS Raw data path `/store/sdsc/sd01/cosmology/data/nbody_raw_boxes/`
+* CSCS Preprocessed data path `/store/sdsc/sd01/comosology/data/pre_processed_data/`
 
 ### Plempy
 * Old path on plempy (Original PICOLA DATA) `/home/ipa/refreg/temp/Janis/AndresBoxes`
