@@ -10,18 +10,6 @@ import pickle
 from data import Dataset, fmap
 
 
-def load_dict_pickle(filename):
-    d = dict()
-    with open(filename, 'rb') as infile:
-        d = pickle.load(infile)
-    return d
-
-
-def save_dict_pickle(filename, dict_):
-    with open(filename, 'wb') as outfile:
-        pickle.dump(dict_, outfile)
-
-
 def current_time_str():
     import time, datetime
     d = datetime.datetime.fromtimestamp(time.time())

@@ -206,6 +206,18 @@ def load_hdf5(filename, dataset_name='data', mode='r'):
     h5f.close()
     return data
 
+
+def load_dict_pickle(filename):
+    with open(filename, 'rb') as infile:
+        d = pickle.load(infile)
+    return d
+
+
+def save_dict_pickle(filename, dict_):
+    with open(filename, 'wb') as outfile:
+        pickle.dump(dict_, outfile)
+
+
 # Nati: This is a strange function. I do not think we need it.
 # def load_hdf5_all_datasets(filename, num=100):
 #     lst = []
