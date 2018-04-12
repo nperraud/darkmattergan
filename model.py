@@ -203,9 +203,10 @@ class TemporalGanModelv3(GanModel):
         z_shape = tf.shape(zn)
         scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
         scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
-        y = tf.constant(scaling, dtype=tf.float32, name='y')
-        y = y[:z_shape[0]]
-        zn = tf.multiply(zn, y)
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        zn = tf.multiply(zn, t)
 
         self.G_fake = self.generator(zn, reuse=False)
 
@@ -783,8 +784,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
 
 
 
-def generator(x, params, y=None, reuse=True, scope="generator"):
 
+def generator(x, params, y=None, reuse=True, scope="generator"):
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
@@ -827,12 +828,6 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                             summary=params['summary'],
                             conv_num=i,
                             is_3d=params['is_3d'])
-
-            # If we are running on Leonhard we need to reshape in order for TF
-            # to explicitly know the shape of the tensor. Machines with newer
-            # TensorFlow versions do not need this.
-            if tf.__version__ == '1.3.0':
-                x = tf.reshape(x, output_shape)
 
             rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
             if i < nconv-1:

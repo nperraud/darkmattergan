@@ -1,11 +1,25 @@
 import sys
 sys.path.insert(0, '../')
 
-import utils,  sys
+import utils, sys, os
 from JR_Scripts import dict_reader, time_toy_generator
 from model import WGanModel, WNGanModel, TemporalGanModelv3
 from gan import CosmoGAN
 import numpy as np
+import pickle
+from data import Dataset, fmap
+
+
+def load_dict_pickle(filename):
+    d = dict()
+    with open(filename, 'rb') as infile:
+        d = pickle.load(infile)
+    return d
+
+
+def save_dict_pickle(filename, dict_):
+    with open(filename, 'wb') as outfile:
+        pickle.dump(dict_, outfile)
 
 
 def current_time_str():
@@ -18,7 +32,8 @@ def main():
     # Load parameters
     param_paths = sys.argv[1]
     params = dict_reader.read_gan_dict(param_paths)
-    params['name'] = 'WGAN{}'.format(params['image_size'][0])
+    if 'name' not in params:
+        params['name'] = 'WGAN{}'.format(params['image_size'][0])
     time_str = current_time_str()
     if 'save_dir' in params:
         params['summary_dir'] = params['summary_dir'] + '/' + params['name'] + '_' + time_str + '_summary/'
@@ -39,6 +54,13 @@ def main():
     print(params['cosmology'])
     print()
 
+    if not os.path.exists(params['summary_dir']):
+        os.makedirs(params['summary_dir'])
+    save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
+    if not os.path.exists(params['save_dir']):
+        os.makedirs(params['save_dir'])
+    save_dict_pickle(params['save_dir'] + 'params.pkl', params)
+
     # Initialize model
     if params['model_idx'] == 0:
         model = WGanModel
@@ -53,10 +75,12 @@ def main():
         num_gaussians = params['num_gaussians']
 
     # Generate data
-    data = time_toy_generator.gen_sanity_dataset(images_per_time_step=params['num_samples_per_class'],
+    data = time_toy_generator.gen_dataset_continuous(images_per_time_step=params['num_samples_per_class'],
                                           width=params['image_size'][0],
                                           num_gaussians=num_gaussians,
                                           point_density_factor=3)
+    if params['num_classes'] == 8:
+        data = np.asarray([data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]])
     if params['num_classes'] == 5:
         data = np.asarray([data[1], data[3], data[5], data[7], data[9]])
     if params['num_classes'] == 4:
@@ -70,8 +94,9 @@ def main():
     data = data.swapaxes(0,1)
     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     data = data.astype(np.float32)
-    data = utils.forward_map(data, params['cosmology']['k'])
-    data = data / 1.25
+    data = fmap.forward_map(data, params['cosmology']['k'], 0.98)
+
+    data = Dataset.Dataset(data, shuffle=True)
 
     # Train model
     cosmo_gan.train(data)
