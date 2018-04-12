@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, '../')
 
-import utils,  sys
+import utils, sys, os
 from JR_Scripts import dict_reader, time_toy_generator
 from model import WGanModel, WNGanModel, TemporalGanModelv3
 from gan import CosmoGAN
@@ -53,7 +53,11 @@ def main():
     print(params['cosmology'])
     print()
 
+    if not os.path.exists(params['summary_dir']):
+        os.makedirs(params['summary_dir'])
     save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
+    if not os.path.exists(params['save_dir']):
+        os.makedirs(params['save_dir'])
     save_dict_pickle(params['save_dir'] + 'params.pkl', params)
 
     # Initialize model
