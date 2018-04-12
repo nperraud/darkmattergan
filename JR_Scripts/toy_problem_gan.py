@@ -96,7 +96,7 @@ def main():
     data = data.astype(np.float32)
     data = fmap.forward_map(data, params['cosmology']['k'], 0.98)
 
-    data = Dataset(data, shuffle=False)
+    data = Dataset.Dataset(data, shuffle=True)
 
     # Train model
     cosmo_gan.train(data)
