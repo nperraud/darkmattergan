@@ -218,6 +218,31 @@ def save_dict_pickle(filename, dict_):
         pickle.dump(dict_, outfile)
 
 
+# Save dict in a pretty text format for humans. Cannot parse this back!
+# Use save_dict_pickle for a load friendly version.
+def save_dict_for_humans(filename, dict_):
+    with open(filename, 'w') as outfile:
+
+        outfile.write("All Params")
+        outfile.write(str(dict_))
+
+        if 'discriminator' in dict_:
+            outfile.write("\nDiscriminator Params")
+            outfile.write(str(dict['discriminator']))
+
+        if 'discriminator' in dict_:
+            outfile.write("\nGenerator Params")
+            outfile.write(str(dict['generator']))
+
+        if 'discriminator' in dict_:
+            outfile.write("\nOptimization Params")
+            outfile.write(str(dict['optimization']))
+
+        if 'discriminator' in dict_:
+            outfile.write("\nCosmology Params")
+            outfile.write(str(dict['cosmology']))
+
+
 # Nati: This is a strange function. I do not think we need it.
 # def load_hdf5_all_datasets(filename, num=100):
 #     lst = []

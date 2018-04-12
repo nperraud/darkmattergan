@@ -44,10 +44,12 @@ def main():
 
     if not os.path.exists(params['summary_dir']):
         os.makedirs(params['summary_dir'])
-    save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
+    utils.save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
+    utils.save_dict_for_humans(params['summary_dir'] + 'params.txt', params)
     if not os.path.exists(params['save_dir']):
         os.makedirs(params['save_dir'])
-    save_dict_pickle(params['save_dir'] + 'params.pkl', params)
+    utils.save_dict_pickle(params['save_dir'] + 'params.pkl', params)
+    utils.save_dict_for_humans(params['save_dir'] + 'params.txt', params)
 
     # Initialize model
     if params['model_idx'] == 0:
