@@ -831,15 +831,13 @@ class CosmoGAN(GAN):
 
         super().train(dataset=dataset, resume=resume)
 
-    def _multiclass_l2_psd(self, feed_dict, X):
-        Xsel = X[0:self._Npsd]
-        real = self._backward_map(Xsel)
+    def _multiclass_l2_psd(self, feed_dict, Xsel):
         z_sel = self._sample_latent(self._Npsd)
 
         fake_image = self._generate_sample_safe(
-            z_sel, Xsel.reshape([self._Npsd, *X.shape[1:], 1]))
+            z_sel, Xsel.reshape([self._Npsd, *Xsel.shape[1:], 1]))
         fake = self._backward_map(fake_image)
-        fake.resize([self._Npsd, *X.shape[1:]])
+        fake.resize([self._Npsd, *Xsel.shape[1:]])
 
         nc = self.params['num_classes']
         for i in range(nc):
@@ -869,10 +867,10 @@ class CosmoGAN(GAN):
         super()._train_log(feed_dict, epoch, batch_num)
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
-            if self.params['num_classes'] > 1:
-                self._multiclass_l2_psd(feed_dict, X)
-
             Xsel = next(self._sum_data_iterator)
+
+            if self.params['num_classes'] > 1:
+                self._multiclass_l2_psd(feed_dict, Xsel)
 
             z_sel = self._sample_latent(self._Npsd)
             # TODO better
