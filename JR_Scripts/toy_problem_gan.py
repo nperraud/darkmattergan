@@ -7,7 +7,7 @@ from model import WGanModel, WNGanModel, TemporalGanModelv3
 from gan import CosmoGAN
 import numpy as np
 import pickle
-from data import Dataset
+from data import Dataset, fmap
 
 
 def load_dict_pickle(filename):
@@ -94,8 +94,7 @@ def main():
     data = data.swapaxes(0,1)
     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     data = data.astype(np.float32)
-    data = utils.forward_map(data, params['cosmology']['k'])
-    data = data / 1.02
+    data = fmap.forward_map(data, params['cosmology']['k'], 0.98)
 
     data = Dataset(data, shuffle=False)
 
