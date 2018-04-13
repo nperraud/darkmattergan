@@ -54,7 +54,10 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
         return bn
 
 
-def downsample(imgs, s):
+def downsample(imgs, s, is_3d=False):
+    if is_3d:
+        NotImplementedError('Ankit, this is for you.')
+
     # To be rewritten in numpy
     imgs = np.expand_dims(imgs, axis=4) # 1 extra dim for channels
 
@@ -64,6 +67,7 @@ def downsample(imgs, s):
         img_d = sess.run(xd, feed_dict={x: imgs})
 
     return np.squeeze(img_d)
+
 
 
 def down_sampler(x, s=2, is_3d=False):

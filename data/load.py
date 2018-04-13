@@ -5,7 +5,8 @@ import functools
 from data import gaussian_synthetic_data
 from data import path
 from data import transformation
-from data.Dataset import Dataset_2d, Dataset_3d
+from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch
+
 
 import blocks
 
@@ -147,7 +148,9 @@ def load_dataset(
         spix=128,
         augmentation=True,
         scaling=1,
-        is_3d=False):
+        is_3d=False,
+        patch=False):
+
     ''' Load a 2D dataset object 
 
      Arguments
@@ -161,6 +164,7 @@ def load_dataset(
     * augmentation : use data augmentation (default True)
     * scaling : downscale the image by a factor (default 1)
     * is_3d : load a 3d dataset (default False)
+    * patch: experimental feature for patchgan
     '''
 
     # 1) Load raw images
@@ -172,7 +176,7 @@ def load_dataset(
 
     # 2p) Apply downscaling if necessary
     if scaling>1:
-        images = blocks.downsample(images, scaling)
+        images = blocks.downsample(images, scaling, is_3d)
 
     if augmentation:
         t = transformation.random_transformation_3d
@@ -180,14 +184,14 @@ def load_dataset(
         t = None
     
     # 5) Make a dataset
-    if is_3d:
-        dataset = Dataset_3d(images, spix=spix, shuffle=shuffle, transform=t)
+    if patch:
+        dataset = Dataset_2d_patch(images, spix=spix, shuffle=shuffle, transform=t)
     else:
-        dataset = Dataset_2d(images, spix=spix, shuffle=shuffle, transform=t)
+        if is_3d:
+            dataset = Dataset_3d(images, spix=spix, shuffle=shuffle, transform=t)
+        else:
+            dataset = Dataset_2d(images, spix=spix, shuffle=shuffle, transform=t)
 
     return dataset
-
-
-
     
 
