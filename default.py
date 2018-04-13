@@ -1,4 +1,5 @@
-import utils
+import data.fmap as fmap
+import warnings
 
 def default_params(params=dict()):
 
@@ -52,8 +53,6 @@ def default_params(params=dict()):
         'enc_learning_rate', 3e-5)
     params['optimization']['disc_learning_rate'] = params['optimization'].get(
         'disc_learning_rate', 3e-5)
-    params['optimization']['n_critic'] = params['optimization'].get(
-        'n_critic', 5)
 
     # Generator parameters
     # --------------------
@@ -64,6 +63,9 @@ def default_params(params=dict()):
 
 
 def default_params_cosmology(params=dict()):
+
+    forward = fmap.forward
+    backward = fmap.backward 
 
     params = default_params(params)
     # Cosmology parameters
@@ -78,13 +80,13 @@ def default_params_cosmology(params=dict()):
     params['cosmology']['log_clip'] = params['cosmology'].get('log_clip', 0.1)
     params['cosmology']['sigma_smooth'] = params['cosmology'].get(
         'sigma_smooth', 1)
-    # Apply a guausian filter to remove high frequency before executing the computations
-    params['cosmology']['Npsd'] = params['cosmology'].get('Npsd', 500)
-    params['cosmology']['max_num_psd'] = params['cosmology'].get('max_num_psd', 100)
-    # Is this parameter used right now?
+    # Apply a guausian filter to remove high frequency before executing the
+    # computations. This is not working right now
 
-    forward = utils.forward_map
-    backward = utils.backward_map
+    if 'Npsd' in params['cosmology'].keys():
+        params['cosmology']['Nstats'] = params['cosmology']['Npsd']
+        warnings.warn('Use Nstats instead of Npsd!')
+    params['cosmology']['Nstats'] = params['cosmology'].get('Nstats', 500)
 
     params['cosmology']['forward_map'] = params['cosmology'].get('forward_map', forward)
     params['cosmology']['backward_map'] = params['cosmology'].get('backward_map', backward)
