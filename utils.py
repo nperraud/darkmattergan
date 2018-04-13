@@ -19,11 +19,13 @@ def test_resume(try_resume, params):
 
     if try_resume:
         try:
+            print(params['save_dir']+'params.pkl')
             with open(params['save_dir']+'params.pkl', 'rb') as f:
                 params = pickle.load(f)
             resume = True
             print('Resume, the training will start from the last iteration!')
-        except:
+        except Exception as e:
+            print("Exception message: ", str(e))
             print('No resume, the training will start from the beginning!')
 
     return resume, params

@@ -26,6 +26,7 @@ if __name__ == "__main__":
 	ns = 32
 	nsamples = 1000
 	k = 20.0
+	try_resume = True
 
 	#images, raw_images = load_3d_synthetic_samples(nsamples = nsamples,dim=ns, k=k)
 
@@ -98,5 +99,7 @@ if __name__ == "__main__":
 	params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
 	params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
 
+	resume, params = utils.test_resume(try_resume, params)
+
 	wgan = CosmoGAN(params, WGanModel, is_3d=True)
-	wgan.train(dataset)
+	wgan.train(dataset, resume=resume)

@@ -49,7 +49,7 @@ def load_3d_synthetic_samples(nsamples, dim, k):
         nsamples=nsamples, cube_dim=dim) - 1.0
     raw_images = utils.backward_map(images)
 
-    return Dataset(images, shuffle=False, transform=None), raw_images
+    return Dataset_3d(images, spix=dim, shuffle=False, transform=None), raw_images
 
 
 def load_2d_synthetic_samples(nsamples, dim, k):
@@ -57,7 +57,7 @@ def load_2d_synthetic_samples(nsamples, dim, k):
         nsamples=nsamples, square_dim=dim) - 1.0
     raw_images = utils.backward_map(images)
 
-    return Dataset(images, shuffle=False, transform=None)
+    return Dataset_2d(images, spix=dim, shuffle=False, transform=None)
 
 
 def load_samples(nsamples=1000, shuffle=False, k=10, spix=256, map_scale=1., transform=None):

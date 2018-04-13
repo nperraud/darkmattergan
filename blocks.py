@@ -56,17 +56,23 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
 
 def downsample(imgs, s):
     # To be rewritten in numpy
-    imgs = np.expand_dims(imgs, axis=3)
+    imgs = np.expand_dims(imgs, axis=4) # 1 extra dim for channels
+
     x = tf.placeholder(tf.float32, shape=imgs.shape, name='x')
-    xd = down_sampler(x, s=s)
+    xd = down_sampler(x, s=s, is_3d=True)
     with tf.Session() as sess:
         img_d = sess.run(xd, feed_dict={x: imgs})
+
     return np.squeeze(img_d)
 
 
-def down_sampler(x, s=2):
-    filt = tf.constant(1 / (s * s), dtype=tf.float32, shape=[s, s, 1, 1])
-    return tf.nn.conv2d(x, filt, strides=[1, s, s, 1], padding='SAME')
+def down_sampler(x, s=2, is_3d=False):
+    if is_3d:
+        filt = tf.constant(1 / (s * s * s), dtype=tf.float32, shape=[s, s, s, 1, 1])
+        return tf.nn.conv3d(x, filt, strides=[1, s, s, s, 1], padding='SAME')
+    else:
+        filt = tf.constant(1 / (s * s), dtype=tf.float32, shape=[s, s, 1, 1])
+        return tf.nn.conv2d(x, filt, strides=[1, s, s, 1], padding='SAME')
 
 
 def up_sampler(x, s=2):

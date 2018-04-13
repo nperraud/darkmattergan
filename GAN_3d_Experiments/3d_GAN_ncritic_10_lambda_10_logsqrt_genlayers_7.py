@@ -10,7 +10,6 @@ import os
 import data, utils
 from model import WGanModel
 from gan import CosmoGAN
-from functools import partial
 
 def current_time_str():
     import time, datetime
@@ -22,20 +21,25 @@ def load_3d_synthetic_samples():
 	print("images shape: ", np.shape(images))
 	print("raw_images shape: ", np.shape(raw_images))
 
+def forward(X):
+	return np.log(np.sqrt(X)+np.e)-2
+
+def backward(Xmap, max_value=2e5):
+	Xmap = np.clip(Xmap, -1.0, forward(max_value))
+	tmp = np.exp((Xmap+2))-np.e
+	return np.round(tmp*tmp)
+
 if __name__ == "__main__":
 	ns = 32
 	nsamples = 1000
-	k = 5.0
+	k = 10
 	try_resume = True
 
 	#images, raw_images = load_3d_synthetic_samples(nsamples = nsamples,dim=ns, k=k)
 
-	forward_map  = partial(utils.forward_map , k=k)
-	backward_map = partial(utils.backward_map, k=k)
+	dataset = data.load.load_dataset(resolution=256, Mpch=350, spix=ns, forward_map=forward, is_3d=True)
 
-	dataset = data.load.load_dataset(resolution=256, Mpch=350, spix=ns, forward_map=forward_map, is_3d=True)
-
-	time_str = 'ncritic_10_lambda_10_k_5_genlayers_7' 
+	time_str = 'ncritic_10_lambda_10_logsqrt_genlayers_7' 
 	global_path = '../saved_result/'
 	name = 'WGAN{}'.format(ns)
 
@@ -76,8 +80,8 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = forward_map
-	params_cosmology['backward_map'] = backward_map
+	params_cosmology['forward_map'] = forward
+	params_cosmology['backward_map'] = backward
 	params_cosmology['k'] = k
 	params_cosmology['Npsd'] = 500
 	params_cosmology['max_num_psd'] = 100
