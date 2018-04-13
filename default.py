@@ -1,6 +1,5 @@
 import data.fmap as fmap
-import numpy as np
-
+import warnings
 
 def default_params(params=dict()):
 
@@ -81,10 +80,13 @@ def default_params_cosmology(params=dict()):
     params['cosmology']['log_clip'] = params['cosmology'].get('log_clip', 0.1)
     params['cosmology']['sigma_smooth'] = params['cosmology'].get(
         'sigma_smooth', 1)
-    # Apply a guausian filter to remove high frequency before executing the computations
-    params['cosmology']['Npsd'] = params['cosmology'].get('Npsd', 500)
-    params['cosmology']['max_num_psd'] = params['cosmology'].get('max_num_psd', 100)
-    # Is this parameter used right now?
+    # Apply a guausian filter to remove high frequency before executing the
+    # computations. This is not working right now
+
+    if 'Npsd' in params['cosmology'].keys():
+        params['cosmology']['Nstats'] = params['cosmology']['Npsd']
+        warnings.warn('Use Nstats instead of Npsd!')
+    params['cosmology']['Nstats'] = params['cosmology'].get('Nstats', 500)
 
     params['cosmology']['forward_map'] = params['cosmology'].get('forward_map', forward)
     params['cosmology']['backward_map'] = params['cosmology'].get('backward_map', backward)

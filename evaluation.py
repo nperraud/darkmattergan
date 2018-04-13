@@ -1,3 +1,8 @@
+"""Evaluation module.
+
+This module contains helping functions for the evaluation of the models.
+"""
+
 import pickle
 import numpy as np
 import metrics
@@ -8,34 +13,26 @@ from gan import *
 
 
 def load_gan(pathgan, GANtype=CosmoGAN):
-    # try:
-    #     del(params)
-    #     del(obj)
-    # except:
-    #     pass
-
+    """Load GAN object from path."""
     with open(pathgan + 'params.pkl', 'rb') as f:
         params = pickle.load(f)
+    params['save_dir'] = pathgan
     obj = GANtype(params)
 
     return obj
 
 
-def generate_samples(N, obj, pathgan, checkpoint=None, y=None):
-    if checkpoint is None:
-        gen_sample, gen_sample_raw = obj.generate(N=N, y=y)
-    else:
-        file_name = pathgan + obj.model_name + '-' + checkpoint
-
-        gen_sample, gen_sample_raw = obj.generate(
-            N=N, y=y, file_name=file_name)
-
+def generate_samples(obj, N=None, checkpoint=None, **kwards):
+    """Generate sample from gan object."""
+    gen_sample, gen_sample_raw = obj.generate(
+        N=N, checkpoint=checkpoint, **kwards)
     gen_sample = np.squeeze(gen_sample)
     gen_sample_raw = np.squeeze(gen_sample_raw)
     return gen_sample, gen_sample_raw
 
 
 def compute_and_plot_psd(raw_images, gen_sample_raw, display=True):
+    """Compute and plot PSD from raw images."""
     psd_real, x = metrics.power_spectrum_batch_phys(X1=raw_images)
     psd_real_mean = np.mean(psd_real, axis=0)
 
@@ -85,7 +82,7 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, display=True):
 
 
 def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
-
+    """Compute and plot peak count histogram from raw images."""
     y_real, y_fake, x = metrics.peak_count_hist(raw_images, gen_sample_raw)
     l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
     if display:
@@ -116,7 +113,7 @@ def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
 
 
 def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
-
+    """Compute and plot mass histogram from raw images."""
     y_real, y_fake, x = metrics.mass_hist(raw_images, gen_sample_raw)
     l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
     if display:
@@ -144,3 +141,58 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
         ax.tick_params(axis='both', which='major', labelsize=10)
         ax.legend()
     return l2, logel2, l1, logel1
+
+
+def upscale_image(obj, small, checkpoint=None):
+    """Upscale image using the lappachsimple model.
+
+    This function can be accelerated if the model is created only once.
+    """
+    # Number of sample to produce
+    N = small.shape[0]
+
+    # Dimension of the low res image
+    lx, ly = small.shape[1:3]
+
+    # Output dimension of the generator
+    soutx, souty = obj.params['image_size'][:2]
+
+    # Input dimension of the generator
+    sinx = soutx // obj.params['generator']['upsampling']
+    siny = souty // obj.params['generator']['upsampling']
+
+    # Number of part to be generated
+    nx = lx // sinx
+    ny = ly // siny
+
+    # Final output image
+    output_image = np.zeros(
+        shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
+    output_image[:] = np.nan
+
+    # C) Generate the rest of the lines
+    for j in range(ny):
+        for i in range(nx):
+            # 1) Generate the border
+            border = np.zeros([N, soutx, souty, 3])
+            if i:
+                border[:, :, :, :1] = output_image[:, (
+                    i - 1) * soutx:i * soutx, j * souty:(j + 1) * souty, :]
+            if j:
+                border[:, :, :, 1:2] = output_image[:, i * soutx:(
+                    i + 1) * soutx, (j - 1) * souty:j * souty, :]
+            if i and j:
+                border[:, :, :, 2:3] = output_image[:, (
+                    i - 1) * soutx:i * soutx, (j - 1) * souty:j * souty, :]
+
+            # 2) Prepare low resolution
+            y = np.expand_dims(small[:N][:, i * sinx:(
+                i + 1) * sinx, j * siny:(j + 1) * siny], 3)
+
+            # 3) Generate the image
+            gen_sample, _ = obj.generate(
+                N=N, border=border, y=y, checkpoint=checkpoint)
+            output_image[:, i * soutx:(i + 1) * soutx, j * souty:(
+                j + 1) * souty, :] = gen_sample
+
+    return np.squeeze(output_image)
