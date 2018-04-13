@@ -176,7 +176,7 @@ def load_dataset(
 
     # 2p) Apply downscaling if necessary
     if scaling>1:
-        images = blocks.downsample(images, scaling)
+        images = blocks.downsample(images, scaling, is_3d)
 
     if augmentation:
         t = transformation.random_transformation_3d
