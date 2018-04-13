@@ -922,18 +922,21 @@ class CosmoGAN(GAN):
         super()._train_log(feed_dict, epoch, batch_num)
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
-            if self.params['num_classes'] > 1:
-                self._multiclass_l2_psd(feed_dict, X)
-
-            Xsel = next(self._sum_data_iterator)
 
             z_sel = self._sample_latent(self._stats['N'])
+            Xsel = next(self._sum_data_iterator)
             # TODO better
             if self._is_3d or not (len(Xsel.shape) == 4):
                 Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
+            real = self._backward_map(Xsel[:, :, :, 0])
+
             fake_image = self._generate_sample_safe(z_sel, Xsel)
             fake = self._backward_map(fake_image)
             fake = np.squeeze(fake)
+
+            if self.params['num_classes'] > 1:
+                raise ValueError("Sorry this is broken")
+                self._multiclass_l2_psd(feed_dict, X)
 
             psd_gen, _ = metrics.power_spectrum_batch_phys(
                 X1=fake, is_3d=self.is_3d)
@@ -988,7 +991,6 @@ class CosmoGAN(GAN):
                 mass_hist_fake)
             self._summary_writer.add_summary(summary_str, self._counter)
 
-            real = next(self._sum_data_iterator)
             # Descriptive Stats
             descr_fake = np.array([metrics.describe(x) for x in fake])
             descr_real = np.array([metrics.describe(x) for x in real])
