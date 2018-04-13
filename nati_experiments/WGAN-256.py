@@ -92,6 +92,8 @@ params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoin
 
 resume, params = utils.test_resume(try_resume, params)
 
+params['optimization']['epoch'] = 1000
+
 # Build the model
 
 wgan = CosmoGAN(params, WGanModel)

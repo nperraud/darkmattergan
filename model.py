@@ -678,17 +678,19 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
 
         # G) Summaries
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-        tf.summary.image("training/Input_Image", X_real, max_outputs=2, collections=['Images'])
-        tf.summary.image("training/Real_Diff", X_real - self.Xsu, max_outputs=2, collections=['Images'])
-        tf.summary.image("training/Fake_Diff", G_fake - self.Xsu, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Real_full_image", X_real, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_full_image", G_fake, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Downsample_X0", self.y, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Real_Diff", X_real - self.Xsu, max_outputs=1, collections=['Images'])
+        tf.summary.image("training/Fake_Diff", G_fake - self.Xsu, max_outputs=1, collections=['Images'])
         if True:
-            tf.summary.image("training/X0", X0, max_outputs=2, collections=['Images'])
-            tf.summary.image("training/X1", X1, max_outputs=1, collections=['Images'])
-            tf.summary.image("training/X2", X2, max_outputs=1, collections=['Images'])
-            tf.summary.image("training/X3", X3, max_outputs=1, collections=['Images'])
-            tf.summary.image("training/X1f", X1f, max_outputs=1, collections=['Images'])
-            tf.summary.image("training/X2f", X2f, max_outputs=1, collections=['Images'])
-            tf.summary.image("training/X3f", X3f, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X0", X0, max_outputs=2, collections=['Images'])
+            tf.summary.image("checking/X1", X1, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X2", X2, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X3", X3, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X1f", X1f, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X2f", X2f, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X3f", X3f, max_outputs=1, collections=['Images'])
 
     def generator(self, y, z, border, reuse, scope):
         return generator_up(y, z, self.params['generator'], y=border, reuse=reuse, scope=scope)

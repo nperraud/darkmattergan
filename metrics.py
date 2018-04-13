@@ -1,21 +1,18 @@
+"""This module contains the different metric functions."""
+
 import numpy as np
 from scipy import stats
 import power_spectrum_phys as ps
 import scipy.ndimage.filters as filters
 import itertools
-import os
 import utils
 import functools
 import multiprocessing as mp
-import data, utils
 
 
 def wrapper_func(x, bin_k=50, box_l=100 / 0.7):
-    return ps.power_spectrum(
-        field_x=ps.dens2overdens(np.squeeze(x), np.mean(x)),
-        box_l=box_l,
-        bin_k=bin_k)[0]
-
+    tmp = ps.dens2overdens(np.squeeze(x), np.mean(x))
+    return ps.power_spectrum(field_x=tmp, box_l=box_l, bin_k=bin_k)[0]
 
 def wrapper_func_cross(a,
                        X2,
@@ -37,15 +34,14 @@ def wrapper_func_cross(a,
             else:
                 over_dens_x = ps.dens2overdens(x.reshape(sx, sy))
                 over_dens_y = ps.dens2overdens(y.reshape(sx, sy))
-
-            _result.append(
-                ps.power_spectrum(
-                    field_x=over_dens_x,
-                    box_l=box_l,
-                    bin_k=bin_k,
-                    field_y=over_dens_y)[0])
+            tmp = ps.power_spectrum(
+                field_x=over_dens_x,
+                box_l=box_l,
+                bin_k=bin_k,
+                field_y=over_dens_y)[0]
+            # Nati: Why is there a [0] here. There is probably a good reason...
+            _result.append(tmp)
     return _result
-
 
 def power_spectrum_batch_phys(X1,
                               X2=None,
@@ -95,10 +91,8 @@ def power_spectrum_batch_phys(X1,
             # del over_dens
 
             # Make it multicore...
-            result = np.array(
-                pool.map(
-                    functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k),
-                    X1))
+            func = functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k)
+            result = np.array(pool.map(func, X1))
 
         else:
             if not (sx == sy):
@@ -107,70 +101,34 @@ def power_spectrum_batch_phys(X1,
             _result = []
             # for inx, x in enumerate(X1):
             #     # for iny, y in enumerate(X2):
-            #     #     # if it is a comparison with it self only do the low triangular matrix
+            #     #     # if it is a comparison with it self only do the low
+            #     #     # triangular matrix
             #     #     if (self_comp and (inx < iny)) or not self_comp:
             #     #         over_dens_x = ps.dens2overdens(x.reshape(sx, sy))
             #     #         over_dens_y = ps.dens2overdens(y.reshape(sx, sy))
             #     _result += wrapper_func_cross(
-            #         (inx, x), X2, self_comp, sx, sy, bin_k=50, box_l=100 / 0.7)
-            _result = pool.map(
-                functools.partial(
-                    wrapper_func_cross,
-                    X2=X2,
-                    self_comp=self_comp,
-                    sx=sx,
-                    sy=sy,
-                    sz=sz,
-                    bin_k=50,
-                    box_l=100 / 0.7,
-                    is_3d=is_3d), enumerate(X1))
+            #         (inx, x), X2, self_comp, sx, sy, bin_k=50, box_l=100/0.7)
+            func = functools.partial(
+                wrapper_func_cross,
+                X2=X2,
+                self_comp=self_comp,
+                sx=sx,
+                sy=sy,
+                sz=sz,
+                bin_k=50,
+                box_l=100 / 0.7,
+                is_3d=is_3d)
+            _result = pool.map(func, enumerate(X1))
             _result = list(itertools.chain.from_iterable(_result))
             result = np.array(_result)
 
     if remove_nan:
-        freq_index = ~np.isnan(result).any(axis=0) # Some frequencies are not defined, remove them
+        # Some frequencies are not defined, remove them
+        freq_index = ~np.isnan(result).any(axis=0)
         result = result[:, freq_index]
         k = k[freq_index]
 
     return result, k
-
-def power_spectrum_batch_phys_from_file_input(dir_list, image_size, k=10., max_num_psd=100, is_3d=False):
-    '''
-    calculate psd from data, stored as files on disk
-    dir_list = list of directories from files are to be read
-    '''
-    if type(dir_list) is not list:
-        raise ValueError("Path to directories not passed as list!!")
-
-    raw_hists_3d = []
-    forward_mapped_hists_3d = []
-    first = True
-    num_samples_read = 0
-
-    for dir_path in dir_list:
-        for file_name in os.listdir(dir_path):
-            file_path = os.path.join(dir_path, file_name)
-            forward_mapped_arr, raw_arr = data.read_tfrecords_from_file(file_path, image_size, k)
-
-            X1=utils.backward_map(forward_mapped_arr, k)
-            
-            psd_real, _ = power_spectrum_batch_phys(
-                            X1=X1,
-                            is_3d = is_3d, 
-                            remove_nan=False)
-
-            if first:
-                first = False
-                psd_real_vstacked = psd_real
-            else:
-                psd_real_vstacked = np.vstack((psd_real_vstacked, psd_real))
-
-            num_samples_read += X1.shape[0]
-            if(num_samples_read >= max_num_psd):
-                break
-
-    freq_index = ~np.isnan(psd_real_vstacked).any(axis=0) # Some frequencies are not defined, remove them
-    return psd_real_vstacked[:, freq_index]
 
 
 def histogram(x, bins, probability=True):
@@ -298,30 +256,52 @@ def diff_vec(y_real, y_fake):
     return l2, logel2, l1, logel1
 
 
-def peak_count_hist(real, fake, bins=20):
-    peak_real = np.array(
-        [peak_count(x, neighborhood_size=5, threshold=0) for x in real])
-    peak_fake = np.array(
-        [peak_count(x, neighborhood_size=5, threshold=0) for x in fake])
-    peak_real = np.log(np.hstack(peak_real))
-    peak_fake = np.log(np.hstack(peak_fake))
-    lim = (np.min(peak_real), np.max(peak_real))
-    y_real, x = np.histogram(peak_real, bins=bins, range=lim)
-    y_fake, _ = np.histogram(peak_fake, bins=bins, range=lim)
+def peak_count_hist(data, bins=20, lim=None):
+    """Make the histogram of the peak count of data.
+
+    Arguments
+    ---------
+    data : input data (numpy array, first dimension for the sample)
+    bins : number of bins for the histogram (default 20)
+    lim  : limit for the histogram, if None, then min(peak), max(peak)
+    """
+    peak = np.array(
+        [peak_count(x, neighborhood_size=5, threshold=0) for x in data])
+    peak = np.log(np.hstack(peak))
+    if lim is None:
+        lim = (np.min(peak), np.max(peak))
+    y, x = np.histogram(peak, bins=bins, range=lim)
     x = (x[1:] + x[:-1]) / 2
     # Normalization
-    y_real = y_real / real.shape[0]
-    y_fake = y_fake / fake.shape[0]
+    y = y / data.shape[0]
+    return y, x, lim
+
+
+def peak_count_hist_real_fake(real, fake, bins=20, lim=None):
+    y_real, x, lim = peak_count_hist(real, bins=bins, lim=lim)
+    y_fake, _, _ = peak_count_hist(fake, bins=bins, lim=lim)
     return y_real, y_fake, x
 
 
-def mass_hist(real, fake, bins=20):
-    log_real = np.log(real.flatten() + 1)
-    log_fake = np.log(fake.flatten() + 1)
-    lim = (np.min(log_real), np.max(log_real))
-    y_real, x = np.histogram(log_real, bins=20, range=lim)
-    y_fake, _ = np.histogram(log_fake, bins=20, range=lim)
-    x = (x[1:] + x[:-1]) / 2
-    y_real = y_real / real.shape[0]
-    y_fake = y_fake / fake.shape[0]
+def mass_hist(data, bins=20, lim=None):
+    """Make the histogram of log10(data) data.
+
+    Arguments
+    ---------
+    data : input data
+    bins : number of bins for the histogram (default 20)
+    lim  : limit for the histogram, if None then min(log10(data)), max(data)
+    """
+    log_data = np.log10(data.flatten() + 1)
+    if lim is None:
+        lim = (np.min(log_data), np.max(log_data))
+    y, x = np.histogram(log_data, bins=20, range=lim)
+    x = 10**((x[1:] + x[:-1]) / 2)
+    y = y / data.shape[0]
+    return y, x, lim
+
+
+def mass_hist_real_fake(real, fake, bins=20, lim=None):
+    y_real, x, lim = mass_hist(real, bins=bins, lim=lim)
+    y_fake, _, _ = mass_hist(fake, bins=bins, lim=lim)
     return y_real, y_fake, x
