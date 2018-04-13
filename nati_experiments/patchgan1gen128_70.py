@@ -18,7 +18,7 @@ import numpy as np
 
 ns = 128
 scaling = 4
-try_resume = False
+try_resume = True
 Mpch=70
 
 def forward(X):
@@ -112,6 +112,6 @@ obj = CosmoGAN(params, LapPatchWGANsingleModel)
 
 
 
-dataset = data.load.load_2d_dataset(resolution=256,Mpch=Mpch, forward_map=forward,spix=ns)
+dataset = data.load.load_dataset(resolution=256,Mpch=Mpch, forward_map=forward,spix=ns)
 
 obj.train(dataset=dataset, resume=resume)

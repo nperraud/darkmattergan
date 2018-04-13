@@ -1,5 +1,4 @@
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"]="0"
+# coding: utf-8
 
 import sys
 sys.path.insert(0, '../')
@@ -11,16 +10,25 @@ import data
 from model import WGanModel
 from gan import CosmoGAN
 import utils
+import numpy as np
 
 # Parameters
 
 ns = 64
-k = 20
 try_resume = False
-Mpch=350
+Mpch = 70
 
 
-time_str = 'single_{}'.format(Mpch)
+def forward(X):
+    return np.log(X**(1/2)+np.e)-2
+
+def backward(Xmap, max_value=2e5):
+    Xmap = np.clip(Xmap, -1.0, forward(max_value))
+    tmp = np.exp((Xmap+2))-np.e
+    return np.round(tmp*tmp)
+
+
+time_str = 'new_map_single_{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -44,7 +52,7 @@ params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = [4*4*64]
 params_generator['summary'] = True
-params_generator['non_lin'] = 'tanh'
+params_generator['non_lin'] = None
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
@@ -62,8 +70,10 @@ params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
 params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
-params_cosmology['k'] = k
-params_cosmology['Npsd'] = 500
+params_cosmology['forward_map'] = forward
+params_cosmology['backward_map'] = backward
+params_cosmology['Npsd'] = 1000
+
 
 params = dict()
 params['generator'] = params_generator
@@ -77,7 +87,7 @@ params['prior_distribution'] = 'gaussian'
 params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
-params['name'] = 'WGAN{}'.format(ns)
+params['name'] = name
 params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary/'
 params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
 
@@ -85,9 +95,8 @@ resume, params = utils.test_resume(try_resume, params)
 
 
 # Build the model
+wgan = CosmoGAN(params, WGanModel)
 
-obj = CosmoGAN(params, WGanModel)
+dataset = data.load.load_dataset(resolution=256, Mpch=Mpch, forward_map=forward, spix=ns)
 
-dataset = data.load.load_2d_dataset(resolution=256,Mpch=Mpch, k=k,spix=ns)
-
-obj.train(dataset=dataset, resume=resume)
+wgan.train(dataset=dataset, resume=resume)

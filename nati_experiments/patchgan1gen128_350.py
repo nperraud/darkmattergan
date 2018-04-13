@@ -37,10 +37,6 @@ global_path = '../../../saved_result/'
 
 name = 'LapPatchWGAN{}'.format(ns)
 
-
-
-
-
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 params_optimization['weight_l2'] = 0.1
@@ -53,9 +49,6 @@ params_optimization['beta1'] = 0.5
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 2000
-
-
-
 
 up_scaling = scaling
 new_ns = ns//scaling
@@ -114,7 +107,7 @@ obj = CosmoGAN(params, LapPatchWGANsingleModel)
 
 
 
-dataset = data.load.load_2d_dataset(resolution=256,Mpch=Mpch, forward_map=forward,spix=ns)
+dataset = data.load.load_dataset(resolution=256,Mpch=Mpch, forward_map=forward,spix=ns)
 
 
 obj.train(dataset=dataset, resume=resume)
