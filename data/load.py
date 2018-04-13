@@ -4,8 +4,9 @@ import utils
 import functools
 from data import gaussian_synthetic_data
 from data import path
-from data import transformation
+from data import transformation, fmap
 from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch
+
 
 import blocks
 
@@ -22,7 +23,7 @@ def load_data_from_dir(dir_path, k=10):
         raw_data.append(arr)
 
     raw_data = np.array(raw_data)
-    forward_mapped_data = utils.forward_map(raw_data, k)
+    forward_mapped_data = fmap.forward_map(raw_data, k)
 
     return forward_mapped_data, raw_data
 
@@ -39,7 +40,7 @@ def load_data_from_file(file_path, k=10):
             "Data stroed in file {} is not of type np.ndarray".format(
                 file_path))
 
-    forward_mapped_data = utils.forward_map(raw_data, k)
+    forward_mapped_data = fmap.forward_map(raw_data, k)
 
     return forward_mapped_data, raw_data
 
@@ -47,17 +48,17 @@ def load_data_from_file(file_path, k=10):
 def load_3d_synthetic_samples(nsamples, dim, k):
     images = 2 * gaussian_synthetic_data.generate_cubes( # Forward mapped
         nsamples=nsamples, cube_dim=dim) - 1.0
-    raw_images = utils.backward_map(images)
+    raw_images = fmap.backward_map(images)
 
-    return Dataset(images, shuffle=False, transform=None)
+    return Dataset_3d(images, spix=dim, shuffle=False, transform=None), raw_images
 
 
 def load_2d_synthetic_samples(nsamples, dim, k):
     images = 2 * gaussian_synthetic_data.generate_squares( # Forward mapped
         nsamples=nsamples, square_dim=dim) - 1.0
-    raw_images = utils.backward_map(images)
+    raw_images = fmap.backward_map(images)
 
-    return Dataset(images, shuffle=False, transform=None)
+    return Dataset_2d(images, spix=dim, shuffle=False, transform=None)
 
 
 def load_samples(nsamples=1000, shuffle=False, k=10, spix=256, map_scale=1., transform=None):
@@ -87,7 +88,7 @@ def load_samples(nsamples=1000, shuffle=False, k=10, spix=256, map_scale=1., tra
         p = np.random.permutation(nsamples)
         raw_images = raw_images[p]
 
-    images = utils.forward_map(raw_images, k=k, scale=map_scale)
+    images = fmap.forward_map(raw_images, k=k, scale=map_scale)
 
     dataset = Dataset(images, shuffle=False, transform=transform)
     return dataset
@@ -149,6 +150,7 @@ def load_dataset(
         scaling=1,
         is_3d=False,
         patch=False):
+
     ''' Load a 2D dataset object 
 
      Arguments
@@ -179,7 +181,7 @@ def load_dataset(
     if augmentation:
         # With the current implementation, 3d augmentation is not supported
         # for 2d scaling
-        if scaling>1:
+        if scaling>1 and not is_3d:
             t = transformation.random_transformation_2d
         else:
             t = transformation.random_transformation_3d
@@ -187,7 +189,6 @@ def load_dataset(
         t = None
     
     # 5) Make a dataset
-
     if patch:
         dataset = Dataset_2d_patch(images, spix=spix, shuffle=shuffle, transform=t)
     else:
@@ -197,6 +198,5 @@ def load_dataset(
             dataset = Dataset_2d(images, spix=spix, shuffle=shuffle, transform=t)
 
     return dataset
-
     
 
