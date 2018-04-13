@@ -32,6 +32,7 @@ def generate_samples(obj, N=None, checkpoint=None, **kwards):
 
 
 def compute_and_plot_psd(raw_images, gen_sample_raw, display=True, is_3d=False):
+    """Compute and plot PSD from raw images."""
     psd_real, x = metrics.power_spectrum_batch_phys(X1=raw_images, is_3d=is_3d)
     psd_real_mean = np.mean(psd_real, axis=0)
 

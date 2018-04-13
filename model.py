@@ -49,7 +49,7 @@ class WGanModel(GanModel):
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         self._G_loss = -D_loss_f                     # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         
-        wgan_summaries(-1*self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -719,7 +719,7 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
 #         return G_fake, D_real, D_fake, Xs, G_fake_s
 
 def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r):
-    tf.summary.scalar("Disc/Loss", D_loss, collections=["Training"])
+    tf.summary.scalar("Disc/Neg_Loss", -D_loss, collections=["Training"])
     tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
     tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
     tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])

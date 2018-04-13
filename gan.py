@@ -927,10 +927,13 @@ class CosmoGAN(GAN):
 
             z_sel = self._sample_latent(self._stats['N'])
             Xsel = next(self._sum_data_iterator)
+
             # TODO better
             if self._is_3d or not (len(Xsel.shape) == 4):
                 Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
-            real = self._backward_map(Xsel[:, :, :, 0])
+                real = self._backward_map(Xsel[:, :, :, :, 0])
+            else:
+                real = self._backward_map(Xsel[:, :, :, 0])
 
             fake_image = self._generate_sample_safe(z_sel, Xsel)
             fake = self._backward_map(fake_image)
