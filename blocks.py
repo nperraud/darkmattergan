@@ -54,16 +54,29 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
         return bn
 
 
-def downsample(imgs, s):
+def downsample(imgs, s, is_3d):
     # To be rewritten in numpy
-    imgs = np.expand_dims(imgs, axis=4) # 1 extra dim for channels
+    if is_3d:
+        imgs = np.expand_dims(imgs, axis=4) # 1 extra dim for channels
 
-    x = tf.placeholder(tf.float32, shape=imgs.shape, name='x')
-    xd = down_sampler(x, s=s, is_3d=True)
-    with tf.Session() as sess:
-        img_d = sess.run(xd, feed_dict={x: imgs})
+        x = tf.placeholder(tf.float32, shape=imgs.shape, name='x')
+        xd = down_sampler(x, s=s, is_3d=True)
+        with tf.Session() as sess:
+            img_d = sess.run(xd, feed_dict={x: imgs})
 
-    return np.squeeze(img_d)
+        return np.squeeze(img_d)
+
+    else:
+        if len(imgs.shape)<3:
+            imgs = np.expand_dims(imgs, axis=3)
+        x = tf.placeholder(tf.float32, shape=[*imgs.shape[:3],1], name='x')
+        xd = down_sampler(x, s=s)
+        with tf.Session() as sess:
+            img_d = []
+            for i in range(imgs.shape[3]):
+                curr_img = np.expand_dims(imgs[:,:,:,i], axis=3)
+                img_d.append(sess.run(xd, feed_dict={x: curr_img}))
+        return np.squeeze(np.concatenate(img_d, axis=3))
 
 
 
