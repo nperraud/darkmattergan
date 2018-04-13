@@ -25,12 +25,13 @@ if __name__ == "__main__":
 	ns = 32
 	nsamples = 1000
 	k = 10
+	try_resume = True
 
 	#images, raw_images = load_3d_synthetic_samples(nsamples = nsamples,dim=ns, k=k)
 
 	dataset = data.load.load_dataset(resolution=256, Mpch=350, spix=ns, forward_map=utils.forward_map, is_3d=True)
 
-	time_str = current_time_str() 
+	time_str = 'ncritic_10_lambda_10_k_10_' 
 	global_path = '../saved_result/'
 	name = 'WGAN{}'.format(ns)
 
@@ -52,7 +53,7 @@ if __name__ == "__main__":
 	params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 	params_generator['full'] = [2*2*2*8]
 	params_generator['summary'] = True
-	params_generator['non_lin'] = 'tanh'
+	params_generator['non_lin'] = None
 	
 	params_optimization = dict()
 	params_optimization['n_critic'] = 10
@@ -86,11 +87,13 @@ if __name__ == "__main__":
 	params['prior_distribution'] = 'gaussian'
 	params['sum_every'] = 200
 	params['viz_every'] = 200
-	params['print_every'] = 200
-	params['save_every'] = 4000
+	params['print_every'] = 100
+	params['save_every'] = 2000
 	params['name'] = name
 	params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
 	params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
 
+	resume, params = utils.test_resume(try_resume, params)
+
 	wgan = CosmoGAN(params, WGanModel, is_3d=True)
-	wgan.train(dataset)
+	wgan.train(dataset, resume=resume)

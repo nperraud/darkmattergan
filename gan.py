@@ -364,7 +364,9 @@ class GAN(object):
                             X_real = np.resize(batch_real,
                                                [*batch_real.shape, 1])
 
-                        for _ in range(5):
+                        X_real = np.resize(batch_real, [*batch_real.shape, 1])
+                        
+                        for _ in range(self.params['optimization']['n_critic']):
                             sample_z = self._sample_latent(self.batch_size)
                             _, loss_d = self._sess.run(
                                 [self._D_solver, self._D_loss],
@@ -871,7 +873,7 @@ class CosmoGAN(GAN):
 
     def train(self, dataset, resume=False):
         X = dataset.get_all_data()
-
+        
         if resume:
             self._stats = self.params['cosmology']['stats']
         else:
@@ -925,14 +927,18 @@ class CosmoGAN(GAN):
 
             z_sel = self._sample_latent(self._stats['N'])
             Xsel = next(self._sum_data_iterator)
+
             # TODO better
             if self._is_3d or not (len(Xsel.shape) == 4):
                 Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
-            if not self._is_3d:
-                Xsel = Xsel[:, :, :, 0]
-            real = self._backward_map(Xsel)
 
             fake_image = self._generate_sample_safe(z_sel, Xsel)
+            
+            if not self._is_3d:
+                Xsel = Xsel[:, :, :, 0]
+
+            real = self._backward_map(Xsel)
+
             fake = self._backward_map(fake_image)
             fake = np.squeeze(fake)
 
