@@ -1,9 +1,9 @@
 import socket
 import os
 
-def data_path(spix=256):  
-    ''' Will be removed in the futur '''
-    return '/scratch/snx3000/nperraud/nati-gpu/data/size{}_splits1000_n500x3/'.format(spix)
+# def data_path(spix=256):  
+#     ''' Will be removed in the futur '''
+#     return '/scratch/snx3000/nperraud/nati-gpu/data/size{}_splits1000_n500x3/'.format(spix)
 
 def root_path():
     ''' Defining the different root path using the host name '''
