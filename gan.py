@@ -850,7 +850,10 @@ class CosmoGAN(GAN):
         self._stats['x_peak'] = x_peak
         self._stats['lim_peak'] = lim_peak
 
-        mass_hist_real, x_mass, lim_mass = metrics.mass_hist(data=real)
+        mass_hist_real, _, lim_mass = metrics.mass_hist(data=real)
+        lim_mass = list(lim_mass)
+        lim_mass[1] = lim_mass[1]+1
+        mass_hist_real, x_mass, lim_mass = metrics.mass_hist(data=real, lim=lim_mass)
         self._stats['mass_hist_real'] = mass_hist_real
         self._stats['x_mass'] = x_mass
         self._stats['lim_mass'] = lim_mass
@@ -928,11 +931,12 @@ class CosmoGAN(GAN):
             # TODO better
             if self._is_3d or not (len(Xsel.shape) == 4):
                 Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
+
+            fake_image = self._generate_sample_safe(z_sel, Xsel)
             if not self._is_3d:
                 Xsel = Xsel[:, :, :, 0]
             real = self._backward_map(Xsel)
 
-            fake_image = self._generate_sample_safe(z_sel, Xsel)
             fake = self._backward_map(fake_image)
             fake = np.squeeze(fake)
 

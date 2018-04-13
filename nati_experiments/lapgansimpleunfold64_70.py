@@ -16,7 +16,7 @@ import numpy as np
 
 
 ns = 64
-try_resume = True
+try_resume = False
 Mpch=70
 upscaling = 4
 
