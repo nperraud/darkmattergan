@@ -931,11 +931,14 @@ class CosmoGAN(GAN):
             # TODO better
             if self._is_3d or not (len(Xsel.shape) == 4):
                 Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
-                real = self._backward_map(Xsel[:, :, :, :, 0])
-            else:
-                real = self._backward_map(Xsel[:, :, :, 0])
 
             fake_image = self._generate_sample_safe(z_sel, Xsel)
+            
+            if not self._is_3d:
+                Xsel = Xsel[:, :, :, 0]
+
+            real = self._backward_map(Xsel)
+
             fake = self._backward_map(fake_image)
             fake = np.squeeze(fake)
 
