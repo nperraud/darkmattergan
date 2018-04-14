@@ -30,6 +30,8 @@ def main():
         params['summary_dir'] = 'tboard/' + params['name'] + '_' + time_str + 'summary/'
         params['save_dir'] = 'checkp/' + params['name'] + '_' + time_str + 'checkpoints/'
 
+    params['generator']['non_lin'] = None
+
     print("All params")
     print(params)
     print("\nDiscriminator Params")
