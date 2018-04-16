@@ -341,19 +341,15 @@ class GAN(object):
                 prev_iter_time = start_time
 
                 while epoch < self._n_epoch:
-                    if self.params['file_input']:
-                        # Initialize iterator with the training dataset
-                        self._sess.run(self.training_init_op)
-
                     for idx, batch_real in enumerate(
                             dataset.iter(self.batch_size)):
                         if resume:
-                            epoch = self.params['curr_epochs']
+                            # epoch = self.params['curr_epochs']
                             # idx = self.params['curr_idx']
                             self._counter = self.params['curr_counter']
                             resume = False
                         else:
-                            self.params['curr_epochs'] = epoch
+                            # self.params['curr_epochs'] = epoch
                             # self.params['curr_idx'] = idx
                             self.params['curr_counter'] = self._counter
 
@@ -363,8 +359,6 @@ class GAN(object):
                         else:
                             X_real = np.resize(batch_real,
                                                [*batch_real.shape, 1])
-
-                        X_real = np.resize(batch_real, [*batch_real.shape, 1])
                         
                         for _ in range(self.params['optimization']['n_critic']):
                             sample_z = self._sample_latent(self.batch_size)

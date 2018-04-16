@@ -45,9 +45,10 @@ class WGanModel(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-
-        self._D_loss = -(D_loss_r - D_loss_f) + D_gp # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
-        self._G_loss = -D_loss_f                     # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
         
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
@@ -92,7 +93,9 @@ class CondWGanModel(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        self._D_loss = D_loss_f - D_loss_r + D_gp
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
@@ -121,7 +124,9 @@ class TemporalGanModel(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        self._D_loss = D_loss_f - D_loss_r + D_gp
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
@@ -219,7 +224,9 @@ class TemporalGanModelv3(GanModel):
 
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        self._D_loss = D_loss_f - D_loss_r + D_gp
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
@@ -305,8 +312,10 @@ class LapGanModel(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
-        self._D_loss = D_loss_f + D_loss_r + D_gp
-        self._G_loss = - tf.reduce_mean(self.D_fake)
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
         tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
@@ -339,8 +348,10 @@ class LapGanModelTanh(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
-        self._D_loss = D_loss_f + D_loss_r + D_gp
-        self._G_loss = - tf.reduce_mean(self.D_fake)
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
         tf.summary.image("training/Input_Image", self.Xs, max_outputs=2, collections=['Images'])
         tf.summary.image("training/Real_Diff", X - self.Xsu, max_outputs=2, collections=['Images'])
@@ -365,7 +376,9 @@ class Gan12Model(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        self._D_loss = D_loss_f - D_loss_r + D_gp
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
@@ -433,8 +446,10 @@ class LapPatchWGANModel(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
-        self._D_loss = - D_loss_f + D_loss_r + D_gp
-        self._G_loss = tf.reduce_mean(self.D_fake)
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
 
         # G) Summaries
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
@@ -533,8 +548,10 @@ class LapPatchWGANsingleModel(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
-        self._D_loss = - D_loss_f + D_loss_r + D_gp
-        self._G_loss = tf.reduce_mean(self.D_fake)
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
 
         # G) Summaries
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
@@ -589,7 +606,7 @@ class LapPatchWGANsimpleModel(GanModel):
 
         # E) Discriminator
         self.Xsu = up_sampler(self.y, s=self.upsampling)
-        self.D_real = - self.discriminator(X0, self.Xsu, flip_border, reuse=False)
+        self.D_real = self.discriminator(X0, self.Xsu, flip_border, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, self.Xsu, flip_border, reuse=True)
 
         # F) Losses
@@ -598,8 +615,10 @@ class LapPatchWGANsimpleModel(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu, flip_border], [X0, self.Xsu, flip_border])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
-        self._D_loss = D_loss_r + D_loss_f + D_gp
-        self._G_loss = - D_loss_f
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
 
         # G) Summaries
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
@@ -666,7 +685,7 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
 
         # E) Discriminator
         self.Xsu = up_sampler(Xs_full, s=self.upsampling)
-        self.D_real = - self.discriminator(X_real, self.Xsu, reuse=False)
+        self.D_real = self.discriminator(X_real, self.Xsu, reuse=False)
         self.D_fake = self.discriminator(G_fake, self.Xsu, reuse=True)
 
         # F) Losses
@@ -675,8 +694,10 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, self.Xsu], [X_real, self.Xsu])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
-        self._D_loss = D_loss_r + D_loss_f + D_gp
-        self._G_loss = - D_loss_f
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
 
         # G) Summaries
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)

@@ -83,7 +83,7 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, display=True, is_3d=False):
 
 def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
     """Compute and plot peak count histogram from raw images."""
-    y_real, y_fake, x = metrics.peak_count_hist(raw_images, gen_sample_raw)
+    y_real, y_fake, x = metrics.peak_count_hist_real_fake(raw_images, gen_sample_raw)
     l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
     if display:
         print('Log l2 Peak Count loss: {}\n'
@@ -101,8 +101,8 @@ def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
             "marker": "o",
             "linestyle": "-"
         }
-        ax.plot(np.exp(x), y_fake, label="Fake", color='r', **linestyle)
-        ax.plot(np.exp(x), y_real, label="Real", color='b', **linestyle)
+        ax.plot(x, y_fake, label="Fake", color='r', **linestyle)
+        ax.plot(x, y_real, label="Real", color='b', **linestyle)
 
         # ax.set_ylim(bottom=0.1)
         ax.title.set_text("Peak count\n")
@@ -114,7 +114,7 @@ def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
 
 def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
     """Compute and plot mass histogram from raw images."""
-    y_real, y_fake, x = metrics.mass_hist(raw_images, gen_sample_raw)
+    y_real, y_fake, x = metrics.mass_hist_real_fake(raw_images, gen_sample_raw)
     l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
     if display:
         print('Log l2 Mass histogram loss: {}\n'
@@ -132,8 +132,8 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
             "marker": "o",
             "linestyle": "-"
         }
-        ax.plot(np.exp(x), y_fake, label="Fake", color='r', **linestyle)
-        ax.plot(np.exp(x), y_real, label="Real", color='b', **linestyle)
+        ax.plot(x, y_fake, label="Fake", color='r', **linestyle)
+        ax.plot(x, y_real, label="Real", color='b', **linestyle)
 
         # ax.set_ylim(bottom=0.1)
         ax.title.set_text("Mass histogram\n")

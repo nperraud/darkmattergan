@@ -17,7 +17,7 @@ import numpy as np
 
 
 ns = 256
-try_resume = True
+try_resume = False
 Mpch = 70
 
 def forward(X):
@@ -64,7 +64,7 @@ params_optimization['gen_learning_rate'] = 3e-5
 params_optimization['beta1'] = 0.5
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
-params_optimization['epoch'] = 100
+params_optimization['epoch'] = 1000
 
 params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
@@ -72,7 +72,7 @@ params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
 params_cosmology['forward_map'] = forward
 params_cosmology['backward_map'] = backward
-params_cosmology['Npsd'] = 1000
+params_cosmology['Nstats'] = 1000
 
 params = dict()
 params['generator'] = params_generator
@@ -91,8 +91,6 @@ params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary
 params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
 
 resume, params = utils.test_resume(try_resume, params)
-
-params['optimization']['epoch'] = 1000
 
 # Build the model
 
