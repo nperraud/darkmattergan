@@ -946,7 +946,14 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
 
 
 def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
+    """
 
+    Arguments
+    ---------
+    X       : Low sampled image
+    z       : Latent variable (same size as X)
+    y       : border added a layer param['y_layer']
+    """
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
@@ -970,7 +977,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
         for i in range(nconv):
             sx = sx * params['stride'][i]
             if (y is not None) and (params['y_layer'] == i):
-                rprint('     Merge input y of size{}'.format(y.shape), reuse)                 
+                rprint('     Merge input y of size{}'.format(y.shape), reuse)
                 x = tf.concat([x,y],axis=3)
                 rprint('     Concat x and y to {}'.format(x.shape), reuse) 
             x = deconv2d(x,
