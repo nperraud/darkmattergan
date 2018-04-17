@@ -18,5 +18,5 @@ def root_path():
     else:
         # This should be done in a different way
         utils_module_path = os.path.dirname(__file__)
-        rootpath = utils_module_path + '/../../data/'
+        rootpath = utils_module_path + '/../../pre_processed_data/'
     return rootpath
