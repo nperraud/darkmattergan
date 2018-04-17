@@ -302,6 +302,15 @@ def mass_hist(data, bins=20, lim=None):
 
 
 def mass_hist_real_fake(real, fake, bins=20, lim=None):
+    if lim is None:
+        new_lim = True
+    else:
+        new_lim = False
     y_real, x, lim = mass_hist(real, bins=bins, lim=lim)
+    if new_lim:
+        lim = list(lim)
+        lim[1] = lim[1]+1
+        y_real, x, lim = mass_hist(real, bins=bins, lim=lim)
+
     y_fake, _, _ = mass_hist(fake, bins=bins, lim=lim)
     return y_real, y_fake, x

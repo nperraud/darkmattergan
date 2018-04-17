@@ -29,7 +29,7 @@ def backward(Xmap, max_value=2e5):
     return np.round(tmp*tmp)
 
 
-time_str = 'large_{}'.format(Mpch)
+time_str = 'test_reg{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 name = 'LapPatchsimpleUnfold{}'.format(ns)
@@ -39,21 +39,21 @@ latent_dim = new_ns**2
 bn = False
 
 params_discriminator = dict()
-params_discriminator['stride'] = [1, 2, 1, 2, 2, 1]
-params_discriminator['nfilter'] = [16, 64, 128, 256, 128, 64]
-params_discriminator['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5], [5, 5], [3, 3]]
-params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
+params_discriminator['stride'] = [2, 2, 2, 1]
+params_discriminator['nfilter'] = [16, 64, 128, 16]
+params_discriminator['shape'] = [[5, 5], [5, 5], [5, 5], [3, 3]]
+params_discriminator['batch_norm'] = [bn, bn, bn, bn]
 params_discriminator['full'] = [64]
 params_discriminator['summary'] = True
-params_discriminator['minibatch_reg'] = False
+params_discriminator['minibatch_reg'] = True
 
 params_generator = dict()
-params_generator['stride'] = [2, 1, 2, 1, 1, 1, 1]
-params_generator['y_layer'] = 4
+params_generator['stride'] = [2, 2, 1, 1, 1]
+params_generator['y_layer'] = 2
 params_generator['latent_dim'] = latent_dim
-params_generator['nfilter'] = [64, 128, 256, 128, 64, 32, 1]
-params_generator['shape'] = [[3, 3], [5, 5], [5, 5], [5, 5], [5, 5], [5, 5], [5, 5]]
-params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
+params_generator['nfilter'] = [64, 128, 64, 32, 1]
+params_generator['shape'] = [[3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
+params_generator['batch_norm'] = [bn, bn, bn, bn]
 params_generator['full'] = []
 params_generator['summary'] = True
 params_generator['non_lin'] = None

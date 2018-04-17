@@ -341,19 +341,15 @@ class GAN(object):
                 prev_iter_time = start_time
 
                 while epoch < self._n_epoch:
-                    if self.params['file_input']:
-                        # Initialize iterator with the training dataset
-                        self._sess.run(self.training_init_op)
-
                     for idx, batch_real in enumerate(
                             dataset.iter(self.batch_size)):
                         if resume:
-                            epoch = self.params['curr_epochs']
+                            # epoch = self.params['curr_epochs']
                             # idx = self.params['curr_idx']
                             self._counter = self.params['curr_counter']
                             resume = False
                         else:
-                            self.params['curr_epochs'] = epoch
+                            # self.params['curr_epochs'] = epoch
                             # self.params['curr_idx'] = idx
                             self.params['curr_counter'] = self._counter
 
@@ -363,8 +359,6 @@ class GAN(object):
                         else:
                             X_real = np.resize(batch_real,
                                                [*batch_real.shape, 1])
-
-                        X_real = np.resize(batch_real, [*batch_real.shape, 1])
                         
                         for _ in range(self.params['optimization']['n_critic']):
                             sample_z = self._sample_latent(self.batch_size)
@@ -852,7 +846,10 @@ class CosmoGAN(GAN):
         self._stats['x_peak'] = x_peak
         self._stats['lim_peak'] = lim_peak
 
-        mass_hist_real, x_mass, lim_mass = metrics.mass_hist(data=real)
+        mass_hist_real, _, lim_mass = metrics.mass_hist(data=real)
+        lim_mass = list(lim_mass)
+        lim_mass[1] = lim_mass[1]+1
+        mass_hist_real, x_mass, lim_mass = metrics.mass_hist(data=real, lim=lim_mass)
         self._stats['mass_hist_real'] = mass_hist_real
         self._stats['x_mass'] = x_mass
         self._stats['lim_mass'] = lim_mass
@@ -933,7 +930,6 @@ class CosmoGAN(GAN):
                 Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
 
             fake_image = self._generate_sample_safe(z_sel, Xsel)
-            
             if not self._is_3d:
                 Xsel = Xsel[:, :, :, 0]
 

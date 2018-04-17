@@ -5,10 +5,6 @@ def default_params(params=dict()):
 
     # Global parameters
     # -----------------
-    params['file_input'] = params.get('file_input', False)
-    # Whether samples to be read from files
-    params['samples_dir_paths'] = params.get('samples_dir_paths', '')
-    # The directory paths on disk where the samples are stored as files
     params['print_every'] = params.get('print_every', 100)
     # Print the losses in the consol every 'print_every' iterations
     params['save_every'] = params.get('save_every', 100)
@@ -26,7 +22,7 @@ def default_params(params=dict()):
     # Prior distribution to sample from ('Gaussian','Uniform',...)
     params['num_classes'] = params.get('num_classes', 1)
     # Number of classes to condition on
-    params['image_size'] = params.get('image_size', [16, 16, 16])
+    params['image_size'] = params.get('image_size', [32, 32, 1])
     # size of input image
 
 
@@ -53,6 +49,8 @@ def default_params(params=dict()):
         'enc_learning_rate', 3e-5)
     params['optimization']['disc_learning_rate'] = params['optimization'].get(
         'disc_learning_rate', 3e-5)
+    params['optimization']['n_critic'] = params['optimization'].get(
+        'n_critic', 5)
 
     # Generator parameters
     # --------------------
