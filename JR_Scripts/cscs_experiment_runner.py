@@ -80,7 +80,7 @@ def main():
     for i in range(10):
         x = utils.load_hdf5(path.root_path() + 'Mpc500_10_redshifts.h5', dataset_name=str(i))
         print(x.shape)
-        data[i] = block_reduce(x)
+        data[9-i] = block_reduce(x)
 
     if params['num_classes'] == 8:
         data = np.asarray([data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]])
