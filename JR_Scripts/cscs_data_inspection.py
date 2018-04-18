@@ -33,11 +33,11 @@ def main():
     # Generate data
     data = np.zeros((10, 100, 256, 256))
     for i in range(10):
-        x = utils.load_hdf5('/scratch/snx3000/nperraud/pre_processed_data/Mpc500_10_redshifts.h5', dataset_name=str(i))
+        x = utils.load_hdf5('/scratch/snx3000/nperraud/pre_processed_data/Mpc100_10_redshifts.h5', dataset_name=str(i))
         print(x.shape)
         data[i] = x[:100]
 
-    utils.save_hdf5(data, "/scratch/snx3000/rosenthj/data/data.h5", dataset_name="data")
+    utils.save_hdf5(data, "/scratch/snx3000/rosenthj/data/data100.h5", dataset_name="data")
 
     # Train model
     return 0

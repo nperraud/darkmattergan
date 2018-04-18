@@ -78,7 +78,7 @@ def main():
     # Generate data
     data = np.zeros((10, 3000, 128, 128))
     for i in range(10):
-        x = utils.load_hdf5(path.root_path() + 'Mpc500_10_redshifts.h5', dataset_name=str(i))
+        x = utils.load_hdf5(path.root_path() + 'Mpc100_10_redshifts.h5', dataset_name=str(i))
         print(x.shape)
         data[9-i] = block_reduce(x)
 
