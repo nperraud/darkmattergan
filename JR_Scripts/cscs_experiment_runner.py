@@ -8,13 +8,21 @@ from gan import CosmoGAN
 import numpy as np
 import pickle
 from data import Dataset, fmap, path
-from skimage.measure import block_reduce
 
 
 def current_time_str():
     import time, datetime
     d = datetime.datetime.fromtimestamp(time.time())
     return str(d.year) + '_' + str(d.month)+ '_' + str(d.day) + '_' + str(d.hour) + '_' + str(d.minute)
+
+
+def block_reduce(data):
+    d = np.zeros((data.shape[0], data.shape[1]//2, data.shape[2]//2))
+    d = d + data[:,::2,::2]
+    d = d + data[:,::2,1::2]
+    d = d + data[:,1::2,::2]
+    d = d + data[:,1::2,1::2]
+    return d
 
 
 def main():
@@ -72,7 +80,7 @@ def main():
     for i in range(10):
         x = utils.load_hdf5(path.root_path() + 'Mpc500_10_redshifts.h5', dataset_name=str(i))
         print(x.shape)
-        data[i] = block_reduce(x, (1,2,2))
+        data[i] = block_reduce(x)
 
     if params['num_classes'] == 8:
         data = np.asarray([data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]])
