@@ -15,7 +15,7 @@ import numpy as np
 # Parameters
 
 ns = 64
-try_resume = False
+try_resume = True
 Mpch = 70
 
 

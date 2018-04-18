@@ -820,6 +820,18 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d
 
     return out_tensor
 
+def apply_non_lin(non_lin, x, reuse):
+    if non_lin:
+        if type(non_lin)==str:
+            non_lin_f = getattr(tf, params['non_lin'])
+            x = non_lin_f(x)
+            rprint('    Non lienarity: {}'.format(non_lin), reuse)
+        else:
+            x = non_lin(x)
+            rprint('    Custum non lienarity: {}'.format(non_lin), reuse)
+
+    return x
+
 def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     conv = get_conv(params['is_3d'])
 
@@ -936,10 +948,8 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                 x = lrelu(x)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
-        if params['non_lin']:
-            non_lin_f = getattr(tf, params['non_lin'])
-            x = non_lin_f(x)
-            rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+        x = apply_non_lin(params['non_lin'], x, reuse)
+
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint('------------------------------------------------------------\n', reuse)
     return x
@@ -994,10 +1004,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                 x = lrelu(x)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
-        if params['non_lin']:
-            non_lin_f = getattr(tf, params['non_lin'])
-            x = non_lin_f(x)
-            rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+        x = apply_non_lin(params['non_lin'], x, reuse)
         # Xu = up_sampler(X, params['upsampling'])
         # x = x + Xu
         rprint('     The output is of size {}'.format(x.shape), reuse)
@@ -1126,11 +1133,11 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
         imgt = img
         for i in range(nconv_border):
             imgt = conv2d(imgt,
-                       nf_out=params_border['nfilter'][i],
-                       shape=params_border['shape'][i],
-                       stride=params_border['stride'][i],
-                       name='{}_conv'.format(i),
-                       summary=params['summary'])
+                          nf_out=params_border['nfilter'][i],
+                          shape=params_border['shape'][i],
+                          stride=params_border['stride'][i],
+                          name='{}_conv'.format(i),
+                          summary=params['summary'])
             rprint('     BORDER: {} Conv layer with {} channels'.format(i, params_border['nfilter'][i]), reuse)
             if params_border['batch_norm'][i]:
                 imgt = batch_norm(imgt, name='{}_border_bn'.format(i), train=True)
