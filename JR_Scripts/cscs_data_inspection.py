@@ -30,19 +30,10 @@ def main():
     print(params['cosmology'])
     print()
 
-    if not os.path.exists(params['summary_dir']):
-        os.makedirs(params['summary_dir'])
-    utils.save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
-    utils.save_dict_for_humans(params['summary_dir'] + 'params.txt', params)
-    if not os.path.exists(params['save_dir']):
-        os.makedirs(params['save_dir'])
-    utils.save_dict_pickle(params['save_dir'] + 'params.pkl', params)
-    utils.save_dict_for_humans(params['save_dir'] + 'params.txt', params)
-
     # Generate data
     data = np.zeros((10, 100, 256, 256))
     for i in range(10):
-        x = utils.load_hdf5(path.root_path() + 'Mpc500_10_redshifts.h5', dataset_name=str(i))
+        x = utils.load_hdf5('/scratch/snx3000/nperraud/pre_processed_data/Mpc500_10_redshifts.h5', dataset_name=str(i))
         print(x.shape)
         data[i] = x[:100]
 
