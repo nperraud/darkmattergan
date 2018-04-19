@@ -39,7 +39,7 @@ def main():
         params['summary_dir'] = 'tboard/' + params['name'] + '_' + time_str + 'summary/'
         params['save_dir'] = 'checkp/' + params['name'] + '_' + time_str + 'checkpoints/'
 
-    #params['generator']['non_lin'] = None
+    params['generator']['non_lin'] = None
 
     print("All params")
     print(params)
@@ -97,8 +97,8 @@ def main():
     data = data.swapaxes(0,1)
     data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     data = data.astype(np.float32)
-    data = fmap.forward_map(data, params['cosmology']['k'], 0.98)
-#    data = fmap.forward(data)
+#    data = fmap.forward_map(data, params['cosmology']['k'], 0.98)
+    data = fmap.forward(data * 0.2)
 
     data = Dataset.Dataset(data, shuffle=False)
 
