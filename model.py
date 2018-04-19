@@ -804,19 +804,19 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d
     if is_3d:
         output_shape = [bs, sx, sx, sx, n_filters]
         out_tensor = deconv3d(in_tensor,
-                 output_shape=output_shape,
-                 shape=shape,
-                 stride=stride,
-                 name='{}_deconv_3d'.format(conv_num),
-                 summary=summary)
+                              output_shape=output_shape,
+                              shape=shape,
+                              stride=stride,
+                              name='{}_deconv_3d'.format(conv_num),
+                              summary=summary)
     else:
         output_shape = [bs, sx, sx, n_filters]
         out_tensor = deconv2d(in_tensor,
-                 output_shape=output_shape,
-                 shape=shape,
-                 stride=stride,
-                 name='{}_deconv'.format(conv_num),
-                 summary=summary)
+                              output_shape=output_shape,
+                              shape=shape,
+                              stride=stride,
+                              name='{}_deconv'.format(conv_num),
+                              summary=summary)
 
     return out_tensor
 
@@ -850,11 +850,11 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
         for i in range(nconv):
             x = conv(x,
-                       nf_out=params['nfilter'][i],
-                       shape=params['shape'][i],
-                       stride=params['stride'][i],
-                       name='{}_conv'.format(i),
-                       summary=params['summary'])
+                     nf_out=params['nfilter'][i],
+                     shape=params['shape'][i],
+                     stride=params['stride'][i],
+                     name='{}_conv'.format(i),
+                     summary=params['summary'])
             rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
             if params['batch_norm'][i]:
                 x = batch_norm(x, name='{}_bn'.format(i), train=True)
@@ -925,14 +925,14 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
         for i in range(nconv):
             sx = sx * params['stride'][i]
             x = deconv(in_tensor=x, 
-                            bs=bs, 
-                            sx=sx,
-                            n_filters=params['nfilter'][i],
-                            shape=params['shape'][i],
-                            stride=params['stride'][i],
-                            summary=params['summary'],
-                            conv_num=i,
-                            is_3d=params['is_3d'])
+                       bs=bs, 
+                       sx=sx,
+                       n_filters=params['nfilter'][i],
+                       shape=params['shape'][i],
+                       stride=params['stride'][i],
+                       summary=params['summary'],
+                       conv_num=i,
+                       is_3d=params['is_3d'])
 
             # If we are running on Leonhard we need to reshape in order for TF
             # to explicitly know the shape of the tensor. Machines with newer
@@ -969,7 +969,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
     nconv = len(params['stride'])
 
     with tf.variable_scope(scope, reuse=reuse):
-        rprint('Generator \n------------------------------------------------------------', reuse)
+        rprint('Generator \n'+''.join(['-']*50), reuse)
         rprint('     The input X is of size {}'.format(X.shape), reuse)
 
         rprint('     The input z is of size {}'.format(z.shape), reuse)
@@ -978,11 +978,11 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
         bs = tf.shape(X)[0]  # Batch size
         sx = X.shape.as_list()[1]
         sy = X.shape.as_list()[2]
-        z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img')        
+        z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img')
         rprint('     Reshape z to {}'.format(z.shape), reuse)
 
         x = tf.concat([X, z], axis=3)
-        rprint('     Concat x and z to {}'.format(x.shape), reuse)      
+        rprint('     Concat x and z to {}'.format(x.shape), reuse)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
@@ -1008,66 +1008,9 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
         # Xu = up_sampler(X, params['upsampling'])
         # x = x + Xu
         rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint((''.join(['-']*50)+'\n', reuse)
     return x
 
-
-# def generator_up(X, z, params, reuse=True, scope="generator_up"):
-
-#     assert(len(params['stride']) ==
-#            len(params['nfilter']) ==
-#            len(params['batch_norm'])+1)
-#     nconv = len(params['stride'])
-#     nfull = len(params['full'])
-
-#     params_encoder = params['encoder']
-#     assert(len(params_encoder['stride']) == len(params_encoder['nfilter'])
-#            == len(params_encoder['batch_norm']))
-#     nconv_encoder = len(params_encoder['stride'])
-#     with tf.variable_scope(scope):
-#         rprint('Encoder block \n------------------------------------------------------------', reuse)
-
-#         rprint('     ENCODER:  The input is of size {}'.format(X.shape), reuse)
-#         imgt = X
-#         for i in range(nconv_encoder):
-#             imgt = conv2d(imgt,
-#                        nf_out=params_encoder['nfilter'][i],
-#                        shape=params_encoder['shape'][i],
-#                        stride=params_encoder['stride'][i],
-#                        name='{}_conv'.format(i),
-#                        summary=params['summary'])
-#             rprint('     ENCODER: {} Conv layer with {} channels'.format(i, params_encoder['nfilter'][i]), reuse)
-#             if params_encoder['batch_norm'][i]:
-#                 imgt = batch_norm(imgt, name='{}_border_bn'.format(i), train=True)
-#                 rprint('         Batch norm', reuse)
-#             rprint('         ENCODER:  Size of the conv variables: {}'.format(imgt.shape), reuse)
-#         imgt = reshape2d(imgt, name='border_conv2vec')
-        
-#         rprint('     ENCODER:  Size of the conv variables: {}'.format(imgt.shape), reuse)
-#         rprint('     Latent:  Size of the Z variables: {}'.format(z.shape), reuse)
-
-#         x = tf.concat([z, imgt], axis=1)
-#         rprint('------------------------------------------------------------\n', reuse)
-
-
-#         x  =  generator(x, params, reuse=reuse, scope="generator") 
-
-#         rprint('     Output of the generator {}'.format(x.shape), reuse)
-#         rprint('     Adding the interpolated output {}'.format(x.shape), reuse)
-        
-#         Xu = up_sampler(X, params['upsampling'])
-#         if params['non_lin']:
-#             non_lin_f = getattr(tf, params['non_lin'])
-#             x = non_lin_f(x) + Xu
-#             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
-#             # x = tf.tanh(x + tf.atanh(Xu))
-#             # rprint('    Non lienarity: tanh', reuse)
-#         else:
-#             x = x + Xu
-
-#         rprint('------------------------------------------------------------\n', reuse)
-
-#         return x
 
 def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
 

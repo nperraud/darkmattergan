@@ -15,6 +15,14 @@ def backward(Xmap, max_value=2e5, shift=1.0):
     return np.round(tmp * tmp)
 
 
+def forward_old(X):
+    return np.log(X**(1/2)+np.e)-2
+
+def backward_old(Xmap, max_value=2e5):
+    Xmap = np.clip(Xmap, -1.0, forward(max_value))
+    tmp = np.exp((Xmap+2))-np.e
+    return np.round(tmp*tmp)
+
 def forward_map(x, k=10., scale=1.):
     """Map real positive numbers to a [-scale, scale] range.
 
