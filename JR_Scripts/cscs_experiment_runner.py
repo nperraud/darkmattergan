@@ -83,6 +83,7 @@ def main():
         x = utils.load_hdf5(path.root_path() + 'Mpc100_10_redshifts.h5', dataset_name=str(i))
         while x.shape[2] > data.shape[2]:
             x = block_reduce(x)
+            print(x.shape)
         data[9-i] = block_reduce(x)
 
     data = data[params['classes']]
