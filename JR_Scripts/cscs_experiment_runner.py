@@ -27,19 +27,21 @@ def block_reduce(data):
 
 def main():
     # Load parameters
-    param_paths = sys.argv[1]
-    params = dict_reader.read_gan_dict(param_paths)
-    if 'name' not in params:
-        params['name'] = 'WGAN{}'.format(params['image_size'][0])
-    time_str = current_time_str()
-    if 'save_dir' in params:
-        params['summary_dir'] = params['summary_dir'] + '/' + params['name'] + '_' + time_str + '_summary/'
-        params['save_dir'] = params['save_dir'] + '/' + params['name'] + '_' + time_str + '_checkpoints/'
-    else:
-        params['summary_dir'] = 'tboard/' + params['name'] + '_' + time_str + 'summary/'
-        params['save_dir'] = 'checkp/' + params['name'] + '_' + time_str + 'checkpoints/'
+    params_path = sys.argv[1]
+    # params = dict_reader.read_gan_dict(param_paths)
+    # if 'name' not in params:
+    #     params['name'] = 'WGAN{}'.format(params['image_size'][0])
+    # time_str = current_time_str()
+    # if 'save_dir' in params:
+    #     params['summary_dir'] = params['summary_dir'] + '/' + params['name'] + '_' + time_str + '_summary/'
+    #     params['save_dir'] = params['save_dir'] + '/' + params['name'] + '_' + time_str + '_checkpoints/'
+    # else:
+    #     params['summary_dir'] = 'tboard/' + params['name'] + '_' + time_str + 'summary/'
+    #     params['save_dir'] = 'checkp/' + params['name'] + '_' + time_str + 'checkpoints/'
+    #
+    # params['generator']['non_lin'] = None
 
-    params['generator']['non_lin'] = None
+    params = utils.load_dict_pickle(params_path)
 
     print("All params")
     print(params)
