@@ -76,22 +76,25 @@ def main():
         num_gaussians = params['num_gaussians']
 
     # Generate data
-    data = np.zeros((10, 3000, 128, 128))
+    data = np.zeros((10, 3000, params['image_size'][0], params['image_size'][1]))
     for i in range(10):
         x = utils.load_hdf5(path.root_path() + 'Mpc100_10_redshifts.h5', dataset_name=str(i))
-        print(x.shape)
+        while x.shape[2] > data.shape[2]:
+            x = block_reduce(x)
         data[9-i] = block_reduce(x)
 
-    if params['num_classes'] == 8:
-        data = np.asarray([data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]])
-    if params['num_classes'] == 5:
-        data = np.asarray([data[1], data[3], data[5], data[7], data[9]])
-    if params['num_classes'] == 4:
-        data = np.asarray([data[0], data[3], data[6], data[9]])
-    if params['num_classes'] == 2:
-        data = np.asarray([data[5], data[9]])
-    if params['num_classes'] == 1:
-        data = np.asarray([data[9]])
+    data = data[params['classes']]
+
+    # if params['num_classes'] == 8:
+    #     data = np.asarray([data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]])
+    # if params['num_classes'] == 5:
+    #     data = np.asarray([data[1], data[3], data[5], data[7], data[9]])
+    # if params['num_classes'] == 4:
+    #     data = np.asarray([data[0], data[3], data[6], data[9]])
+    # if params['num_classes'] == 2:
+    #     data = np.asarray([data[5], data[9]])
+    # if params['num_classes'] == 1:
+    #     data = np.asarray([data[9]])
 
     # Prep data
     data = data.swapaxes(0,1)
