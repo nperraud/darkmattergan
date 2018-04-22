@@ -28,6 +28,9 @@ def block_reduce(data):
 def main():
     # Load parameters
     params_path = sys.argv[1]
+    resume = False
+    if len(sys.argv) == 3:
+        resume = True
     # params = dict_reader.read_gan_dict(param_paths)
     # if 'name' not in params:
     #     params['name'] = 'WGAN{}'.format(params['image_size'][0])
@@ -108,7 +111,7 @@ def main():
     data = Dataset.Dataset(data, shuffle=False)
 
     # Train model
-    cosmo_gan.train(data)
+    cosmo_gan.train(data, resume=resume)
     return 0
 
 
