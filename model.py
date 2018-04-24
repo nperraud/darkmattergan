@@ -390,6 +390,7 @@ class Gan12Model(GanModel):
 
 
 class LapPatchWGANModel(GanModel):
+    """4 different generators, probably not a good idea. Need too much training time. Not so good results."""
     def __init__(self, params, X, z, name='lapgan', is_3d=False):
         ''' z must have the same dimension as X'''
         super().__init__(params=params, name=name, is_3d=is_3d)
@@ -477,6 +478,7 @@ class LapPatchWGANModel(GanModel):
 
 
 class LapPatchWGANsingleModel(GanModel):
+    """Seems to work fine but is recursive, so might be a bit slow."""
     def __init__(self, params, X, z, name='lapgan', is_3d=False):
         ''' z must have the same dimension as X'''
         super().__init__(params=params, name=name, is_3d=is_3d)
@@ -658,7 +660,7 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
         # A) Down sampling the image
         self.upsampling = params['generator']['upsampling']
 
-        X0, border = tf.split(X, [1,3],axis=3)
+        X0, border = tf.split(X, [1,3], axis=3)
         self.Xs = down_sampler(X0, s=self.upsampling)
 
         # The input is the downsampled image
@@ -720,6 +722,77 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
 
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
+
+
+
+class LapPatchWGANDirect(GanModel):
+    def __init__(self, params, X, z, name='lapgandirect', is_3d=False):
+        '''Some model for Ankit to try.
+        
+        z must have the same dimension as X.
+        stride of 1
+        '''
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        
+        # A) Down sampling the image
+        self.upsampling = params['generator']['upsampling']
+
+        X0, border = tf.split(X, [1,3],axis=3)
+
+        # The border is a different input
+        inshape = border.shape.as_list()[1:]
+        self.border = tf.placeholder_with_default(border, shape=[None, *inshape], name='border')
+        X1, X2, X3 = tf.split(self.border, [1,1,1],axis=3)
+        X1f = tf.reverse(X1, axis=[1])
+        X2f = tf.reverse(X2, axis=[2])
+        X3f = tf.reverse(X3, axis=[1,2])
+        flip_border = tf.concat([X1f, X2f, X3f], axis=3)
+        self.G_fake = self.generator(y=flip_border, z=z, reuse=False, scope='generator')
+
+        # D) Concatenate back
+        top = tf.concat([X3,X2], axis=1)
+        bottom = tf.concat([X1,X0], axis=1)
+        bottom_g = tf.concat([X1,self.G_fake], axis=1)
+        X_real = tf.concat([top,bottom], axis=2)
+        G_fake = tf.concat([top,bottom_g], axis=2)
+
+        # E) Discriminator
+        self.D_real = self.discriminator(X_real, reuse=False)
+        self.D_fake = self.discriminator(G_fake, reuse=True)
+
+        # F) Losses
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+        #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+
+        # G) Summaries
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+        tf.summary.image("training/Real_full_image", X_real, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_full_image", G_fake, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Downsample_X0", self.y, max_outputs=2, collections=['Images'])
+        if True:
+            tf.summary.image("checking/X0", X0, max_outputs=2, collections=['Images'])
+            tf.summary.image("checking/X1", X1, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X2", X2, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X3", X3, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X1f", X1f, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X2f", X2f, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X3f", X3f, max_outputs=1, collections=['Images'])
+
+    def generator(self, y, z, reuse, scope):
+        return generator_up(X, z, self.params['generator'], reuse=reuse, scope=scope)
+
+    def discriminator(self, X, Xsu, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+
+
 
 # class GanUpSampler(object):
 #     def __init__(self, name='gan_upsampler'):
@@ -1008,7 +1081,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
         # Xu = up_sampler(X, params['upsampling'])
         # x = x + Xu
         rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint((''.join(['-']*50)+'\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
 
