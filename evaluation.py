@@ -196,3 +196,25 @@ def upscale_image(obj, small, checkpoint=None):
                 j + 1) * souty, :] = gen_sample
 
     return np.squeeze(output_image)
+
+
+def equalizing_histogram(real, fake, nbins=1000, bs=2000):
+    sh = fake.shape
+    real = real.flatten()
+    fake = fake.flatten()
+    v, x = np.histogram(real, bins=nbins)
+    v2, x2 = np.histogram(fake, bins=nbins)
+    c = np.cumsum(v) / np.sum(v)
+    c2 = np.cumsum(v2) / np.sum(v2)
+    ax = np.cumsum(np.diff(x)) + np.min(x)
+    ax2 = np.cumsum(np.diff(x2)) + np.min(x2)
+    N = len(fake)
+    res = []
+    print('This implementation is slow...')
+    for index, batch in enumerate(np.split(fake, N // bs)):
+        if np.mod(index, N // bs // 100) == 0:
+            print('{}% done'.format(bs * index * 100 // N))
+        ind1 = np.argmin(np.abs(np.expand_dims(ax2, axis=0) - np.expand_dims(batch, axis=1)), axis=1)
+        ind2 = np.argmin(np.abs(np.expand_dims(c, axis=0) - np.expand_dims(c2[ind1], axis=1)), axis=1)
+        res.append(ax[ind2])
+    return np.reshape(np.concatenate(res), sh)
