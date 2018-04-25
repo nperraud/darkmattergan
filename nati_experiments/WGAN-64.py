@@ -11,6 +11,7 @@ from model import WGanModel
 from gan import CosmoGAN
 import utils
 from data import fmap
+import tensorflow as tf
 
 # Parameters
 
@@ -47,7 +48,7 @@ params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = [4*4*64]
 params_generator['summary'] = True
-params_generator['non_lin'] = None
+params_generator['non_lin'] = tf.nn.relu
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10

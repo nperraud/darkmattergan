@@ -901,7 +901,7 @@ def apply_non_lin(non_lin, x, reuse):
             rprint('    Non lienarity: {}'.format(non_lin), reuse)
         else:
             x = non_lin(x)
-            rprint('    Custum non lienarity: {}'.format(non_lin), reuse)
+            rprint('    Costum non linearity: {}'.format(non_lin), reuse)
 
     return x
 
