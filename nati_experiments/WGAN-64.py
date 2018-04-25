@@ -10,25 +10,20 @@ import data
 from model import WGanModel
 from gan import CosmoGAN
 import utils
-import numpy as np
+from data import fmap
 
 # Parameters
 
 ns = 64
-try_resume = True
+try_resume = False
 Mpch = 70
 
 
-def forward(X):
-    return np.log(X**(1/2)+np.e)-2
-
-def backward(Xmap, max_value=2e5):
-    Xmap = np.clip(Xmap, -1.0, forward(max_value))
-    tmp = np.exp((Xmap+2))-np.e
-    return np.round(tmp*tmp)
+forward = fmap.forward
+backward = fmap.backward
 
 
-time_str = 'new_map_single_{}'.format(Mpch)
+time_str = 'original_{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
