@@ -917,6 +917,11 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Discriminator \n------------------------------------------------------------', reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
+        if len(params['one_pixel_mapping']):
+            x = one_pixel_mapping(x,
+                                  params['one_pixel_mapping'],
+                                  summary=params['summary'],
+                                  reuse=reuse)
         if params['non_lin']:
             non_lin_f = getattr(tf, params['non_lin'])
             x = non_lin_f(x)
@@ -1020,6 +1025,11 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                     rprint('         Batch norm', reuse)
                 x = lrelu(x)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
+        if len(params['one_pixel_mapping']):
+            x = one_pixel_mapping(x,
+                                  params['one_pixel_mapping'],
+                                  summary=params['summary'],
+                                  reuse=reuse)
 
         x = apply_non_lin(params['non_lin'], x, reuse)
 
@@ -1076,7 +1086,11 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                     rprint('         Batch norm', reuse)
                 x = lrelu(x)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
-
+        if len(params['one_pixel_mapping']):
+            x = one_pixel_mapping(x,
+                                  params['one_pixel_mapping'],
+                                  summary=params['summary'],
+                                  reuse=reuse)
         x = apply_non_lin(params['non_lin'], x, reuse)
         # Xu = up_sampler(X, params['upsampling'])
         # x = x + Xu
@@ -1180,3 +1194,30 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
         rprint('------------------------------------------------------------\n', reuse)
     return x
 
+
+def one_pixel_mapping(x , n_filters, summary=True, reuse=True):
+    """One pixel mapping."""
+    rprint('  Begining of one Pixel Mapping '+''.join(['-']*20)+'\n', reuse)
+    xsh = tf.shape(x)  # Batch size
+
+    rprint('     The input is of size {}'.format(), reuse)
+    x = tf.reshape(x, [xsh[0], prod(x.shape.as_list()[1:]), 1, 1])
+    rprint('     Reshape x to size {}'.format(x.shape), reuse)
+    nconv = len(n_filters)
+    for i, n_filter in enumerate(n_filters.append(1)):
+        x = conv2d(x,
+                   nf_out=n_filter,
+                   shape=[1, 1],
+                   stride=1,
+                   name='{}_1x1conv'.format(i),
+                   summary=summary)
+
+        rprint('     {} 1x1 Conv layer with {} channels'.format(i, n_filter), reuse)
+        if i < nconv-1:
+            x = lrelu(x)
+        rprint('         Size of the variables: {}'.format(x.shape), reuse)
+
+    x = tf.reshape(x, xsh)
+    rprint('     Reshape x to size {}'.format(x.shape), reuse)
+    rprint('  End of one Pixel Mapping '+''.join(['-']*20)+'\n', reuse)
+    return x
