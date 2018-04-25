@@ -915,7 +915,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     nfull = len(params['full'])
 
     with tf.variable_scope(scope, reuse=reuse):
-        rprint('Discriminator \n------------------------------------------------------------', reuse)
+        rprint('Discriminator \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         if len(params['one_pixel_mapping']):
             x = one_pixel_mapping(x,
@@ -962,7 +962,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
         rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
 
@@ -974,7 +974,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
     nconv = len(params['stride'])
     nfull = len(params['full'])
     with tf.variable_scope(scope, reuse=reuse):
-        rprint('Generator \n------------------------------------------------------------', reuse)
+        rprint('Generator \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         if y is not None:
             x = tf.concat([x, y], axis=1)
@@ -1034,7 +1034,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
         x = apply_non_lin(params['non_lin'], x, reuse)
 
         rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
 
@@ -1108,7 +1108,7 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
     nfull = len(params['full'])
 
     with tf.variable_scope(scope, reuse=reuse):
-        rprint('Encoder \n------------------------------------------------------------', reuse)
+        rprint('Encoder \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         for i in range(nconv):
             x = conv2d(x,
@@ -1140,7 +1140,7 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
         rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
 
@@ -1157,7 +1157,7 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
            == len(params_border['batch_norm']))
     nconv_border = len(params_border['stride'])
     with tf.variable_scope(scope, reuse=reuse):
-        rprint('Border block \n------------------------------------------------------------', reuse)
+        rprint('Border block \n'+''.join(['-']*50), reuse)
 
         rprint('     BORDER:  The input is of size {}'.format(img.shape), reuse)
         imgt = img
@@ -1183,7 +1183,7 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
         rprint('     Latent:  Size of the Z variables: {}'.format(x.shape), reuse)
 
         x = tf.concat([x, imgt, border], axis=1)
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
 
         x = generator(x, params, reuse=reuse, scope="generator")
 
@@ -1191,20 +1191,20 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
 
         rprint('     After concatenation: output is of size {}'.format(x.shape), reuse)
 
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
 
-def one_pixel_mapping(x , n_filters, summary=True, reuse=True):
+def one_pixel_mapping(x, n_filters, summary=True, reuse=False):
     """One pixel mapping."""
-    rprint('  Begining of one Pixel Mapping '+''.join(['-']*20)+'\n', reuse)
+    rprint('  Begining of one Pixel Mapping '+''.join(['-']*20), reuse)
     xsh = tf.shape(x)  # Batch size
 
-    rprint('     The input is of size {}'.format(), reuse)
+    rprint('     The input is of size {}'.format(x.shape), reuse)
     x = tf.reshape(x, [xsh[0], prod(x.shape.as_list()[1:]), 1, 1])
     rprint('     Reshape x to size {}'.format(x.shape), reuse)
     nconv = len(n_filters)
-    for i, n_filter in enumerate(n_filters.append(1)):
+    for i, n_filter in enumerate(n_filters):
         x = conv2d(x,
                    nf_out=n_filter,
                    shape=[1, 1],
@@ -1212,11 +1212,16 @@ def one_pixel_mapping(x , n_filters, summary=True, reuse=True):
                    name='{}_1x1conv'.format(i),
                    summary=summary)
 
-        rprint('     {} 1x1 Conv layer with {} channels'.format(i, n_filter), reuse)
-        if i < nconv-1:
-            x = lrelu(x)
+        rprint('     {} 1x1 Conv layer with {} channels'.format(i, n_filter), reuse)    
+        x = lrelu(x)
         rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
+    x = conv2d(x,
+               nf_out=1,
+               shape=[1, 1],
+               stride=1,
+               name='final_1x1conv',
+               summary=summary)
     x = tf.reshape(x, xsh)
     rprint('     Reshape x to size {}'.format(x.shape), reuse)
     rprint('  End of one Pixel Mapping '+''.join(['-']*20)+'\n', reuse)
