@@ -795,7 +795,9 @@ class CosmoGAN(GAN):
         self._md['l1_mass_hist'] = tf.placeholder(
             tf.float32, name='l1_mass_hist')
         self._md['log_l1_mass_hist'] = tf.placeholder(
-            tf.float32, name='log_l1_mass_hist')
+            tf.float32, name='log_l1_mass_hist')        
+        self._md['total_stats_error'] = tf.placeholder(
+            tf.float32, name='total_stats_error')
         tf.summary.scalar(
             "MASS_HIST/l2", self._md['l2_mass_hist'], collections=['Metrics'])
         tf.summary.scalar(
