@@ -112,6 +112,20 @@ class Dataset_2d(Dataset):
         super().__init__(
             X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
 
+class Dataset_time(Dataset):
+    def __init__(self, X, spix=128, shuffle=True, transform=None):
+        ''' Initialize a Dataset object
+        Arguments
+        ---------
+        * X         : numpy array containing the data
+        * shuffle   : True if the data should be shuffled
+        * transform : Function to be applied to each bigger cube in the dataset
+                      for data augmentation
+        '''
+
+        slice_fn = functools.partial(slice_time, spix=spix)
+        super().__init__(
+            X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
 
 class Dataset_2d_patch(Dataset):
     def __init__(self, X, spix=128, shuffle=True, transform=None):
@@ -144,6 +158,31 @@ def grouper(iterable, n, fillvalue=None):
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
     return itertools.zip_longest(fillvalue=fillvalue, *args)
+
+
+def slice_time(cubes, spix=64):
+    '''
+    slice each cube in cubes to smaller cubes,
+    and return all the smaller cubes
+    '''
+    s = cubes.shape
+    # The last dimension is used for the samples
+    cubes = cubes.transpose([1, 2, 3, 0])
+
+    # compute the number of slices (We assume square images)
+    num_slices = cubes.shape[1] // spix
+
+    # To ensure left over pixels in each dimension are ignored
+    limit = num_slices * spix
+    cubes = cubes[:, :limit, :limit]
+
+    # split along first dimension
+    sliced_dim1 = np.vstack(np.split(cubes, num_slices, axis=1))
+
+    # split along second dimension
+    sliced_dim2 = np.vstack(np.split(sliced_dim1, num_slices, axis=2))
+
+    return sliced_dim2
 
 
 def slice_2d(cubes, spix=64):
