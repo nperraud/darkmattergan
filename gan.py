@@ -399,9 +399,7 @@ class GAN(object):
                             prev_iter_time = current_time
 
                         self._train_log(
-                            self._get_dict(sample_z, X_real),
-                            epoch=epoch,
-                            batch_num=idx)
+                            self._get_dict(sample_z, X_real))
 
                         if (np.mod(self._counter, self.params['save_every'])
                                 == 0) | self._save_current_step:
@@ -414,7 +412,7 @@ class GAN(object):
                 pass
             self._save(self._savedir, self._counter)
 
-    def _train_log(self, feed_dict, epoch=None, batch_num=None):
+    def _train_log(self, feed_dict):
         if np.mod(self._counter, self.params['viz_every']) == 0:
             summary_str, real_arr, fake_arr = self._sess.run(
                 [self.summary_op_img, self._X, self._G_fake],
@@ -811,6 +809,10 @@ class CosmoGAN(GAN):
             self._md['log_l1_mass_hist'],
             collections=['Metrics'])
         tf.summary.scalar(
+            "MASS_HIST/wasserstein_mass_hist",
+            self._md['wasserstein_mass_hist'],
+            collections=['Metrics'])
+        tf.summary.scalar(
             "total_stats_error",
             self._md['total_stats_error'],
             collections=['Metrics'])
@@ -832,11 +834,6 @@ class CosmoGAN(GAN):
         """Compute the main statistics on the real data."""
         real = self._backward_map(X)
         self._stats = dict()
-
-        if self.params['cosmology']['clip_max_real']:
-            self._stats['clip_max'] = np.max(real)
-        else:
-            self._stats['clip_max'] = 1e8
 
         # This line should be improved, probably going to mess with Jonathan code
         if not self._is_3d and len(real.shape) > 3:
@@ -925,8 +922,8 @@ class CosmoGAN(GAN):
     #         x.append(next(data_iterator))
     #     return = np.vstack(x)
 
-    def _train_log(self, feed_dict, epoch=None, batch_num=None):
-        super()._train_log(feed_dict, epoch, batch_num)
+    def _train_log(self, feed_dict):
+        super()._train_log(feed_dict)
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
 
@@ -1001,7 +998,6 @@ class CosmoGAN(GAN):
             feed_dict[self._md['log_l2_mass_hist']] = logel2
             feed_dict[self._md['l1_mass_hist']] = l1
             feed_dict[self._md['log_l1_mass_hist']] = logel1
-
 
             summary_str = self._mass_hist_plot.produceSummaryToWrite(
                 self._sess,

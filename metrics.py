@@ -267,11 +267,11 @@ def peak_count_hist(data, bins=20, lim=None):
     """
     peak = np.array(
         [peak_count(x, neighborhood_size=5, threshold=0) for x in data])
-    peak = np.log(np.hstack(peak))
+    peak = np.log(np.hstack(peak)+np.e)
     if lim is None:
         lim = (np.min(peak), np.max(peak))
     y, x = np.histogram(peak, bins=bins, range=lim)
-    x = (x[1:] + x[:-1]) / 2
+    x = np.exp((x[1:] + x[:-1]) / 2)-np.e
     # Normalization
     y = y / data.shape[0]
     return y, x, lim
@@ -296,7 +296,7 @@ def mass_hist(data, bins=20, lim=None):
     if lim is None:
         lim = (np.min(log_data), np.max(log_data))
     y, x = np.histogram(log_data, bins=20, range=lim)
-    x = 10**((x[1:] + x[:-1]) / 2)
+    x = 10**((x[1:] + x[:-1]) / 2) - 1
     y = y / data.shape[0]
     return y, x, lim
 
@@ -352,6 +352,6 @@ def total_stats_error(feed_dict, params=None):
     v += w_l1_logmass * feed_dict['log_l1_mass_hist']
     v += w_l2_logpeak * feed_dict['log_l2_peak_hist']
     v += w_l1_logpeak * feed_dict['log_l1_peak_hist']
-    v += w_wasserstein_mass * feed_dict['wasserstein_mass_hist']
+    v += np.log10(w_wasserstein_mass+np.e) * feed_dict['wasserstein_mass_hist']
 
     return v
