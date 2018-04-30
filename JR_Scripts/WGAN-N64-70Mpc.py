@@ -13,6 +13,7 @@ from gan import CosmoGAN
 import utils
 from data import fmap, path, Dataset
 import tensorflow as tf
+import numpy as np
 
 # Parameters
 ns = 64
@@ -117,6 +118,7 @@ wgan = CosmoGAN(params, WGanModel)
 filename = path.root_path() + '{}_nbody_{}Mpc_0.h5'.format(256, Mpch)
 images = utils.load_hdf5(filename=filename, dataset_name='data', mode='r')
 images = forward(images)
+images = np.reshape(images, (1, images.shape[0], images.shape[1], images.shape[2]))
 dataset = Dataset.Dataset_2d(images, spix=ns, shuffle=True)
 
 dataset = data.load.load_dataset(resolution=256, Mpch=Mpch, forward_map=forward, spix=ns)
