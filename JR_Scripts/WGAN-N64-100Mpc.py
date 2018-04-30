@@ -119,8 +119,7 @@ filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_out_z0p000.h5'.format(Mpc
 images = utils.load_hdf5(filename=filename, dataset_name='data', mode='r')
 images = forward(images)
 images = np.reshape(images, (1, images.shape[0], images.shape[1], images.shape[2]))
+print ("Images shape: {}".format(images.shape))
 dataset = Dataset.Dataset_2d(images, spix=ns, shuffle=True)
-
-dataset = data.load.load_dataset(resolution=512, Mpch=Mpch, forward_map=forward, spix=ns)
 
 wgan.train(dataset=dataset, resume=resume)
