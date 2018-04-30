@@ -121,6 +121,6 @@ images = forward(images)
 images = np.reshape(images, (1, images.shape[0], images.shape[1], images.shape[2]))
 dataset = Dataset.Dataset_2d(images, spix=ns, shuffle=True)
 
-dataset = data.load.load_dataset(resolution=256, Mpch=Mpch, forward_map=forward, spix=ns)
+dataset = data.load.load_dataset(resolution=512, Mpch=Mpch, forward_map=forward, spix=ns)
 
 wgan.train(dataset=dataset, resume=resume)
