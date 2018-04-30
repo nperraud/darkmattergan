@@ -17,7 +17,7 @@ import tensorflow as tf
 # Parameters
 ns = 64
 try_resume = False
-Mpch = 100
+Mpch = 70
 
 
 forward = fmap.forward
