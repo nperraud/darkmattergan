@@ -1204,4 +1204,4 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         super()._train_log(feed_dict, epoch, batch_num)
 
     def _sample_latent(self, bs=None):
-        return TimeGAN._sample_latent()
+        return TimeGAN._sample_latent(self)
