@@ -1081,52 +1081,52 @@ class TimeGAN(GAN):
 
         params = default_params_time(self.params)
 
-        self._md = dict()
+        self._mdt = dict()
 
-        self._md['c_descriptives'] = tf.placeholder(
+        self._mdt['c_descriptives'] = tf.placeholder(
             tf.float64, shape=[2, 5, params['time']['num_classes']], name="DescriptiveStatistics")
 
         for c in range(params['time']['num_classes']):
             tf.summary.scalar(
                 "c_descriptives/mean_Fake",
-                self._md['c_descriptives'][c, 0, 0],
+                self._mdt['c_descriptives'][c, 0, 0],
                 collections=['Metrics'])
             tf.summary.scalar(
                 "c_descriptives/var_Fake",
-                self._md['c_descriptives'][c, 0, 1],
+                self._mdt['c_descriptives'][c, 0, 1],
                 collections=['Metrics'])
             tf.summary.scalar(
                 "c_descriptives/min_Fake",
-                self._md['c_descriptives'][c, 0, 2],
+                self._mdt['c_descriptives'][c, 0, 2],
                 collections=['Metrics'])
             tf.summary.scalar(
                 "c_descriptives/max_Fake",
-                self._md['c_descriptives'][c, 0, 3],
+                self._mdt['c_descriptives'][c, 0, 3],
                 collections=['Metrics'])
             tf.summary.scalar(
                 "c_descriptives/median_Fake",
-                self._md['c_descriptives'][c, 0, 4],
+                self._mdt['c_descriptives'][c, 0, 4],
                 collections=['Metrics'])
 
             tf.summary.scalar(
                 "c_descriptives/mean_Real",
-                self._md['c_descriptives'][c, 1, 0],
+                self._mdt['c_descriptives'][c, 1, 0],
                 collections=['Metrics'])
             tf.summary.scalar(
                 "c_descriptives/var_Real",
-                self._md['c_descriptives'][c, 1, 1],
+                self._mdt['c_descriptives'][c, 1, 1],
                 collections=['Metrics'])
             tf.summary.scalar(
                 "c_descriptives/min_Real",
-                self._md['c_descriptives'][c, 1, 2],
+                self._mdt['c_descriptives'][c, 1, 2],
                 collections=['Metrics'])
             tf.summary.scalar(
                 "c_descriptives/max_Real",
-                self._md['c_descriptives'][c, 1, 3],
+                self._mdt['c_descriptives'][c, 1, 3],
                 collections=['Metrics'])
             tf.summary.scalar(
                 "c_descriptives/median_Real",
-                self._md['c_descriptives'][c, 1, 4],
+                self._mdt['c_descriptives'][c, 1, 4],
                 collections=['Metrics'])
 
     def _build_image_summary(self):
@@ -1183,7 +1183,7 @@ class TimeGAN(GAN):
                 stats[c, 0, :] = np.array([metrics.describe(x) for x in fake])
                 stats[c, 1, :] = np.array([metrics.describe(x) for x in real])
 
-            feed_dict[self._md['c_descriptives']] = stats
+            feed_dict[self._mdt['c_descriptives']] = stats
 
             summary_str = self._sess.run(
                 self.summary_op_metrics, feed_dict=feed_dict)
