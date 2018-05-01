@@ -81,6 +81,7 @@ params['generator'] = params_generator
 params['discriminator'] = params_discriminator
 params['optimization'] = params_optimization
 params['cosmology'] = params_cosmology
+params['time'] = params_time
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
