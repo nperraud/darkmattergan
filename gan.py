@@ -1083,7 +1083,7 @@ class TimeGAN(GAN):
 
         self._md = dict()
 
-        self._md['t_descriptives'] = tf.placeholder(
+        self._md['c_descriptives'] = tf.placeholder(
             tf.float64, shape=[2, 5, params['time']['num_classes']], name="DescriptiveStatistics")
 
         for c in range(params['time']['num_classes']):
