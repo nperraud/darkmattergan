@@ -209,7 +209,7 @@ class TemporalGanModelv3(GanModel):
         zn = tf.nn.l2_normalize(z, 1)
         z_shape = tf.shape(zn)
         scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
-        if 'class_weights' in params.keys():
+        if 'class_weights' in params['time'].keys():
             scaling = np.asarray(params['class_weights'])
         scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
         default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
@@ -217,7 +217,8 @@ class TemporalGanModelv3(GanModel):
         t = self.y[:z_shape[0]]
         zn = tf.multiply(zn, t)
 
-        self.G_fake = self.generator(zn, reuse=False)
+        self.G_c_fake = self.generator(zn, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
 
         self.D_real = self.discriminator(X, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, reuse=True)
@@ -233,16 +234,19 @@ class TemporalGanModelv3(GanModel):
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-
-    def discriminator(self, X, reuse):
+    def reshape_time_to_channels(self, X):
         bs = self.params['optimization']['batch_size']
-        nc = self.params['num_classes']
+        nc = self.params['time']['num_classes']
         idx = np.arange(bs // nc) * nc
         x = tf.gather(X, idx)
         for i in (np.arange(nc - 1) + 1):
             x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
+        return x
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
         return discriminator(x, self.params['discriminator'], reuse=reuse)
 
     @property
