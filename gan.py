@@ -68,7 +68,11 @@ class GAN(object):
                 shape = [None, *self.params['image_size']]
         else:
             if len(self.params['image_size']) == 2:
-                shape = [None, *self.params['image_size'], 1]
+                # TODO Clean this
+                if 'time' in self.params.keys():
+                    shape = [None, *self.params['image_size'], params['time']['num_classes']]
+                else:
+                    shape = [None, *self.params['image_size'], 1]
             else:
                 shape = [None, *self.params['image_size']]
 
