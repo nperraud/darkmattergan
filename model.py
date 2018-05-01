@@ -208,9 +208,7 @@ class TemporalGanModelv3(GanModel):
         super().__init__(params=params, name=name, is_3d=is_3d)
         zn = tf.nn.l2_normalize(z, 1)
         z_shape = tf.shape(zn)
-        scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
-        if 'class_weights' in params['time'].keys():
-            scaling = np.asarray(params['class_weights'])
+        scaling = np.asarray(params['time']['class_weights'])
         scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
         default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
         self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
@@ -247,7 +245,7 @@ class TemporalGanModelv3(GanModel):
         return generator(z, self.params['generator'], reuse=reuse)
 
     def discriminator(self, X, reuse):
-        return discriminator(x, self.params['discriminator'], reuse=reuse)
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
 
     @property
     def D_loss(self):

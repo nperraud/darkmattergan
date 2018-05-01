@@ -124,6 +124,16 @@ class GAN(object):
                                  grads_and_vars_g, optimizer_E)
 
         # Summaries
+        self._build_image_summary()
+
+        tf.summary.histogram('Prior/z', self._z, collections=['Images'])
+
+        self.summary_op = tf.summary.merge(tf.get_collection("Training"))
+        self.summary_op_img = tf.summary.merge(tf.get_collection("Images"))
+
+        self._saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
+
+    def _build_image_summary(self):
         if self.is_3d:
             tile_shape = utils.get_tile_shape_from_3d_image(
                 self.params['image_size'])
@@ -175,13 +185,6 @@ class GAN(object):
                     self._normalize(self._G_fake),
                     max_outputs=4,
                     collections=['Images'])
-
-        tf.summary.histogram('Prior/z', self._z, collections=['Images'])
-
-        self.summary_op = tf.summary.merge(tf.get_collection("Training"))
-        self.summary_op_img = tf.summary.merge(tf.get_collection("Images"))
-
-        self._saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
 
     def _build_optmizer(self):
 
@@ -1122,20 +1125,33 @@ class TimeGAN(GAN):
                 self._md['c_descriptives'][c, 1, 4],
                 collections=['Metrics'])
 
-    def train(self, dataset, resume=False):
-        X = dataset.get_all_data()
+    def _build_image_summary(self):
+        for c in range(self.params["time"]["num_classes"]):
+            tf.summary.image(
+                "training/Real_Image_c{}".format(c),
+                self._X[:, :, :, c],
+                max_outputs=4,
+                collections=['Images'])
+            tf.summary.image(
+                "training/Fake_Image_c{}".format(c),
+                self._G_fake[:, :, :, c],
+                max_outputs=4,
+                collections=['Images'])
 
-        #if resume:
-        #    self._stats = self.params['cosmology']['stats']
-        #else:
-        #    self._compute_real_stats(X)
-        #    self.params['cosmology']['stats'] = self._stats
-        # Out of the _compute_real_stats function since we may want to change
-        # this parameter during training.
-        #self._stats['N'] = self.params['cosmology']['Nstats']
-        #self._sum_data_iterator = itertools.cycle(dataset.iter(self._stats['N']))
-
-        super().train(dataset=dataset, resume=resume)
+    # def train(self, dataset, resume=False):
+    #     X = dataset.get_all_data()
+    #
+    #     #if resume:
+    #     #    self._stats = self.params['cosmology']['stats']
+    #     #else:
+    #     #    self._compute_real_stats(X)
+    #     #    self.params['cosmology']['stats'] = self._stats
+    #     # Out of the _compute_real_stats function since we may want to change
+    #     # this parameter during training.
+    #     #self._stats['N'] = self.params['cosmology']['Nstats']
+    #     #self._sum_data_iterator = itertools.cycle(dataset.iter(self._stats['N']))
+    #
+    #     super().train(dataset=dataset, resume=resume)
 
     def _train_log(self, feed_dict, epoch=None, batch_num=None):
         super()._train_log(feed_dict, epoch, batch_num)
@@ -1179,6 +1195,9 @@ class TimeGAN(GAN):
 class TimeCosmoGAN(CosmoGAN, TimeGAN):
     def __init__(self, params, model=None, is_3d=False):
         super().__init__(params=params, model=model, is_3d=is_3d)
+
+    def _train_log(self, feed_dict, epoch=None, batch_num=None):
+        super()._train_log(feed_dict, epoch, batch_num)
 
     def _sample_latent(self, bs=None):
         return TimeGAN._sample_latent()
