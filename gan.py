@@ -1092,50 +1092,53 @@ class TimeGAN(GAN):
         self._mdt = dict()
 
         self._mdt['c_descriptives'] = tf.placeholder(
-            tf.float64, shape=[params['time']['num_classes'], 2, 5], name="DescriptiveStatistics")
+            tf.float64, shape=[params['time']['num_classes'], 2, 5], name="DescriptiveTimeStatistics")
 
         for c in range(params['time']['num_classes']):
             tf.summary.scalar(
                 "c_descriptives/mean_Fake",
                 self._mdt['c_descriptives'][c, 0, 0],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
             tf.summary.scalar(
                 "c_descriptives/var_Fake",
                 self._mdt['c_descriptives'][c, 0, 1],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
             tf.summary.scalar(
                 "c_descriptives/min_Fake",
                 self._mdt['c_descriptives'][c, 0, 2],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
             tf.summary.scalar(
                 "c_descriptives/max_Fake",
                 self._mdt['c_descriptives'][c, 0, 3],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
             tf.summary.scalar(
                 "c_descriptives/median_Fake",
                 self._mdt['c_descriptives'][c, 0, 4],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
 
             tf.summary.scalar(
                 "c_descriptives/mean_Real",
                 self._mdt['c_descriptives'][c, 1, 0],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
             tf.summary.scalar(
                 "c_descriptives/var_Real",
                 self._mdt['c_descriptives'][c, 1, 1],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
             tf.summary.scalar(
                 "c_descriptives/min_Real",
                 self._mdt['c_descriptives'][c, 1, 2],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
             tf.summary.scalar(
                 "c_descriptives/max_Real",
                 self._mdt['c_descriptives'][c, 1, 3],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
             tf.summary.scalar(
                 "c_descriptives/median_Real",
                 self._mdt['c_descriptives'][c, 1, 4],
-                collections=['Metrics'])
+                collections=['Time Metrics'])
+
+        self.summary_time_metrics = tf.summary.merge(
+            tf.get_collection("Time Metrics"))
 
     def _build_image_summary(self):
         for c in range(self.params["time"]["num_classes"]):
@@ -1194,7 +1197,7 @@ class TimeGAN(GAN):
             feed_dict[self._mdt['c_descriptives']] = stats
 
             summary_str = self._sess.run(
-                self.summary_op_metrics, feed_dict=feed_dict)
+                self.summary_time_metrics, feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
 
     def _sample_latent(self, bs=None):
