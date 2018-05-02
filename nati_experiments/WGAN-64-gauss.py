@@ -12,21 +12,22 @@ from gan import CosmoGAN
 import utils
 from data import fmap
 import tensorflow as tf
+import functools
 
 # Parameters
 
 ns = 64
-try_resume = True
-Mpch = 350
+try_resume = False
+Mpch = 70
 
 
-forward = fmap.nati_forward
-backward = fmap.nati_backward
+forward = functools.partial(fmap.gauss_forward, shift=3)
+backward = functools.partial(fmap.gauss_backward, shift=3)
 
 def non_lin(x):
-	return tf.nn.relu(x+1.0)-1.0
+	return tf.nn.relu(x)
 
-time_str = 'nati_map_limit_non_lin{}'.format(Mpch)
+time_str = 'gauss_map_limit_non_lin{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)

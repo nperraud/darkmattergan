@@ -17,16 +17,14 @@ import tensorflow as tf
 
 ns = 64
 try_resume = True
-Mpch = 350
+Mpch = 70
 
 
-forward = fmap.nati_forward
-backward = fmap.nati_backward
+forward = fmap.forward
+backward = fmap.backward
 
-def non_lin(x):
-	return tf.nn.relu(x+1.0)-1.0
 
-time_str = 'nati_map_limit_non_lin{}'.format(Mpch)
+time_str = 'linear_{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -36,7 +34,7 @@ bn = False
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
 params_discriminator['nfilter'] = [16, 128, 256, 512, 128, 64]
-params_discriminator['shape'] = [[5, 5], [5, 5], [5, 5], [3, 3], [3, 3], [3, 3]]
+params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
 params_discriminator['full'] = [64]
 params_discriminator['minibatch_reg'] = False
@@ -50,7 +48,7 @@ params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = [4*4*64]
 params_generator['summary'] = True
-params_generator['non_lin'] = non_lin
+params_generator['non_lin'] = None
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10

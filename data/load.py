@@ -236,4 +236,23 @@ def load_time_dataset(
     return dataset
 
 
+def load_distribution(gen, Nsamples=1024, spix=8, augmentation=True, shuffle=True, forward_map = None):
+    """Return a dataset using a generator gen.
+
+    `gen` takes the number of samples as an argument.
+    """
+
+    # TODO: Make an option to generate images on the fly...
+    images = gen(Nsamples)
+
+    if forward_map:
+        images = forward_map(images)
+    images = np.expand_dims(images, axis=3)
+    if augmentation:
+        t = transformation.random_transformation_2d
+    else:
+        t = None
+    dataset = Dataset_2d(images, spix=spix, shuffle=shuffle, transform=t)
+
+    return dataset
 

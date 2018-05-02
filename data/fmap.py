@@ -3,6 +3,29 @@
 # TODO: renaming!
 import tensorflow as tf
 import numpy as np
+import scipy
+
+
+def gauss_forward(x, shift=0):
+    y = x + 1 + shift
+    cp = (y-1)/y
+    v = scipy.special.erfinv(cp)/np.sqrt(2)
+    if not (shift==0):
+        c = gauss_forward(shift,shift=0)
+    else:
+        c = 0.0
+    return v - c
+
+def gauss_backward(x, shift=0, clip_max=1e7):
+    x_max = gauss_forward(clip_max, shift=shift)
+    x = np.clip(x, 0.0, x_max)
+    if not (shift==0):
+        c = gauss_forward(shift,shift=0)
+    else:
+        c = 0.0
+    cg = scipy.special.erf(np.sqrt(2)*(x + c))
+    y = 1/(1-cg)
+    return np.round(y - 1 - shift)
 
 def log_forward(x):
     return np.log(x+np.e)
@@ -10,13 +33,13 @@ def log_forward(x):
 def log_backward(x):
     return np.round(np.exp(x)-np.e)
 
-def shifted_log_forward(X, shift=1.0):
-    return np.log(np.sqrt(X) + np.e**shift) - shift
+def shifted_log_forward(X, shift=1.0, minval=-1.0):
+    return np.log(np.sqrt(X) + np.e**shift) - shift + minval
 
 
-def shifted_log_backard(Xmap, max_value=2e5, shift=1.0):
-    Xmap = np.clip(Xmap, 0, shifted_log_forward(max_value))
-    tmp = np.exp(Xmap + shift) - np.e**shift
+def shifted_log_backward(Xmap, max_value=2e5, shift=1.0,minval=-1.0):
+    Xmap = np.clip(Xmap, minval, shifted_log_forward(max_value))
+    tmp = np.exp(Xmap + shift - minval) - np.e**shift
     return np.round(tmp * tmp)
 
 
