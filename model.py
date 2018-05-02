@@ -206,7 +206,7 @@ class TempGanModelv2(GanModel):
 class TemporalGanModelv3(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
-        zn = tf.nn.l2_normalize(z, 1)
+        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
         z_shape = tf.shape(zn)
         scaling = np.asarray(params['time']['class_weights'])
         gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
@@ -238,7 +238,8 @@ class TemporalGanModelv3(GanModel):
         nc = self.params['time']['num_classes']
         idx = np.arange(bs) * nc
         x = tf.gather(X, idx)
-        for i in (np.arange(nc - 1) + 1):
+        #for i in (np.arange(nc - 1) + 1):
+        for i in range(1, nc):
             x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
         return x
 

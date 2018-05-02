@@ -25,7 +25,7 @@ forward = fmap.forward
 backward = fmap.backward
 
 
-time_str = '_0r_{}'.format(Mpch)
+time_str = '_0r_nf_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGAN{}'.format(ns)
