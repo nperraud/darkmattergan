@@ -236,7 +236,7 @@ class TemporalGanModelv3(GanModel):
     def reshape_time_to_channels(self, X):
         bs = self.params['optimization']['batch_size']
         nc = self.params['time']['num_classes']
-        idx = np.arange(bs // nc) * nc
+        idx = np.arange(bs) * nc
         x = tf.gather(X, idx)
         for i in (np.arange(nc - 1) + 1):
             x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
