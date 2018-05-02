@@ -1141,12 +1141,12 @@ class TimeGAN(GAN):
         for c in range(self.params["time"]["num_classes"]):
             tf.summary.image(
                 "training/Real_Image_c{}".format(c),
-                self._X[:, :, :, c],
+                self._X[:, :, :, c:(c+1)],
                 max_outputs=4,
                 collections=['Images'])
             tf.summary.image(
                 "training/Fake_Image_c{}".format(c),
-                self._G_fake[:, :, :, c],
+                self._G_fake[:, :, :, c:(c+1)],
                 max_outputs=4,
                 collections=['Images'])
 
