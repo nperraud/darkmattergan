@@ -1186,10 +1186,10 @@ class TimeGAN(GAN):
                 real = Xsel[:, :, :, c]
                 fake = fake_image[:, :, :, c]
                 fake = np.squeeze(fake)
-                # Descriptive Stats
 
-                stats[c, 0, :] = np.array([metrics.describe(x) for x in fake])
-                stats[c, 1, :] = np.array([metrics.describe(x) for x in real])
+                # Descriptive Stats
+                stats[c, 0, :] = np.mean(np.array([metrics.describe(x) for x in fake]), axis=0)
+                stats[c, 1, :] = np.mean(np.array([metrics.describe(x) for x in real]), axis=0)
 
             feed_dict[self._mdt['c_descriptives']] = stats
 
