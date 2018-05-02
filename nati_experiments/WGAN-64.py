@@ -17,7 +17,7 @@ import tensorflow as tf
 
 ns = 64
 try_resume = True
-Mpch = 350
+Mpch = 70
 
 
 forward = fmap.nati_forward
