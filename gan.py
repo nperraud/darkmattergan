@@ -861,10 +861,6 @@ class CosmoGAN(GAN):
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
             z_sel = self._sample_latent(self._stats['N'])
-            print(self._stats)
-            print(self._stats['N'])
-            print("z shape")
-            print(z_sel.shape)
             Xsel = next(self._sum_data_iterator)
 
             # if self.params['num_classes'] > 1:
@@ -1221,4 +1217,4 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         super()._train_log(feed_dict, epoch, batch_num)
 
     def _sample_latent(self, bs=None):
-        return TimeGAN._sample_latent(self)
+        return TimeGAN._sample_latent(self, bs)
