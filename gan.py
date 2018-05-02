@@ -351,7 +351,9 @@ class GAN(object):
                     for idx, batch_real in enumerate(
                             dataset.iter(self.batch_size)):
 
-                        print("Batch Shape:".format(tf.shape(batch_real)))
+                        print("batch_real shape:")
+                        print(tf.shape(batch_real))
+                        print("test")
 
                         if resume:
                             # epoch = self.params['curr_epochs']
