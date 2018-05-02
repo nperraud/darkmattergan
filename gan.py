@@ -877,6 +877,8 @@ class CosmoGAN(GAN):
             real = self._backward_map(Xsel)
 
             fake = self._backward_map(fake_image)
+            if not self._is_3d and len(fake.shape) == 4:
+                fake = fake[:, :, :, 0]
             fake = np.squeeze(fake)
 
             psd_gen, _ = metrics.power_spectrum_batch_phys(
