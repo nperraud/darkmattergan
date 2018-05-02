@@ -128,7 +128,7 @@ images = utils.load_hdf5(filename=filename, dataset_name='data', mode='r')
 images = forward(images)
 img_list = []
 img_list.append(images)
-img_list.append(images)
+# img_list.append(images)
 images = np.array(img_list)
 print ("Images shape: {}".format(images.shape))
 dataset = Dataset.Dataset_time(images, spix=ns, shuffle=True)
