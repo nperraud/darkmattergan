@@ -352,7 +352,10 @@ class GAN(object):
                             dataset.iter(self.batch_size)):
 
                         print("batch_real shape:")
-                        print(tf.shape(batch_real))
+                        print(tf.shape(batch_real)[0])
+                        print(tf.shape(batch_real)[1])
+                        print(tf.shape(batch_real)[2])
+                        print(tf.shape(batch_real)[3])
                         print("test")
 
                         if resume:
