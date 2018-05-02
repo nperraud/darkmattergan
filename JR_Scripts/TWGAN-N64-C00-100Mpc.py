@@ -76,6 +76,8 @@ params_time['num_classes'] = 2
 params_time['classes'] = [9,9]
 params_time['class_weights'] = [1,1]
 
+params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
+
 params = dict()
 params['generator'] = params_generator
 params['discriminator'] = params_discriminator

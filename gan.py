@@ -351,12 +351,12 @@ class GAN(object):
                     for idx, batch_real in enumerate(
                             dataset.iter(self.batch_size)):
 
-                        print("batch_real shape:")
-                        print(tf.shape(tf.shape(batch_real)[0]))
-                        print(tf.shape(tf.shape(batch_real)[1]))
-                        print(tf.shape(tf.shape(batch_real)[2]))
-                        print(tf.shape(tf.shape(batch_real)[3]))
-                        print("test")
+                        # print("batch_real shape:")
+                        # print(tf.shape(batch_real)[0])
+                        # print(tf.shape(batch_real)[1])
+                        # print(tf.shape(batch_real)[2])
+                        # print(tf.shape(batch_real)[3])
+                        # print("test")
 
                         if resume:
                             # epoch = self.params['curr_epochs']
@@ -1200,8 +1200,8 @@ class TimeGAN(GAN):
     def _sample_latent(self, bs=None):
         if bs is None:
             bs = self.batch_size
-        latent = super()._sample_latent(bs=int(np.ceil(bs / self.params['time']['num_classes'])))
-        return np.repeat(latent, self.params['time']['num_classes'], axis=0)[:bs]
+        latent = super()._sample_latent(bs=bs)
+        return np.repeat(latent, self.params['time']['num_classes'], axis=0)
 
 
 class TimeCosmoGAN(CosmoGAN, TimeGAN):
