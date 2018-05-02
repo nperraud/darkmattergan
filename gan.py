@@ -1181,7 +1181,7 @@ class TimeGAN(GAN):
 
             fake_image = self._generate_sample_safe(z_sel, Xsel)
 
-            stats = np.zeros((2, 5, self.params['time']['num_classes']))
+            stats = np.zeros((self.params['time']['num_classes'], 2, 5))
             for c in range(self.params['time']['num_classes']):
                 real = Xsel[:, :, :, c]
                 fake = fake_image[:, :, :, c]
