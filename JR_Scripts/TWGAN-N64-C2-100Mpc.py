@@ -25,7 +25,7 @@ forward = fmap.forward
 backward = fmap.backward
 
 
-time_str = '_0r_3r_{}'.format(Mpch)
+time_str = '_0r_4r_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGAN{}'.format(ns)
@@ -73,7 +73,7 @@ params_cosmology['Nstats'] = 1000
 
 params_time = dict()
 params_time['num_classes'] = 2
-params_time['classes'] = [3, 0]
+params_time['classes'] = [4, 0]
 params_time['class_weights'] = [0.9, 1]
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
