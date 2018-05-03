@@ -155,11 +155,6 @@ def power_law_wcf_cdf_inv(x, c):
     res[mask] = np.round( c*(cutoff_inv(c*(x[mask]-1)+1) +1) )
     return res
 
-# def cutoff2(x):
-#     return 1-1/np.sqrt(1+x)
-# def cutoff2_inv(x):
-#     return 1/((1-x)**2)-1
-
 # def cutoff(x, p=2):
 #     return 1-1/((1+x)**(1/p))
 
@@ -184,12 +179,12 @@ def laplacian_map_from_cdf_backward(x, pdf, pdf_inv, clip_max=1e6):
 
 
 
-def stat_forward(x, c=1e5, shift=6):
+def stat_forward(x, c=4e4, shift=6):
     pdf = functools.partial(power_law_wcf_cdf, c=c)
     sv = laplacian_map_from_cdf_forward(np.array([1 + shift]), pdf)[0]
     return laplacian_map_from_cdf_forward(x+1 + shift, pdf) - sv
 
-def stat_backward(x, c=1e5, shift=6):
+def stat_backward(x, c=4e4, shift=6):
     clip_max = c*20
     pdf = functools.partial(power_law_wcf_cdf, c=c)
     pdf_inv = functools.partial(power_law_wcf_cdf_inv, c=c)
