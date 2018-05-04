@@ -1,6 +1,18 @@
 import data.fmap as fmap
 import warnings
 
+# def arg_helper(params, keys, value):
+#     if not (type(keys) is list):
+#         keys = [keys]
+
+#     for level, key in enumerate(keys):
+#         if not (key in params.keys()):
+#             if 
+#             params[key] = 
+
+#     return params
+
+
 def default_params(params=dict()):
 
     # Global parameters

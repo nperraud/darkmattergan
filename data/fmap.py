@@ -94,102 +94,36 @@ def inv_pre_process(X, k=10., scale=1., real_max=1e8):
     return X_raw
 
 
-
-def power_law(x,k=2):
-    """Power law for x>=1.
-    
-    p(x) = a x^(-k)
-    """
-    assert(k>1)
-    a = k-1
-    return a/(x**k)
-
-def power_law_cdf(x, k=2):
-    """CDF for power law for x>=1.
-    
-    c(x) = 1 - 1/(x^(k-1))
-    """
-    assert(k>1)
-    a = k-1
-    return 1 - 1/(x**a)
-
-def power_law_cdf_inv(x, k=2):
-    """Inverse CDF for power law.
-    
-    k=2 for now.
-    c(x) = 1/(1-y)
-    """
-    assert(k==2)
-    return 1/(1-x)
-
-
-def power_law_wcf_cdf(x, c):
-    """Power law with cutoff.
-    
-    H: x>=1
-    Arguments:
-    x : numpy array
-    c : cuttoff
-    """
+def stat_forward_0(x, c=1e4):
+    if not type(x).__module__ == np.__name__:
+        x = np.array([a])
     res = np.zeros(shape=x.shape)
     mask = x>c
     maski = mask==False
-    res[maski] = power_law_cdf(x[maski],k=2)
-    res[mask] = (c-1.0)/c + 1/c * cutoff(x[mask]/c-1)
+    res[maski] = np.log(x[maski]+1)
+    res[mask] = np.log(c+1) + (x[mask]/c-1)
+    res = 3*res / np.log(c+1)
     return res
 
-def power_law_wcf_cdf_inv(x, c):
-    """Inverse power law with cutoff.
-    
-    H: x>=1
-    Arguments:
-    x : numpy array
-    c : cuttoff
-    """
+def stat_backward_0(x, c=1e4):
+    if not type(x).__module__ == np.__name__:
+        x = np.array([a])
     res = np.zeros(shape=x.shape)
-    mc = power_law_cdf(c,k=2)
+    mc = np.log(c+1)
+    x = x*mc/3
     mask = x>mc
     maski = mask==False
-    res[maski] = power_law_cdf_inv(x[maski],k=2)
-#     res[mask] = np.round(c*(1 - np.log(c*(1-x[mask]))))    
-    res[mask] = np.round( c*(cutoff_inv(c*(x[mask]-1)+1) +1) )
-    return res
+    res[maski] = np.exp(x[maski])-1
+    res[mask] = c*(x[mask] - np.log(c+1) + 1)
+    return np.round(res)
 
-# def cutoff(x, p=2):
-#     return 1-1/((1+x)**(1/p))
-
-# def cutoff_inv(x, p=2):
-#     return 1/((1-x)**p)-1
-
-def cutoff(x):
-    return 1 - np.exp(-x)
-def cutoff_inv(x):
-    return - np.log(1-x)
-
-def laplacian_map_from_cdf_forward(x, pdf):
-    cp = pdf(x)
-    return -np.log(1-cp)
-
-def laplacian_map_from_cdf_backward(x, pdf, pdf_inv, clip_max=1e6):
-    v = np.array([clip_max])
-    x_lim = laplacian_map_from_cdf_forward(v, pdf)
-    x = np.clip(x,0,x_lim)
-    cl = 1 - np.exp(-x)
-    return pdf_inv(cl)
+def stat_forward(x, c=1e4, shift=3):
+    return stat_forward_0(x+shift) - stat_forward_0(np.array([shift]), c=c)
 
 
-
-def stat_forward(x, c=4e4, shift=6):
-    pdf = functools.partial(power_law_wcf_cdf, c=c)
-    sv = laplacian_map_from_cdf_forward(np.array([1 + shift]), pdf)[0]
-    return laplacian_map_from_cdf_forward(x+1 + shift, pdf) - sv
-
-def stat_backward(x, c=4e4, shift=6):
-    clip_max = c*20
-    pdf = functools.partial(power_law_wcf_cdf, c=c)
-    pdf_inv = functools.partial(power_law_wcf_cdf_inv, c=c)
-    sv = laplacian_map_from_cdf_forward(np.array([1 + shift]), pdf)[0]
-    return np.round(laplacian_map_from_cdf_backward(x+ sv, pdf, pdf_inv, clip_max=clip_max)-1-shift)
+def stat_backward(x, c=1e4, shift=3):
+    clip_max = c*100
+    return stat_backward_0(x+stat_forward_0(np.array([shift]), c=c)) - shift
 
 
 forward = nati_forward

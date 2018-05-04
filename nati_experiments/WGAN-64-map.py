@@ -18,17 +18,18 @@ import functools
 
 ns = 64
 try_resume = False
-Mpch = 350
+Mpch = 70
 
-c = 40000
-forward = functools.partial(fmap.stat_forward, c=c)
-backward = functools.partial(fmap.stat_backward, c=c)
+c = 20000
+shift = 3
+forward = functools.partial(fmap.stat_forward, c=c, shift=shift)
+backward = functools.partial(fmap.stat_backward, c=c, shift=shift)
 
 
 def non_lin(x):
 	return tf.nn.relu(x)
 
-time_str = 'stat_correct_6_non_lin{}'.format(Mpch)
+time_str = 'new_stat_c_{}_shift_{}_non_lin{}'.format(c, Mpch, shift)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -72,7 +73,7 @@ params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
 params_cosmology['forward_map'] = forward
 params_cosmology['backward_map'] = backward
-params_cosmology['Nstats'] = 1000
+params_cosmology['Nstats'] = 5000
 
 
 params = dict()
