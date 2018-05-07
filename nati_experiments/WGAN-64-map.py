@@ -29,7 +29,7 @@ backward = functools.partial(fmap.stat_backward, c=c, shift=shift)
 def non_lin(x):
 	return tf.nn.relu(x)
 
-time_str = 'new_stat_c_{}_shift_{}_non_lin{}'.format(c, Mpch, shift)
+time_str = 'new_stat_c_{}_shift_{}_laplacian{}'.format(c, shift, Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -84,7 +84,7 @@ params['cosmology'] = params_cosmology
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
-params['prior_distribution'] = 'gaussian'
+params['prior_distribution'] = 'laplacian'
 params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000

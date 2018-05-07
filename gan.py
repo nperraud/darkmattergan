@@ -845,15 +845,15 @@ class CosmoGAN(GAN):
         self._stats['psd_axis'] = psd_axis
         del psd_real
 
-        peak_hist_real, x_peak, lim_peak = metrics.peak_count_hist(data=real)
+        peak_hist_real, x_peak, lim_peak = metrics.peak_count_hist(dat=real)
         self._stats['peak_hist_real'] = peak_hist_real
         self._stats['x_peak'] = x_peak
         self._stats['lim_peak'] = lim_peak
 
-        mass_hist_real, _, lim_mass = metrics.mass_hist(data=real)
+        mass_hist_real, _, lim_mass = metrics.mass_hist(dat=real)
         lim_mass = list(lim_mass)
         lim_mass[1] = lim_mass[1]+1
-        mass_hist_real, x_mass, lim_mass = metrics.mass_hist(data=real, lim=lim_mass)
+        mass_hist_real, x_mass, lim_mass = metrics.mass_hist(dat=real, lim=lim_mass)
         self._stats['mass_hist_real'] = mass_hist_real
         self._stats['x_mass'] = x_mass
         self._stats['lim_mass'] = lim_mass

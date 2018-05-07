@@ -256,24 +256,24 @@ def diff_vec(y_real, y_fake):
     return l2, logel2, l1, logel1
 
 
-def peak_count_hist(data, bins=20, lim=None):
+def peak_count_hist(dat, bins=20, lim=None):
     """Make the histogram of the peak count of data.
 
     Arguments
     ---------
-    data : input data (numpy array, first dimension for the sample)
+    dat  : input data (numpy array, first dimension for the sample)
     bins : number of bins for the histogram (default 20)
     lim  : limit for the histogram, if None, then min(peak), max(peak)
     """
     peak = np.array(
-        [peak_count(x, neighborhood_size=5, threshold=0) for x in data])
+        [peak_count(x, neighborhood_size=5, threshold=0) for x in dat])
     peak = np.log(np.hstack(peak)+np.e)
     if lim is None:
         lim = (np.min(peak), np.max(peak))
     y, x = np.histogram(peak, bins=bins, range=lim)
     x = np.exp((x[1:] + x[:-1]) / 2)-np.e
     # Normalization
-    y = y / data.shape[0]
+    y = y / dat.shape[0]
     return y, x, lim
 
 
@@ -283,21 +283,21 @@ def peak_count_hist_real_fake(real, fake, bins=20, lim=None):
     return y_real, y_fake, x
 
 
-def mass_hist(data, bins=20, lim=None):
+def mass_hist(dat, bins=20, lim=None):
     """Make the histogram of log10(data) data.
 
     Arguments
     ---------
-    data : input data
+    dat  : input data
     bins : number of bins for the histogram (default 20)
-    lim  : limit for the histogram, if None then min(log10(data)), max(data)
+    lim  : limit for the histogram, if None then min(log10(dat)), max(dat)
     """
-    log_data = np.log10(data.flatten() + 1)
+    log_data = np.log10(dat.flatten() + 1)
     if lim is None:
         lim = (np.min(log_data), np.max(log_data))
     y, x = np.histogram(log_data, bins=bins, range=lim)
     x = 10**((x[1:] + x[:-1]) / 2) - 1
-    y = y / data.shape[0]
+    y = y / dat.shape[0]
     return y, x, lim
 
 

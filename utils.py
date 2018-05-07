@@ -44,6 +44,8 @@ def sample_latent(m, n, prior="uniform", normalize=False):
         else:
             df = 3
         return np.random.standard_t(df, size=[m, n])
+    elif prior == "laplacian":
+        return np.random.laplace(loc=0.0, scale=1.0, size=[m, n])
     # elif prior.startswith('chi2'):
     #     prior_ = prior.split('-')
     #     if len(prior_) >= 2:
