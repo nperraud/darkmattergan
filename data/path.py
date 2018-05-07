@@ -30,4 +30,3 @@ def celeba_path():
     else:
         raise NotImplementedError()
     return rootpath
->>>>>>> origin/master
