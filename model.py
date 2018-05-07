@@ -206,6 +206,8 @@ class TempGanModelv2(GanModel):
 class TemporalGanModelv3(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
+        assert 'time' in params.keys()
+
         zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
         z_shape = tf.shape(zn)
         scaling = np.asarray(params['time']['class_weights'])
@@ -256,6 +258,85 @@ class TemporalGanModelv3(GanModel):
     @property
     def G_loss(self):
         return self._G_loss
+
+
+class TemporalGanModelv4(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        assert 'time' in params.keys()
+
+        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
+        z_shape = tf.shape(zn)
+        scaling = np.asarray(params['time']['class_weights'])
+        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+        scaling = np.resize(scaling, (gen_bs, 1))
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        zn = tf.multiply(zn, t)
+
+        self.G_c_fake = self.generator(zn, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
+
+        self.D_real = self.discriminator(X, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+
+        enc = self.encoder(self.G_c_fake, reuse=False)
+        # Perhaps something should be added to the loss,
+        # as we know how it should be encoding time?
+        self._E_loss = tf.reduce_mean(tf.square(enc - zn))
+
+        # This should make it easy to compare images with their encoded and decoded counterparts
+        width = self.params['image_size'][0]
+        self.single_images = tf.placeholder(tf.float32, shape=[None, width, width, 1])
+        self.encoded_images = self.encoder(self.single_images, reuse=True)
+
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def reshape_time_to_channels(self, X):
+        bs = self.params['optimization']['batch_size']
+        nc = self.params['time']['num_classes']
+        idx = np.arange(bs) * nc
+        x = tf.gather(X, idx)
+        #for i in (np.arange(nc - 1) + 1):
+        for i in range(1, nc):
+            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
+        return x
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+    def encoder(self, X, reuse):
+        return encoder(X, self.params['encoder'], self.latent_dim, reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
+    @property
+    def E_loss(self):
+        return self._E_loss
+
+
+def reshape_channels_to_separate(self, X):
+    t = tf.transpose(X, [0, 3, 1, 2])
+    shape = tf.shape(t)
+    return tf.reshape(t, [shape[0]*shape[1], shape[2], shape[3], 1])
 
 
 class WVeeGanModel(GanModel):
