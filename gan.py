@@ -786,6 +786,8 @@ class CosmoGAN(GAN):
             self._md['log_l1_peak_hist'],
             collections=['Metrics'])
 
+        self._md['wasserstein_mass_hist'] = tf.placeholder(
+            tf.float32, name='wasserstein_mass_hist')
         self._md['l2_mass_hist'] = tf.placeholder(
             tf.float32, name='l2_mass_hist')
         self._md['log_l2_mass_hist'] = tf.placeholder(
@@ -793,7 +795,9 @@ class CosmoGAN(GAN):
         self._md['l1_mass_hist'] = tf.placeholder(
             tf.float32, name='l1_mass_hist')
         self._md['log_l1_mass_hist'] = tf.placeholder(
-            tf.float32, name='log_l1_mass_hist')
+            tf.float32, name='log_l1_mass_hist')        
+        self._md['total_stats_error'] = tf.placeholder(
+            tf.float32, name='total_stats_error')
         tf.summary.scalar(
             "MASS_HIST/l2", self._md['l2_mass_hist'], collections=['Metrics'])
         tf.summary.scalar(
@@ -806,7 +810,10 @@ class CosmoGAN(GAN):
             "MASS_HIST/log_l1",
             self._md['log_l1_mass_hist'],
             collections=['Metrics'])
-
+        tf.summary.scalar(
+            "total_stats_error",
+            self._md['total_stats_error'],
+            collections=['Metrics'])
         self._psd_plot = PlotSummaryLog('Power_spectrum_density', 'PLOT')
         self._mass_hist_plot = PlotSummaryLog('Mass_histogram', 'PLOT')
         self._peak_hist_plot = PlotSummaryLog('Peak_histogram', 'PLOT')
@@ -856,6 +863,7 @@ class CosmoGAN(GAN):
 
         self._stats['best_psd'] = 1e10
         self._stats['best_log_psd'] = 10000
+        self._stats['total_stats_error'] = 10000
 
         # Jonathan: here you should be able to use real instead of X
         if self.params['num_classes'] > 1:
@@ -983,10 +991,17 @@ class CosmoGAN(GAN):
             l2, logel2, l1, logel1 = metrics.diff_vec(
                 self._stats['mass_hist_real'], mass_hist_fake)
 
+            ws_hist = metrics.wasserstein_distance(
+                self._stats['mass_hist_real'],
+                mass_hist_fake,
+                safe=False)
+
+            feed_dict[self._md['wasserstein_mass_hist']] = ws_hist
             feed_dict[self._md['l2_mass_hist']] = l2
             feed_dict[self._md['log_l2_mass_hist']] = logel2
             feed_dict[self._md['l1_mass_hist']] = l1
             feed_dict[self._md['log_l1_mass_hist']] = logel1
+
 
             summary_str = self._mass_hist_plot.produceSummaryToWrite(
                 self._sess,
@@ -1055,6 +1070,17 @@ class CosmoGAN(GAN):
             ]
 
             # del cross_ff, cross_rf, cross_rr
+            fd = dict()
+            fd['log_l2_psd'] = feed_dict[self._md['log_l2_psd']]
+            fd['log_l1_psd'] = feed_dict[self._md['log_l1_psd']]
+            fd['log_l2_mass_hist'] = feed_dict[self._md['log_l2_mass_hist']]
+            fd['log_l1_mass_hist'] = feed_dict[self._md['log_l1_mass_hist']]
+            fd['log_l2_peak_hist'] = feed_dict[self._md['log_l2_peak_hist']]
+            fd['log_l1_peak_hist'] = feed_dict[self._md['log_l1_peak_hist']]
+            fd['wasserstein_mass_hist'] = feed_dict[self._md['wasserstein_mass_hist']]
+
+            total_stats_error = metrics.total_stats_error(fd)
+            feed_dict[self._md['total_stats_error']] = total_stats_error
 
             summary_str = self._sess.run(
                 self.summary_op_metrics, feed_dict=feed_dict)
@@ -1100,6 +1126,15 @@ class CosmoGAN(GAN):
                 self._save_current_step = True
             print(' {} current PSD L2 {}, logL2 {}'.format(
                 self._counter, l2psd, logel2psd))
+
+            if total_stats_error < self._stats['total_stats_error']:
+                print(
+                    ' [*] New stats Low achieved {:3f} (was {:3f})'.format(
+                        total_stats_error, self._stats['total_stats_error']))
+                self._stats['total_stats_error'] = total_stats_error
+                self._save_current_step = True
+            print(' {} current PSD L2 {}, logL2 {}, total'.format(
+                self._counter, l2psd, logel2psd, total_stats_error))
 
             # To save the stats in params
             self.params['cosmology']['stats'] = self._stats
