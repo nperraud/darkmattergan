@@ -115,4 +115,4 @@ def main_2d():
 
 
 if __name__ == '__main__':
-    main_time()
+    process_time(500)
