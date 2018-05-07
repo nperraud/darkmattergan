@@ -17,7 +17,6 @@ def root_path():
         # This should be done in a different way
         utils_module_path = os.path.dirname(__file__)
         rootpath = utils_module_path + '/../../data/'
-        
     return rootpath
 
 
