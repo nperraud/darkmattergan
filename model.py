@@ -206,15 +206,20 @@ class TempGanModelv2(GanModel):
 class TemporalGanModelv3(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
-        zn = tf.nn.l2_normalize(z, 1)
-        z_shape = tf.shape(zn)
-        scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
-        scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
-        y = tf.constant(scaling, dtype=tf.float32, name='y')
-        y = y[:z_shape[0]]
-        zn = tf.multiply(zn, y)
+        assert 'time' in params.keys()
 
-        self.G_fake = self.generator(zn, reuse=False)
+        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
+        z_shape = tf.shape(zn)
+        scaling = np.asarray(params['time']['class_weights'])
+        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+        scaling = np.resize(scaling, (gen_bs, 1))
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        zn = tf.multiply(zn, t)
+
+        self.G_c_fake = self.generator(zn, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
 
         self.D_real = self.discriminator(X, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, reuse=True)
@@ -230,17 +235,21 @@ class TemporalGanModelv3(GanModel):
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
+    def reshape_time_to_channels(self, X):
+        bs = self.params['optimization']['batch_size']
+        nc = self.params['time']['num_classes']
+        idx = np.arange(bs) * nc
+        x = tf.gather(X, idx)
+        #for i in (np.arange(nc - 1) + 1):
+        for i in range(1, nc):
+            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
+        return x
+
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
 
     def discriminator(self, X, reuse):
-        bs = self.params['optimization']['batch_size']
-        nc = self.params['num_classes']
-        idx = np.arange(bs // nc) * nc
-        x = tf.gather(X, idx)
-        for i in (np.arange(nc - 1) + 1):
-            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
-        return discriminator(x, self.params['discriminator'], reuse=reuse)
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
 
     @property
     def D_loss(self):
@@ -249,6 +258,85 @@ class TemporalGanModelv3(GanModel):
     @property
     def G_loss(self):
         return self._G_loss
+
+
+class TemporalGanModelv4(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        assert 'time' in params.keys()
+
+        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
+        z_shape = tf.shape(zn)
+        scaling = np.asarray(params['time']['class_weights'])
+        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+        scaling = np.resize(scaling, (gen_bs, 1))
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        zn = tf.multiply(zn, t)
+
+        self.G_c_fake = self.generator(zn, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
+
+        self.D_real = self.discriminator(X, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+
+        enc = self.encoder(self.G_c_fake, reuse=False)
+        # Perhaps something should be added to the loss,
+        # as we know how it should be encoding time?
+        self._E_loss = tf.reduce_mean(tf.square(enc - zn))
+
+        # This should make it easy to compare images with their encoded and decoded counterparts
+        width = self.params['image_size'][0]
+        self.single_images = tf.placeholder(tf.float32, shape=[None, width, width, 1])
+        self.encoded_images = self.encoder(self.single_images, reuse=True)
+
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def reshape_time_to_channels(self, X):
+        bs = self.params['optimization']['batch_size']
+        nc = self.params['time']['num_classes']
+        idx = np.arange(bs) * nc
+        x = tf.gather(X, idx)
+        #for i in (np.arange(nc - 1) + 1):
+        for i in range(1, nc):
+            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
+        return x
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+    def encoder(self, X, reuse):
+        return encoder(X, self.params['encoder'], self.latent_dim, reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
+    @property
+    def E_loss(self):
+        return self._E_loss
+
+
+def reshape_channels_to_separate(self, X):
+    t = tf.transpose(X, [0, 3, 1, 2])
+    shape = tf.shape(t)
+    return tf.reshape(t, [shape[0]*shape[1], shape[2], shape[3], 1])
 
 
 class WVeeGanModel(GanModel):
@@ -901,7 +989,7 @@ def apply_non_lin(non_lin, x, reuse):
             rprint('    Non lienarity: {}'.format(non_lin), reuse)
         else:
             x = non_lin(x)
-            rprint('    Custum non lienarity: {}'.format(non_lin), reuse)
+            rprint('    Costum non linearity: {}'.format(non_lin), reuse)
 
     return x
 
@@ -915,7 +1003,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     nfull = len(params['full'])
 
     with tf.variable_scope(scope, reuse=reuse):
-        rprint('Discriminator \n------------------------------------------------------------', reuse)
+        rprint('Discriminator \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         if len(params['one_pixel_mapping']):
             x = one_pixel_mapping(x,
@@ -962,19 +1050,19 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
         rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
 
 
-def generator(x, params, y=None, reuse=True, scope="generator"):
 
+def generator(x, params, y=None, reuse=True, scope="generator"):
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
     nfull = len(params['full'])
     with tf.variable_scope(scope, reuse=reuse):
-        rprint('Generator \n------------------------------------------------------------', reuse)
+        rprint('Generator \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         if y is not None:
             x = tf.concat([x, y], axis=1)
@@ -1012,12 +1100,6 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                        conv_num=i,
                        is_3d=params['is_3d'])
 
-            # If we are running on Leonhard we need to reshape in order for TF
-            # to explicitly know the shape of the tensor. Machines with newer
-            # TensorFlow versions do not need this.
-            if tf.__version__ == '1.3.0':
-                x = tf.reshape(x, output_shape)
-
             rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
             if i < nconv-1:
                 if params['batch_norm'][i]:
@@ -1034,7 +1116,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
         x = apply_non_lin(params['non_lin'], x, reuse)
 
         rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
 
@@ -1108,7 +1190,7 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
     nfull = len(params['full'])
 
     with tf.variable_scope(scope, reuse=reuse):
-        rprint('Encoder \n------------------------------------------------------------', reuse)
+        rprint('Encoder \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         for i in range(nconv):
             x = conv2d(x,
@@ -1140,7 +1222,7 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
         rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
 
@@ -1157,7 +1239,7 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
            == len(params_border['batch_norm']))
     nconv_border = len(params_border['stride'])
     with tf.variable_scope(scope, reuse=reuse):
-        rprint('Border block \n------------------------------------------------------------', reuse)
+        rprint('Border block \n'+''.join(['-']*50), reuse)
 
         rprint('     BORDER:  The input is of size {}'.format(img.shape), reuse)
         imgt = img
@@ -1183,7 +1265,7 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
         rprint('     Latent:  Size of the Z variables: {}'.format(x.shape), reuse)
 
         x = tf.concat([x, imgt, border], axis=1)
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
 
         x = generator(x, params, reuse=reuse, scope="generator")
 
@@ -1191,20 +1273,20 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
 
         rprint('     After concatenation: output is of size {}'.format(x.shape), reuse)
 
-        rprint('------------------------------------------------------------\n', reuse)
+        rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
 
-def one_pixel_mapping(x , n_filters, summary=True, reuse=True):
+def one_pixel_mapping(x, n_filters, summary=True, reuse=False):
     """One pixel mapping."""
-    rprint('  Begining of one Pixel Mapping '+''.join(['-']*20)+'\n', reuse)
+    rprint('  Begining of one Pixel Mapping '+''.join(['-']*20), reuse)
     xsh = tf.shape(x)  # Batch size
 
-    rprint('     The input is of size {}'.format(), reuse)
+    rprint('     The input is of size {}'.format(x.shape), reuse)
     x = tf.reshape(x, [xsh[0], prod(x.shape.as_list()[1:]), 1, 1])
     rprint('     Reshape x to size {}'.format(x.shape), reuse)
     nconv = len(n_filters)
-    for i, n_filter in enumerate(n_filters.append(1)):
+    for i, n_filter in enumerate(n_filters):
         x = conv2d(x,
                    nf_out=n_filter,
                    shape=[1, 1],
@@ -1212,11 +1294,16 @@ def one_pixel_mapping(x , n_filters, summary=True, reuse=True):
                    name='{}_1x1conv'.format(i),
                    summary=summary)
 
-        rprint('     {} 1x1 Conv layer with {} channels'.format(i, n_filter), reuse)
-        if i < nconv-1:
-            x = lrelu(x)
+        rprint('     {} 1x1 Conv layer with {} channels'.format(i, n_filter), reuse)    
+        x = lrelu(x)
         rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
+    x = conv2d(x,
+               nf_out=1,
+               shape=[1, 1],
+               stride=1,
+               name='final_1x1conv',
+               summary=summary)
     x = tf.reshape(x, xsh)
     rprint('     Reshape x to size {}'.format(x.shape), reuse)
     rprint('  End of one Pixel Mapping '+''.join(['-']*20)+'\n', reuse)

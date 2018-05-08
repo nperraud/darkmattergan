@@ -1,5 +1,7 @@
 import data.fmap as fmap
+import numpy as np
 import warnings
+
 
 def default_params(params=dict()):
 
@@ -20,8 +22,6 @@ def default_params(params=dict()):
     params['prior_distribution'] = params.get('prior_distribution',
                                               'gaussian')
     # Prior distribution to sample from ('Gaussian','Uniform',...)
-    params['num_classes'] = params.get('num_classes', 1)
-    # Number of classes to condition on
     params['image_size'] = params.get('image_size', [32, 32, 1])
     # size of input image
 
@@ -93,4 +93,15 @@ def default_params_cosmology(params=dict()):
     params['cosmology']['backward_map'] = params['cosmology'].get('backward_map', backward)
     # Default transformation for the data
 
+    return params
+
+
+def default_params_time(params=dict()):
+    params['time']['num_classes'] = params['time'].get('num_classes', 1)
+    # Number of classes to condition on
+    params['time']['classes'] = params['time'].get('classes', None)
+    # Which classes to utilize
+    default_scaling = (np.arange(params['time']['num_classes']) + 1) / params['time']['num_classes']
+    params['time']['class_weights'] = params['time'].get('class_weights', default_scaling)
+    # Default temporal weights for classes.
     return params

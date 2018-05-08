@@ -6,6 +6,7 @@ sys.path.insert(0, '../')
 import matplotlib
 matplotlib.use('Agg')
 
+import os
 import data
 from model import WGanModel
 from gan import CosmoGAN
@@ -25,7 +26,7 @@ backward = fmap.backward
 
 
 time_str = 'original_{}'.format(Mpch)
-global_path = '../../../saved_result/'
+global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'WGAN{}'.format(ns)
 
@@ -84,8 +85,29 @@ params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
 params['name'] = name
-params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary/'
-params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
+params['summary_dir'] = global_path + 'summaries_A8/' + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + 'models_A8/' + params['name'] + '_' + time_str + '_checkpoints/'
+
+print("All params")
+print(params)
+print("\nDiscriminator Params")
+print(params['discriminator'])
+print("\nGenerator Params")
+print(params['generator'])
+print("\nOptimization Params")
+print(params['optimization'])
+print("\nCosmo Params")
+print(params['cosmology'])
+print()
+
+if not os.path.exists(params['summary_dir']):
+    os.makedirs(params['summary_dir'])
+utils.save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
+utils.save_dict_for_humans(params['summary_dir'] + 'params.txt', params)
+if not os.path.exists(params['save_dir']):
+    os.makedirs(params['save_dir'])
+utils.save_dict_pickle(params['save_dir'] + 'params.pkl', params)
+utils.save_dict_for_humans(params['save_dir'] + 'params.txt', params)
 
 resume, params = utils.test_resume(try_resume, params)
 
