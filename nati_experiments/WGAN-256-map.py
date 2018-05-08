@@ -16,7 +16,7 @@ import functools
 
 # Parameters
 
-ns = 64
+ns = 256
 try_resume = True
 Mpch = 70
 
@@ -29,7 +29,7 @@ backward = functools.partial(fmap.stat_backward, c=c, shift=shift)
 def non_lin(x):
 	return tf.nn.relu(x)
 
-time_str = 'new_stat_c_{}_shift_{}_laplacian{}_no_full'.format(c, shift, Mpch)
+time_str = 'new_stat_c_{}_shift_{}_laplacian{}'.format(c, shift, Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -38,7 +38,7 @@ bn = False
 
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [16, 128, 256, 512, 128, 64]
+params_discriminator['nfilter'] = [16, 128, 256, 512, 128, 32]
 params_discriminator['shape'] = [[5, 5], [5, 5], [5, 5], [3, 3], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
 params_discriminator['full'] = [64]
@@ -47,11 +47,11 @@ params_discriminator['summary'] = True
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 2, 1, 1]
-params_generator['latent_dim'] = 4*4*64
-params_generator['nfilter'] = [64, 256, 512, 256, 64, 1]
-params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
+params_generator['latent_dim'] = 100
+params_generator['nfilter'] = [16, 64, 512, 256, 64, 1]
+params_generator['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
-params_generator['full'] = []
+params_generator['full'] = [16*16*16]
 params_generator['summary'] = True
 params_generator['non_lin'] = non_lin
 
@@ -73,7 +73,7 @@ params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
 params_cosmology['forward_map'] = forward
 params_cosmology['backward_map'] = backward
-params_cosmology['Nstats'] = 5000
+params_cosmology['Nstats'] = 500
 
 
 params = dict()

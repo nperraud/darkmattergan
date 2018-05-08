@@ -308,7 +308,6 @@ def mass_hist_real_fake(real, fake, bins=20, lim=None):
         new_lim = False
     y_real, x, lim = mass_hist(real, bins=bins, lim=lim)
     if new_lim:
-        print('Using new limits')
         lim = list(lim)
         lim[1] = lim[1]+1
         y_real, x, lim = mass_hist(real, bins=bins, lim=lim)

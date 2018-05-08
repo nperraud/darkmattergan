@@ -16,7 +16,7 @@ import functools
 
 # Parameters
 
-ns = 64
+ns = 128
 try_resume = True
 Mpch = 70
 
@@ -47,9 +47,9 @@ params_discriminator['summary'] = True
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 2, 1, 1]
-params_generator['latent_dim'] = 4*4*64
+params_generator['latent_dim'] = 8*8*64
 params_generator['nfilter'] = [64, 256, 512, 256, 64, 1]
-params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
+params_generator['shape'] = [[3, 3], [5, 5], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = []
 params_generator['summary'] = True
