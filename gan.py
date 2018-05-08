@@ -10,7 +10,7 @@ import metrics
 import itertools
 
 from plot_summary import PlotSummaryLog
-from default import default_params, default_params_cosmology
+from default import default_params, default_params_cosmology, default_params_time
 
 
 class GAN(object):
@@ -68,7 +68,11 @@ class GAN(object):
                 shape = [None, *self.params['image_size']]
         else:
             if len(self.params['image_size']) == 2:
-                shape = [None, *self.params['image_size'], 1]
+                # TODO Clean this
+                if 'time' in self.params.keys():
+                    shape = [None, *self.params['image_size'], params['time']['num_classes']]
+                else:
+                    shape = [None, *self.params['image_size'], 1]
             else:
                 shape = [None, *self.params['image_size']]
 
@@ -124,6 +128,16 @@ class GAN(object):
                                  grads_and_vars_g, optimizer_E)
 
         # Summaries
+        self._build_image_summary()
+
+        tf.summary.histogram('Prior/z', self._z, collections=['Images'])
+
+        self.summary_op = tf.summary.merge(tf.get_collection("Training"))
+        self.summary_op_img = tf.summary.merge(tf.get_collection("Images"))
+
+        self._saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
+
+    def _build_image_summary(self):
         if self.is_3d:
             tile_shape = utils.get_tile_shape_from_3d_image(
                 self.params['image_size'])
@@ -175,13 +189,6 @@ class GAN(object):
                     self._normalize(self._G_fake),
                     max_outputs=4,
                     collections=['Images'])
-
-        tf.summary.histogram('Prior/z', self._z, collections=['Images'])
-
-        self.summary_op = tf.summary.merge(tf.get_collection("Training"))
-        self.summary_op_img = tf.summary.merge(tf.get_collection("Images"))
-
-        self._saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
 
     def _build_optmizer(self):
 
@@ -343,6 +350,14 @@ class GAN(object):
                 while epoch < self._n_epoch:
                     for idx, batch_real in enumerate(
                             dataset.iter(self.batch_size)):
+
+                        # print("batch_real shape:")
+                        # print(tf.shape(batch_real)[0])
+                        # print(tf.shape(batch_real)[1])
+                        # print(tf.shape(batch_real)[2])
+                        # print(tf.shape(batch_real)[3])
+                        # print("test")
+
                         if resume:
                             # epoch = self.params['curr_epochs']
                             # idx = self.params['curr_idx']
@@ -442,11 +457,6 @@ class GAN(object):
         if bs is None:
             bs = self.batch_size
         latent_dim = self.params['generator']['latent_dim']
-        if self.params['num_classes'] > 1:
-            latent = utils.sample_latent(
-                int(np.ceil(bs / self.params['num_classes'])), latent_dim,
-                self._prior_distribution)
-            return np.repeat(latent, self.params['num_classes'], axis=0)[:bs]
         return utils.sample_latent(bs, latent_dim, self._prior_distribution)
 
     def _get_dict(self, z=None, X=None, index=None, **kwargs):
@@ -553,7 +563,7 @@ class GAN(object):
         if z is None:
             if N is None:
                 N = self.batch_size
-        z = self._sample_latent(N)
+            z = self._sample_latent(N)
         return self._generate_sample_safe(z=z, X=X, **kwargs)
 
     def _get_sample_args(self):
@@ -736,33 +746,6 @@ class CosmoGAN(GAN):
         tf.summary.scalar(
             "PSD/log_l1", self._md['log_l1_psd'], collections=['Metrics'])
 
-        if self.params['num_classes'] > 1:
-            for i in range(self.params['num_classes']):
-                self._md['c' + str(i) + '_l2_psd'] = tf.placeholder(
-                    tf.float32, name='c' + str(i) + '_l2_psd')
-                self._md['c' + str(i) + '_log_l2_psd'] = tf.placeholder(
-                    tf.float32, name='c' + str(i) + '_log_l2_psd')
-                self._md['c' + str(i) + '_l1_psd'] = tf.placeholder(
-                    tf.float32, name='c' + str(i) + '_l1_psd')
-                self._md['c' + str(i) + '_log_l1_psd'] = tf.placeholder(
-                    tf.float32, name='c' + str(i) + '_log_l1_psd')
-                tf.summary.scalar(
-                    "PSD/l2",
-                    self._md['c' + str(i) + '_l2_psd'],
-                    collections=['Metrics'])
-                tf.summary.scalar(
-                    "PSD/log_l2",
-                    self._md['c' + str(i) + '_log_l2_psd'],
-                    collections=['Metrics'])
-                tf.summary.scalar(
-                    "PSD/l1",
-                    self._md['c' + str(i) + '_l1_psd'],
-                    collections=['Metrics'])
-                tf.summary.scalar(
-                    "PSD/log_l1",
-                    self._md['c' + str(i) + '_log_l1_psd'],
-                    collections=['Metrics'])
-
         self._md['l2_peak_hist'] = tf.placeholder(
             tf.float32, name='l2_peak_hist')
         self._md['log_l2_peak_hist'] = tf.placeholder(
@@ -820,13 +803,6 @@ class CosmoGAN(GAN):
         self._mass_hist_plot = PlotSummaryLog('Mass_histogram', 'PLOT')
         self._peak_hist_plot = PlotSummaryLog('Peak_histogram', 'PLOT')
 
-        if self.params['num_classes'] > 1:
-            self._c_psd_plot = []
-            for i in range(self.params['num_classes']):
-                self._c_psd_plot.append(
-                    PlotSummaryLog('C' + str(i) + '_Power_spectrum_density',
-                                   'PLOT'))
-
         self.summary_op_metrics = tf.summary.merge(
             tf.get_collection("Metrics"))
 
@@ -862,17 +838,6 @@ class CosmoGAN(GAN):
         self._stats['best_log_psd'] = 10000
         self._stats['total_stats_error'] = 10000
 
-        # Jonathan: here you should be able to use real instead of X
-        if self.params['num_classes'] > 1:
-            raise ValueError("This should be adapted...")
-            self._c_psd_real = []
-            for i in range(self.params['num_classes']):
-                psd_real, _ = metrics.power_spectrum_batch_phys(
-                    X1=self._backward_map(X[i::self.params['num_classes']]),
-                    is_3d=self.is_3d)
-                self._c_psd_real.append(np.mean(psd_real, axis=0))
-                del psd_real
-
     def train(self, dataset, resume=False):
         X = dataset.get_all_data()
         
@@ -888,47 +853,15 @@ class CosmoGAN(GAN):
 
         super().train(dataset=dataset, resume=resume)
 
-    def _multiclass_l2_psd(self, feed_dict, X):
-        Xsel = X[0:self._stats['N']]
-        real = self._backward_map(Xsel)
-        z_sel = self._sample_latent(self._stats['N'])
-
-        fake_image = self._generate_sample_safe(
-            z_sel, Xsel.reshape([self._stats['N'], *X.shape[1:], 1]))
-        fake = self._backward_map(fake_image)
-        fake.resize([self._stats['N'], *X.shape[1:]])
-
-        nc = self.params['num_classes']
-        for i in range(nc):
-            psd_gen, x = metrics.power_spectrum_batch_phys(
-                X1=fake[i::nc], is_3d=self.is_3d)
-            psd_gen = np.mean(psd_gen, axis=0)
-            l2, logel2, l1, logel1 = metrics.diff_vec(self._c_psd_real[i],
-                                                      psd_gen)
-
-            feed_dict[self._md['c' + str(i) + '_l2_psd']] = l2
-            feed_dict[self._md['c' + str(i) + '_log_l2_psd']] = logel2
-            feed_dict[self._md['c' + str(i) + '_l1_psd']] = l1
-            feed_dict[self._md['c' + str(i) + '_log_l1_psd']] = logel1
-
-            summary_str = self._c_psd_plot[i].produceSummaryToWrite(
-                self._sess, x, self._c_psd_real[i], psd_gen)
-            self._summary_writer.add_summary(summary_str, self._counter)
-
-    # def _get_real_sample(data_iterator, N):
-
-    #     x = []
-    #     for _ in range(ceil(N // self.batch_size)):
-    #         x.append(next(data_iterator))
-    #     return = np.vstack(x)
-
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
-
             z_sel = self._sample_latent(self._stats['N'])
             Xsel = next(self._sum_data_iterator)
+
+            # if self.params['num_classes'] > 1:
+            #    self._multiclass_l2_psd(feed_dict, Xsel)
 
             # TODO better
             if self._is_3d or not (len(Xsel.shape) == 4):
@@ -941,11 +874,9 @@ class CosmoGAN(GAN):
             real = self._backward_map(Xsel)
 
             fake = self._backward_map(fake_image)
+            if not self._is_3d and len(fake.shape) == 4:
+                fake = fake[:, :, :, 0]
             fake = np.squeeze(fake)
-
-            if self.params['num_classes'] > 1:
-                raise ValueError("Sorry this is broken")
-                self._multiclass_l2_psd(feed_dict, X)
 
             psd_gen, _ = metrics.power_spectrum_batch_phys(
                 X1=fake, is_3d=self.is_3d)
@@ -1148,3 +1079,138 @@ class CosmoGAN(GAN):
         raw_images = self._backward_map(images)
 
         return images, raw_images
+
+
+class TimeGAN(GAN):
+    def __init__(self, params, model=None, is_3d=False):
+        super().__init__(params=params, model=model, is_3d=is_3d)
+
+        params = default_params_time(self.params)
+
+        self._mdt = dict()
+
+        self._mdt['c_descriptives'] = tf.placeholder(
+            tf.float64, shape=[params['time']['num_classes'], 2, 5], name="DescriptiveTimeStatistics")
+
+        for c in range(params['time']['num_classes']):
+            tf.summary.scalar(
+                "c_descriptives/mean_Fake",
+                self._mdt['c_descriptives'][c, 0, 0],
+                collections=['Time Metrics'])
+            tf.summary.scalar(
+                "c_descriptives/var_Fake",
+                self._mdt['c_descriptives'][c, 0, 1],
+                collections=['Time Metrics'])
+            tf.summary.scalar(
+                "c_descriptives/min_Fake",
+                self._mdt['c_descriptives'][c, 0, 2],
+                collections=['Time Metrics'])
+            tf.summary.scalar(
+                "c_descriptives/max_Fake",
+                self._mdt['c_descriptives'][c, 0, 3],
+                collections=['Time Metrics'])
+            tf.summary.scalar(
+                "c_descriptives/median_Fake",
+                self._mdt['c_descriptives'][c, 0, 4],
+                collections=['Time Metrics'])
+
+            tf.summary.scalar(
+                "c_descriptives/mean_Real",
+                self._mdt['c_descriptives'][c, 1, 0],
+                collections=['Time Metrics'])
+            tf.summary.scalar(
+                "c_descriptives/var_Real",
+                self._mdt['c_descriptives'][c, 1, 1],
+                collections=['Time Metrics'])
+            tf.summary.scalar(
+                "c_descriptives/min_Real",
+                self._mdt['c_descriptives'][c, 1, 2],
+                collections=['Time Metrics'])
+            tf.summary.scalar(
+                "c_descriptives/max_Real",
+                self._mdt['c_descriptives'][c, 1, 3],
+                collections=['Time Metrics'])
+            tf.summary.scalar(
+                "c_descriptives/median_Real",
+                self._mdt['c_descriptives'][c, 1, 4],
+                collections=['Time Metrics'])
+
+        self.summary_time_metrics = tf.summary.merge(
+            tf.get_collection("Time Metrics"))
+
+    def _build_image_summary(self):
+        for c in range(self.params["time"]["num_classes"]):
+            tf.summary.image(
+                "training/Real_Image_c{}".format(c),
+                self._X[:, :, :, c:(c+1)],
+                max_outputs=4,
+                collections=['Images'])
+            tf.summary.image(
+                "training/Fake_Image_c{}".format(c),
+                self._G_fake[:, :, :, c:(c+1)],
+                max_outputs=4,
+                collections=['Images'])
+
+    # def train(self, dataset, resume=False):
+    #     X = dataset.get_all_data()
+    #
+    #     #if resume:
+    #     #    self._stats = self.params['cosmology']['stats']
+    #     #else:
+    #     #    self._compute_real_stats(X)
+    #     #    self.params['cosmology']['stats'] = self._stats
+    #     # Out of the _compute_real_stats function since we may want to change
+    #     # this parameter during training.
+    #     #self._stats['N'] = self.params['cosmology']['Nstats']
+    #     #self._sum_data_iterator = itertools.cycle(dataset.iter(self._stats['N']))
+    #
+    #     super().train(dataset=dataset, resume=resume)
+
+    def _train_log(self, feed_dict):
+        super()._train_log(feed_dict)
+
+        if np.mod(self._counter, self.params['sum_every']) == 0:
+            z_sel = self._sample_latent(self._stats['N'])
+            Xsel = next(self._sum_data_iterator)
+
+            # if self.params['num_classes'] > 1:
+            #    self._multiclass_l2_psd(feed_dict, Xsel)
+
+            # TODO better
+            #if not (len(Xsel.shape) == 4):
+            #    Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
+
+            fake_image = self._generate_sample_safe(z_sel, Xsel)
+
+            stats = np.zeros((self.params['time']['num_classes'], 2, 5))
+            for c in range(self.params['time']['num_classes']):
+                real = Xsel[:, :, :, c]
+                fake = fake_image[:, :, :, c]
+                fake = np.squeeze(fake)
+
+                # Descriptive Stats
+                stats[c, 0, :] = np.mean(np.array([metrics.describe(x) for x in fake]), axis=0)
+                stats[c, 1, :] = np.mean(np.array([metrics.describe(x) for x in real]), axis=0)
+
+            feed_dict[self._mdt['c_descriptives']] = stats
+
+            summary_str = self._sess.run(
+                self.summary_time_metrics, feed_dict=feed_dict)
+            self._summary_writer.add_summary(summary_str, self._counter)
+
+    def _sample_latent(self, bs=None):
+        if bs is None:
+            bs = self.batch_size
+        latent = super()._sample_latent(bs=bs)
+        return np.repeat(latent, self.params['time']['num_classes'], axis=0)
+
+
+class TimeCosmoGAN(CosmoGAN, TimeGAN):
+    def __init__(self, params, model=None, is_3d=False):
+        super().__init__(params=params, model=model, is_3d=is_3d)
+
+    def _train_log(self, feed_dict, epoch=None, batch_num=None):
+        super()._train_log(feed_dict, epoch, batch_num)
+
+    def _sample_latent(self, bs=None):
+        return TimeGAN._sample_latent(self, bs)
