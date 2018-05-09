@@ -806,9 +806,9 @@ class CosmoGAN(GAN):
         self.summary_op_metrics = tf.summary.merge(
             tf.get_collection("Metrics"))
 
-    def _compute_real_stats(self, X):
+    def _compute_real_stats(self, dataset):
         """Compute the main statistics on the real data."""
-        real = self._backward_map(X)
+        real = self._backward_map(dataset.get_all_data())
         self._stats = dict()
 
         # This line should be improved, probably going to mess with Jonathan code
@@ -837,14 +837,13 @@ class CosmoGAN(GAN):
         self._stats['best_psd'] = 1e10
         self._stats['best_log_psd'] = 10000
         self._stats['total_stats_error'] = 10000
+        del real
 
-    def train(self, dataset, resume=False):
-        X = dataset.get_all_data()
-        
+    def train(self, dataset, resume=False):        
         if resume:
             self._stats = self.params['cosmology']['stats']
         else:
-            self._compute_real_stats(X)
+            self._compute_real_stats(dataset)
             self.params['cosmology']['stats'] = self._stats
         # Out of the _compute_real_stats function since we may want to change
         # this parameter during training.

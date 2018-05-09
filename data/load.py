@@ -110,9 +110,8 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
     for file in os.listdir(rootpath):
         if file.endswith(file_ext) and input_pattern in file:
             queue.append(os.path.join(rootpath, file))
-
     if len(queue) == 0:
-        ValueError('No file founds, check path and parameters')
+        raise LookupError('No file founds, check path and parameters')
     raw_images = []
     for file_path in queue:
         raw_images.append(
@@ -120,7 +119,7 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
                 filename=file_path, dataset_name='data', mode='r'))
         if type(raw_images[-1]) is not np.ndarray:
             raise ValueError(
-                "Data stroed in file {} is not of type np.ndarray".format(
+                "Data stored in file {} is not of type np.ndarray".format(
                     file_path))
 
     raw_images = np.array(raw_images).astype(np.float32)

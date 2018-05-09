@@ -17,24 +17,27 @@ import functools
 # Parameters
 
 ns = 64
-try_resume = True
-Mpch = 70
-
+try_resume = False
+Mpch = 350
+shift = 20
 c = 20000
-shift = 3
-forward = functools.partial(fmap.stat_forward, c=c, shift=shift)
-backward = functools.partial(fmap.stat_backward, c=c, shift=shift)
+res = 256
+forward = functools.partial(fmap.stat_forward, shift=shift)
+backward = functools.partial(fmap.stat_backward, shift=shift)
 
 
 def non_lin(x):
 	return tf.nn.relu(x)
 
-time_str = 'new_stat_c_{}_shift_{}_laplacian{}_no_full'.format(c, shift, Mpch)
+# def non_lin(x):
+#     return tf.nn.tanh(x)
+
+time_str = 'stat_c_{}_shift_{}_laplacian_bn_Mpch_{}_res_{}'.format(c, shift, Mpch, res)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
 
-bn = False
+bn = True
 
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
@@ -50,7 +53,7 @@ params_generator['stride'] = [2, 2, 2, 2, 1, 1]
 params_generator['latent_dim'] = 4*4*64
 params_generator['nfilter'] = [64, 256, 512, 256, 64, 1]
 params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
-params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
+params_generator['batch_norm'] = [False, False, False, False, False]
 params_generator['full'] = []
 params_generator['summary'] = True
 params_generator['non_lin'] = non_lin
@@ -100,6 +103,6 @@ resume, params = utils.test_resume(try_resume, params)
 # Build the model
 wgan = CosmoGAN(params, WGanModel)
 
-dataset = data.load.load_dataset(resolution=256, Mpch=Mpch, forward_map=forward, spix=ns)
+dataset = data.load.load_dataset(resolution=res, Mpch=Mpch, forward_map=forward, spix=ns)
 
 wgan.train(dataset=dataset, resume=resume)

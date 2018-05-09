@@ -10,7 +10,7 @@ def arg_helper(params, d_param):
     return params
 
 
-def default_params(params=dict()):
+def default_params(params=None):
 
     # Global parameters
     # -----------------
@@ -59,10 +59,10 @@ def default_params(params=dict()):
     d_param['generator']['y_layer'] = None
     d_param['generator']['one_pixel_mapping'] = []
 
-    return arg_helper(params, d_param)
+    return arg_helper(params or {}, d_param)
 
 
-def default_params_cosmology(params=dict()):
+def default_params_cosmology(params=None):
 
     forward = fmap.forward
     backward = fmap.backward 
@@ -80,7 +80,7 @@ def default_params_cosmology(params=dict()):
         params['cosmology']['Nstats'] = params['cosmology']['Npsd']
         warnings.warn('Use Nstats instead of Npsd!')
 
-    return arg_helper(params, d_param)
+    return arg_helper(params or {}, d_param)
 
 
 def default_params_time(params=dict()):

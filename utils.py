@@ -46,6 +46,10 @@ def sample_latent(m, n, prior="uniform", normalize=False):
         return np.random.standard_t(df, size=[m, n])
     elif prior == "laplacian":
         return np.random.laplace(loc=0.0, scale=1.0, size=[m, n])
+    elif prior == "2-2tanh2":
+        margin = 10*np.finfo(np.float32).eps
+        u = np.random.uniform(low=0.0, high=1.0-margin, size=[m, n])
+        return np.arctanh(0.5*(u+1.0))
     # elif prior.startswith('chi2'):
     #     prior_ = prior.split('-')
     #     if len(prior_) >= 2:
