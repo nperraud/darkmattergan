@@ -129,19 +129,22 @@ class GAN(object):
                 self.params['image_size'])
 
             self.real_placeholder = tf.placeholder(
-                dtype=tf.float32, shape=[1, *tile_shape, 1])
+                dtype=tf.float32, shape=[5, *tile_shape, 1], name='real_placeholder')
 
             self.fake_placeholder = tf.placeholder(
-                dtype=tf.float32, shape=[1, *tile_shape, 1])
+                dtype=tf.float32, shape=[5, *tile_shape, 1], name='fake_placeholder')
 
             self.summary_op_real_image = tf.summary.image(
-                "training/plot_real", self.real_placeholder)
+                "training/plot_real", 
+                self.real_placeholder,
+                max_outputs=5)
 
             self.summary_op_fake_image = tf.summary.image(
-                "training/plot_fake", self.fake_placeholder)
+                "training/plot_fake", 
+                self.fake_placeholder,
+                max_outputs=5)
 
-            if self.normalized(
-            ):  # displaying only one slice from the normalized 3d image
+            if self.normalized():  # displaying only one slice from the normalized 3d image
                 tf.summary.image(
                     "training/Real_Image_normalized", (self._normalize(
                         self._X))[:, 1, :, :, :],
@@ -300,6 +303,19 @@ class GAN(object):
                 optim_learning_rate_D,
                 collections=["Training"])
 
+    def add_input_channel(self, X):
+        '''
+        X: input tensor containing real data
+        '''
+        if self._is_3d:
+            if len(X.shape) == 4: # (batch_size, x, y, z)
+                X = X.reshape([*X.shape, 1])
+        else:
+            if (len(X.shape) == 3): # (batch_size, x, y)
+                X = X.reshape([*X.shape, 1])
+
+        return X
+
     def train(self, dataset, resume=False):
 
         n_data = dataset.N
@@ -353,12 +369,8 @@ class GAN(object):
                             # self.params['curr_idx'] = idx
                             self.params['curr_counter'] = self._counter
 
-                        # This should be done better
-                        if not self._is_3d and len(batch_real.shape) == 4:
-                            X_real = batch_real
-                        else:
-                            X_real = np.resize(batch_real,
-                                               [*batch_real.shape, 1])
+                        # reshape input according to 2d, 3d, or patch case
+                        X_real = self.add_input_channel(batch_real)
                         
                         for _ in range(self.params['optimization']['n_critic']):
                             sample_z = self._sample_latent(self.batch_size)
@@ -427,9 +439,9 @@ class GAN(object):
                     [self.summary_op_real_image, self.summary_op_fake_image],
                     feed_dict={
                         self.real_placeholder:
-                        utils.tile_cube_slices(real_arr[0, :, :, :, 0]),
+                        utils.tile_cube_slices(real_arr[:5, :, :, :, 0]),
                         self.fake_placeholder:
-                        utils.tile_cube_slices(fake_arr[0, :, :, :, 0])
+                        utils.tile_cube_slices(fake_arr[:5, :, :, :, 0])
                     })
 
                 self._summary_writer.add_summary(real_summary, self._counter)
@@ -839,8 +851,12 @@ class CosmoGAN(GAN):
             self._stats['clip_max'] = 1e8
 
         # This line should be improved, probably going to mess with Jonathan code
-        if not self._is_3d and len(real.shape) > 3:
-            real = real[:, :, :, 0]
+        if self.is_3d:
+            if len(real.shape) > 4:
+                real = real[:, :, :, :, 0]
+        else:
+            if len(real.shape) > 3:
+                real = real[:, :, :, 0]
 
         psd_real, psd_axis = metrics.power_spectrum_batch_phys(
             X1=real, is_3d=self.is_3d)
@@ -933,12 +949,15 @@ class CosmoGAN(GAN):
             z_sel = self._sample_latent(self._stats['N'])
             Xsel = next(self._sum_data_iterator)
 
-            # TODO better
-            if self._is_3d or not (len(Xsel.shape) == 4):
-                Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
+            # reshape input according to 2d, 3d, or patch case
+            Xsel = self.add_input_channel(Xsel)
 
             fake_image = self._generate_sample_safe(z_sel, Xsel)
-            if not self._is_3d:
+
+            # pick only 1 channel for the patch case - the channel in which the original information is stored
+            if self._is_3d:
+                Xsel = Xsel[:, :, :, :, 0]
+            else:
                 Xsel = Xsel[:, :, :, 0]
 
             real = self._backward_map(Xsel)

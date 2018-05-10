@@ -811,6 +811,72 @@ class upscale_WGAN_pixel_CNN(GanModel):
         ''' z must have the same dimension as X'''
         super().__init__(params=params, name=name, is_3d=is_3d)
 
+        if self.is_3d:
+            self.__init_3d(params, X, z)
+
+        else:
+            self.__init_2d(params, X, z)
+
+    def __init_3d(self, params, X, z):
+        '''
+        build the computation graph for 2d case.
+        '''
+
+        # A) Separate real data and border information
+        real, border = tf.split(X, [1,7], axis=4)
+
+        # B) Split the borders
+        inshape = border.shape.as_list()[1:]
+        self.border = tf.placeholder_with_default(border, shape=[None, *inshape], name='border')
+        d_above, d_left, d_corner, up, u_above, u_left, u_corner = tf.split(self.border, [1, 1, 1, 1, 1, 1, 1], axis=4)
+
+        # C) Flip the borders for proper alignment with original data
+        flip_d_above  = tf.reverse( d_above, axis=[2])
+        flip_d_left   = tf.reverse(  d_left, axis=[3])
+        flip_d_corner = tf.reverse(d_corner, axis=[2, 3])
+        flip_up       = tf.reverse(      up, axis=[1])
+        flip_u_above  = tf.reverse( u_above, axis=[1, 2])
+        flip_u_left   = tf.reverse(  u_left, axis=[1, 3])
+        flip_u_corner = tf.reverse(u_corner, axis=[1, 2, 3])
+
+        flip_border = tf.concat([flip_d_above, flip_d_left, flip_d_corner, flip_up, flip_u_above, flip_u_left, flip_u_corner], axis=4)
+
+        self.G_fake = self.generator(y=None, z=z, border=flip_border, reuse=False, scope='generator')
+
+        # D) Concatenate back
+        down_left     = tf.concat([ d_corner,      d_left], axis=2)
+        down_right    = tf.concat([  d_above,        real], axis=2)
+        down_right_g  = tf.concat([  d_above, self.G_fake], axis=2)
+        
+        down_cuboid     = tf.concat([down_left,   down_right], axis=3)
+        down_cuboid_g   = tf.concat([down_left, down_right_g], axis=3)
+
+        up_left   = tf.concat([u_corner,   u_left], axis=2)
+        up_right  = tf.concat([ u_above,       up], axis=2)
+        up_cuboid = tf.concat([ up_left, up_right], axis=3)
+
+        X_real = tf.concat([up_cuboid,   down_cuboid], axis=1)
+        G_fake = tf.concat([up_cuboid, down_cuboid_g], axis=1)
+
+        # E) Discriminator
+        self.D_real = self.discriminator(X_real, reuse=False)
+        self.D_fake = self.discriminator(G_fake, reuse=True)
+
+        # F) Losses
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+
+        # G) Summaries
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def __init_2d(self, params, X, z):
+        '''
+        build the computation graph for 2d case.
+        '''
         X0, border = tf.split(X, [1,3],axis=3)
 
         # The border is provided as condition to the generator
@@ -1027,7 +1093,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d
                               output_shape=output_shape,
                               shape=shape,
                               stride=stride,
-                              name='{}_deconv'.format(conv_num),
+                              name='{}_deconv_2d'.format(conv_num),
                               summary=summary)
 
     return out_tensor
@@ -1211,45 +1277,64 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
             rprint('         Size of the variables: {}'.format(z.shape), reuse)
 
 
-        bs = tf.shape(X)[0]  # Batch size
-        sx = X.shape.as_list()[1]
-        sy = X.shape.as_list()[2]
-        z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img')
+        bs = tf.shape(z)[0]  # Batch size
+        sx = y.shape.as_list()[1]
+        sy = y.shape.as_list()[2]
+        
+        if params['is_3d']:
+            sz = y.shape.as_list()[3]
+            z = tf.reshape(z, [bs, sx, sy, sz, 1], name='vec2img_3d')
+        else:
+            z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img_2d')
         rprint('     Reshape z to {}'.format(z.shape), reuse)
 
         if X is None:
             x = z
         else:
-            x = tf.concat([X, z], axis=3)
+            if params['is_3d']:
+                x = tf.concat([X, z], axis=4)
+            else:
+                x = tf.concat([X, z], axis=3)
             rprint('     Concat x and z to {}'.format(x.shape), reuse)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
+
             if (y is not None) and (params['y_layer'] == i):
                 rprint('     Merge input y of size{}'.format(y.shape), reuse)
-                x = tf.concat([x,y],axis=3)
+
+                if params['is_3d']:
+                    x = tf.concat([x,y], axis=4)
+                else:
+                    x = tf.concat([x,y],axis=3)
                 rprint('     Concat x and y to {}'.format(x.shape), reuse) 
-            x = deconv2d(x,
-                         output_shape=[bs, sx, sx, params['nfilter'][i]],
-                         shape=params['shape'][i],
-                         stride=params['stride'][i],
-                         name='{}_deconv'.format(i),
-                         summary=params['summary'])
+
+            x = deconv(in_tensor=x, 
+                       bs=bs, 
+                       sx=sx,
+                       n_filters=params['nfilter'][i],
+                       shape=params['shape'][i],
+                       stride=params['stride'][i],
+                       summary=params['summary'],
+                       conv_num=i,
+                       is_3d=params['is_3d'])
             rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
+
                 x = lrelu(x)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
+
         if len(params['one_pixel_mapping']):
             x = one_pixel_mapping(x,
                                   params['one_pixel_mapping'],
                                   summary=params['summary'],
                                   reuse=reuse)
+
         x = apply_non_lin(params['non_lin'], x, reuse)
-        # Xu = up_sampler(X, params['upsampling'])
-        # x = x + Xu
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
     return x

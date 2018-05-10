@@ -5,7 +5,7 @@ import functools
 from data import gaussian_synthetic_data
 from data import path
 from data import transformation, fmap
-from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch
+from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch
 
 
 import blocks
@@ -190,7 +190,11 @@ def load_dataset(
     
     # 5) Make a dataset
     if patch:
-        dataset = Dataset_2d_patch(images, spix=spix, shuffle=shuffle, transform=t)
+        if is_3d:
+            dataset = Dataset_3d_patch(images, spix=spix, shuffle=shuffle, transform=t)
+        else:
+            dataset = Dataset_2d_patch(images, spix=spix, shuffle=shuffle, transform=t)
+
     else:
         if is_3d:
             dataset = Dataset_3d(images, spix=spix, shuffle=shuffle, transform=t)

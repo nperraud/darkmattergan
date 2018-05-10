@@ -120,7 +120,15 @@ def get_tile_shape_from_3d_image(image_size):
     given a 3d image, tile it as a rectangle with slices of the 3d image,
     and return the shape of the rectangle
     '''
-    x_dim, y_dim, z_dim = image_size
+    l = len(image_size)
+
+    if l == 3:
+        x_dim, y_dim, z_dim = image_size
+    elif l == 4:
+        x_dim, y_dim, z_dim, _ = image_size
+    else:
+        raise ValueError("image_size too large!!")
+
     num_images_in_each_row = num_images_each_row(x_dim)
     tile_shape = ( y_dim * (x_dim//num_images_in_each_row), z_dim * num_images_in_each_row)
     return tile_shape
@@ -132,27 +140,31 @@ def num_images_each_row(x_dim):
 
     return num_images_in_each_row
 
-def tile_cube_slices(cube):
+def tile_cube_slices(cubes):
     '''
-    cube = [:, :, :]
-    arrange cube as tile of squares
+    cubes = [:, :, :, :]
+    arrange each cube in cubes, as tile of squares
     '''
-    x_dim = cube.shape[0]
-    y_dim = cube.shape[1]
-    z_dim = cube.shape[2]
-    v_stacks = []
-    num = 0
+    x_dim = cubes.shape[1]
+    y_dim = cubes.shape[2]
+    z_dim = cubes.shape[3]
     num_images_in_each_row = num_images_each_row(x_dim)
 
-    for i in range(x_dim//num_images_in_each_row):
-        h_stacks = []
-        for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
-            h_stacks.append(cube[num, :, :])
-            num += 1
-        v_stacks.append( np.hstack(h_stacks) )
+    tiles = []
+    for cube in cubes:
+        num = 0
+        v_stacks = []
+        for i in range(x_dim//num_images_in_each_row):
+            h_stacks = []
+            for j in range(num_images_in_each_row): # show 'num_images_in_each_row' squares from the cube in one row
+                h_stacks.append(cube[num, :, :])
+                num += 1
+            v_stacks.append( np.hstack(h_stacks) )
 
-    tile = np.vstack(v_stacks)
-    return tile.reshape([1, *(tile.shape), 1])
+        tile = np.vstack(v_stacks)
+        tiles.append(tile.reshape([*(tile.shape), 1]))
+
+    return np.array(tiles)
 
 def get_3d_hists_dir_paths(path_3d_hists):
     dir_paths = []
