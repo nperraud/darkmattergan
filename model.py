@@ -819,7 +819,7 @@ class upscale_WGAN_pixel_CNN(GanModel):
 
     def __init_3d(self, params, X, z):
         '''
-        build the computation graph for 2d case.
+        build the computation graph for 3d case.
         '''
 
         # A) Separate real data and border information
