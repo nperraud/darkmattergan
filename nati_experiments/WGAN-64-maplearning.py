@@ -19,12 +19,10 @@ ns = 64
 try_resume = False
 Mpch = 70
 
-
 forward = fmap.forward
 backward = fmap.backward
 
-
-time_str = 'original_{}'.format(Mpch)
+time_str = 'map_learning_{}'.format(Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -39,6 +37,7 @@ params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
 params_discriminator['full'] = [64]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
+params_discriminator['one_pixel_mapping'] = [100, 400, 100]
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 2, 1, 1]
@@ -49,6 +48,7 @@ params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = [4*4*64]
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
+params_generator['one_pixel_mapping'] = [100, 400, 100]
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10

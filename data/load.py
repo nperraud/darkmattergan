@@ -1,11 +1,10 @@
 import numpy as np
-import os, random
+import os
 import utils
-import functools
 from data import gaussian_synthetic_data
 from data import path
 from data import transformation, fmap
-from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch
+from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time
 
 
 import blocks
@@ -203,4 +202,42 @@ def load_dataset(
 
     return dataset
     
+def load_time_dataset(
+        resolution=256,
+        Mpch=100,
+        shuffle=True,
+        forward_map = None,
+        spix=128,
+        augmentation=True):
+
+    ''' Load a 2D dataset object 
+
+     Arguments
+    ---------
+    * resolution : [256, 512] (default 256)
+    * Mpch : [100, 500] (default 70)
+    * shuffle: shuffle the data (default True)
+    * foward : foward mapping use None for raw data (default None)
+    * spix : resolution of the image (default 128)
+    * augmentation : use data augmentation (default True)
+    '''
+
+    # 1) Load raw images
+    images = load_time_cubes(resolution=resolution, Mpch=Mpch)
+    # (ts, resolution, resolution, resolution)
+
+    # 2) Apply forward map if necessary
+    if forward_map:
+        images = forward_map(images)
+    if augmentation:
+        t = transformation.random_transformation_3d
+    else:
+        t = None
+
+    # 5) Make a dataset
+    dataset = Dataset_time(X=images, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+
+    return dataset
+
+
 

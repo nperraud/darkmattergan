@@ -6,26 +6,27 @@ sys.path.insert(0, '../')
 import matplotlib
 matplotlib.use('Agg')
 
+import os
 import data
 from model import WGanModel
 from gan import CosmoGAN
 import utils
-from data import fmap
+from data import fmap, path, Dataset
 import tensorflow as tf
+import numpy as np
 
 # Parameters
-
 ns = 64
 try_resume = False
-Mpch = 70
+Mpch = 100
 
 
 forward = fmap.forward
 backward = fmap.backward
 
 
-time_str = 'original_{}'.format(Mpch)
-global_path = '../../../saved_result/'
+time_str = 'original_sanity_test_{}'.format(Mpch)
+global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'WGAN{}'.format(ns)
 
@@ -84,8 +85,29 @@ params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
 params['name'] = name
-params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary/'
-params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
+params['summary_dir'] = global_path + 'summaries_A8/' + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + 'models_A8/' + params['name'] + '_' + time_str + '_checkpoints/'
+
+print("All params")
+print(params)
+print("\nDiscriminator Params")
+print(params['discriminator'])
+print("\nGenerator Params")
+print(params['generator'])
+print("\nOptimization Params")
+print(params['optimization'])
+print("\nCosmo Params")
+print(params['cosmology'])
+print()
+
+if not os.path.exists(params['summary_dir']):
+    os.makedirs(params['summary_dir'])
+utils.save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
+utils.save_dict_for_humans(params['summary_dir'] + 'params.txt', params)
+if not os.path.exists(params['save_dir']):
+    os.makedirs(params['save_dir'])
+utils.save_dict_pickle(params['save_dir'] + 'params.pkl', params)
+utils.save_dict_for_humans(params['save_dir'] + 'params.txt', params)
 
 resume, params = utils.test_resume(try_resume, params)
 
@@ -93,6 +115,11 @@ resume, params = utils.test_resume(try_resume, params)
 # Build the model
 wgan = CosmoGAN(params, WGanModel)
 
-dataset = data.load.load_dataset(resolution=256, Mpch=Mpch, forward_map=forward, spix=ns)
+filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_out_z0p000.h5'.format(Mpch)
+images = utils.load_hdf5(filename=filename, dataset_name='data', mode='r')
+images = forward(images)
+images = np.reshape(images, (1, images.shape[0], images.shape[1], images.shape[2]))
+print ("Images shape: {}".format(images.shape))
+dataset = Dataset.Dataset_2d(images, spix=ns, shuffle=True)
 
 wgan.train(dataset=dataset, resume=resume)

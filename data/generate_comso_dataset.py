@@ -32,21 +32,26 @@ def generate_histogram(s, lbox, params):
     return H
 
 
-def main_time():
+def process_time(mpc):
     # TODO Non hardcoded params
     params = dict()
-    params["mpc"] = 500
+    params["mpc"] = mpc
     params["resolution"] = 512
     resolution = params["resolution"]
-    base_og_path = "/home/ipa/refreg/data/L-PICOLA/Raphael/L-PICOLA_output/sims_jonathan/"
+    #base_og_path = "/home/ipa/refreg/data/L-PICOLA/Raphael/L-PICOLA_output/sims_jonathan/"
+    #path_og_data = base_og_path + "Box_" + str(params["mpc"]) + "Mpc_o_h/default/Npart_1500/"
+    #path_new_data = "/home/ipa/refreg/temp/rosenthj/data/"
+    base_og_path = "/scratch/snx3000/rosenthj/data/sims_jonathan/"
     path_og_data = base_og_path + "Box_" + str(params["mpc"]) + "Mpc_o_h/default/Npart_1500/"
-    path_new_data = "/home/ipa/refreg/temp/rosenthj/data/"
+    path_new_data = "/scratch/snx3000/rosenthj/data/"
 
     if not os.path.exists(path_new_data):
         print('creating path: {}'.format(path_new_data))
         os.makedirs(path_new_data)
 
     hist = np.zeros((resolution, resolution, resolution))
+    h5all = h5py.File(path_new_data + "nbody_" + str(params["mpc"]) + "Mpc_All.h5", 'w')
+    idx = 0
     for filename in sorted(os.listdir(path_og_data)):
         if not filename.endswith(".txt") and not filename.endswith(".dat") and not filename.endswith(".info"):
             print("Loading file {}... ".format(filename))
@@ -61,8 +66,17 @@ def main_time():
             h5f = h5py.File(path_new_data + "nbody_" + str(params["mpc"]) + "Mpc_" + redshift + ".h5", 'w')
             h5f.create_dataset("data", data=hist)
             h5f.close()
+            h5all.create_dataset(str(idx), data=hist)
+            idx = idx + 1
             hist = np.zeros(hist.shape)
+    h5all.close()
+
+
+def main_time():
+    process_time(100)
+    process_time(500)
     return 0
+
 
 def main_2d():
     # TODO Non hardcoded params
@@ -72,7 +86,7 @@ def main_2d():
     params['nboxes'] = 10
     resolution = params["resolution"]
     base_og_path = '/store/sdsc/sd00/comosology/data/nbody_raw_boxes/AndresBoxes/'
-    path_og_data = base_og_path + 'Box_' + str(params['mpc']) + 'Mpch_'
+    path_og_data = base_og_path + '100Box_' + str(params['mpc']) + 'Mpch_'
     path_new_data = '/store/sdsc/sd00/comosology/data/pre_processed_data/'
 
     if not os.path.exists(path_new_data):
@@ -99,5 +113,6 @@ def main_2d():
     
     return 0
 
+
 if __name__ == '__main__':
-    main_2d()
+    process_time(500)
