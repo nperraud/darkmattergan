@@ -9,7 +9,7 @@ def forward(X, shift=1.0):
     return np.log(np.sqrt(X) + np.e**shift) - shift
 
 
-def backward(Xmap, max_value=2e5, shift=1.0):
+def backward(Xmap, max_value=1e8, shift=1.0):
     Xmap = np.clip(Xmap, 0, forward(max_value))
     tmp = np.exp(Xmap + shift) - np.e**shift
     return np.round(tmp * tmp)
@@ -18,7 +18,7 @@ def backward(Xmap, max_value=2e5, shift=1.0):
 def forward_old(X):
     return np.log(X**(1/2)+np.e)-2
 
-def backward_old(Xmap, max_value=2e5):
+def backward_old(Xmap, max_value=1e8):
     Xmap = np.clip(Xmap, -1.0, forward(max_value))
     tmp = np.exp((Xmap+2))-np.e
     return np.round(tmp*tmp)
