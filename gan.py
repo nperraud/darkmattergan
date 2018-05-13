@@ -1208,6 +1208,11 @@ class TimeGAN(GAN):
         latent = super()._sample_latent(bs=bs)
         return np.repeat(latent, self.params['time']['num_classes'], axis=0)
 
+    def _sample_single_latent(self, bs=None):
+        if bs is None:
+            bs = 1
+        return super(TimeGAN, self)._sample_latent(bs)
+
 
 class TimeCosmoGAN(CosmoGAN, TimeGAN):
     def __init__(self, params, model=None, is_3d=False):
