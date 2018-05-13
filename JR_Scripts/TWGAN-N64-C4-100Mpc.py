@@ -18,7 +18,7 @@ import numpy as np
 # Parameters
 ns = 64
 try_resume = False
-Mpch = 100
+Mpch = 500
 
 
 forward = fmap.forward
