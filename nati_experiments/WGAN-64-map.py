@@ -17,7 +17,7 @@ import functools
 # Parameters
 
 ns = 64
-try_resume = True
+try_resume = False
 Mpch = 70
 shift = 3
 c = 20000
@@ -32,7 +32,7 @@ def non_lin(x):
 # def non_lin(x):
 #     return tf.nn.tanh(x)
 
-time_str = 'new_stat_c_{}_shift_{}_laplacian{}_no_full'.format(c, shift, Mpch)
+time_str = 'stat_c_{}_shift_{}_laplacian_Mpch_{}_res_{}_adam1e-5_0.5_0.99_OK'.format(c, shift, Mpch, res)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -61,12 +61,12 @@ params_generator['non_lin'] = non_lin
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 16
-params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
-params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 3e-5
-params_optimization['gen_learning_rate'] = 3e-5
-params_optimization['beta1'] = 0.9
-params_optimization['beta2'] = 0.999
+params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
+params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
+params_optimization['disc_learning_rate'] = 1e-5
+params_optimization['gen_learning_rate'] = 1e-5
+params_optimization['beta1'] = 0.5
+params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
 
@@ -96,8 +96,8 @@ params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary
 params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
 
 resume, params = utils.test_resume(try_resume, params)
-params['optimization']['disc_learning_rate'] = 3e-6
-params['optimization']['gen_learning_rate'] = 3e-6
+# params['optimization']['disc_learning_rate'] = 3e-6
+# params['optimization']['gen_learning_rate'] = 3e-6
 
 
 # Build the model

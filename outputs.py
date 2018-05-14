@@ -36,7 +36,7 @@ def get_event_files(summary_dir):
     event_files = []
     for filename in os.listdir(summary_dir):
         if 'events.out.tfevents' in filename:
-            event_files.append(summary_dir + filename)
+            event_files.append(os.path.join(summary_dir, filename))
     # if len(event_files)>1:
     #     raise ValueError('Multiple event files')
     if len(event_files) == 0:
