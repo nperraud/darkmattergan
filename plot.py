@@ -289,4 +289,4 @@ def tile_and_plot_3d_image(axis, image, **kwargs):
     '''
     tile = tile_cube_to_2d(image)
     #plot = plt.gca()
-    axis.imshow(tile, interpolation='none', **kwargs)
+    axis.imshow(tile, **kwargs)
