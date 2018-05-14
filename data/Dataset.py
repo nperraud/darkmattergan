@@ -14,7 +14,7 @@ class Dataset(object):
         Transform should probably be False for a classical GAN.
     '''
 
-    def __init__(self, X, shuffle=True, slice_fn=None, transform=None):
+    def __init__(self, X, shuffle=True, slice_fn=None, transform=None, dtype=np.float32):
         ''' Initialize a Dataset object
 
         Arguments
@@ -25,7 +25,7 @@ class Dataset(object):
                       This allows extend the dataset.
         * slice_fn : Slicing function to cut the data into smaller parts
         '''
-
+        X = X.astype(dtype)
         self._shuffle = shuffle
         if slice_fn:
             self._slice_fn = slice_fn
@@ -150,6 +150,22 @@ class Dataset_2d_patch(Dataset):
         return X_r
 
 
+class Dataset_3d_patch(Dataset):
+    def __init__(self, X, spix=32, shuffle=True, transform=None):
+        ''' Initialize a Dataset object for the 3d patch case
+        Arguments
+        ---------
+        * X         : numpy array containing the data
+        * shuffle   : True if the data should be shuffled
+        * transform : Function to be applied to each bigger cube in the dataset
+                      for data augmentation
+        '''
+
+        slice_fn = functools.partial(slice_3d_patch, spix=spix)
+        super().__init__(
+            X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+
+
 def grouper(iterable, n, fillvalue=None):
     """
     Collect data into fixed-length chunks or blocks. This function commes
@@ -268,3 +284,57 @@ def slice_2d_patch(img0, spix=64):
     img = np.vstack(np.split(img, ny, axis=2))
 
     return img
+
+
+def slice_3d_patch(cubes, spix=32):
+    '''
+    cubes: the 3d histograms 
+    '''
+
+    # Handle the dimesnsions
+    l = len(cubes.shape)
+    if l < 3:
+        ValueError('Not enough dimensions')
+    elif l == 3:
+        cubes = cubes.reshape([1, *cubes.shape]) # add one extra dimension for number of cubes
+    elif l > 4:
+        ValueError('To many dimensions')
+
+    _, sx, sy, sz = cubes.shape
+    nx = sx // spix
+    ny = sy // spix
+    nz = sz // spix
+
+    # 1) Create all 7 neighbors for each smaller cube
+    img1 = np.roll(cubes, spix, axis=2)
+    img1[:, :, :spix, :] = 0
+
+    img2 = np.roll(cubes, spix, axis=3)
+    img2[:, :, :, :spix] = 0
+    
+    img3 = np.roll(img1, spix, axis=3)
+    img3[:, :, :, :spix] = 0
+    
+    img4 = np.roll(cubes, spix, axis=1) # extra for the 3D case
+    img4[:, :spix, :, :] = 0
+    
+    img5 = np.roll(img4, spix, axis=2)
+    img5[:, :, :spix, :] = 0
+    
+    img6 = np.roll(img4, spix, axis=3)
+    img6[:, :, :, :spix] = 0
+    
+    img7 = np.roll(img5, spix, axis=3)
+    img7[:, :, :, :spix] = 0
+    
+
+    # 2) Concatenate
+    img_with_nbrs = np.stack([cubes, img1, img2, img3, img4, img5, img6, img7], axis=4) # 7 neighbors plus the original cube
+
+
+    # 3) Slice the cubes
+    sliced_dim1 = np.vstack(np.split(img_with_nbrs, nx, axis=1))
+    sliced_dim2 = np.vstack(np.split(sliced_dim1, ny, axis=2))
+    sliced_dim3 = np.vstack(np.split(sliced_dim2, nz, axis=3))
+
+    return sliced_dim3

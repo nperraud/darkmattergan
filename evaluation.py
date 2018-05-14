@@ -143,27 +143,46 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
     return l2, logel2, l1, logel1
 
 
-def upscale_image(obj, small, checkpoint=None):
-    """Upscale image using the lappachsimple model.
+def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint=None):
+    """Upscale image using the lappachsimple model, or upscale_WGAN_pixel_CNN model.
+
+    For model upscale_WGAN_pixel_CNN, pass num_samples to generate and resolution of the final bigger histogram.
+    for model lappachsimple         , pass small.
 
     This function can be accelerated if the model is created only once.
     """
     # Number of sample to produce
-    N = small.shape[0]
+    if small is None:
+        if num_samples is None:
+            raise ValueError("Both small and num_samples cannot be None")
+        else:
+            N = num_samples
+    else:
+        N = small.shape[0]
 
     # Dimension of the low res image
-    lx, ly = small.shape[1:3]
+    if small is not None:
+        lx, ly = small.shape[1:3]
 
     # Output dimension of the generator
     soutx, souty = obj.params['image_size'][:2]
 
-    # Input dimension of the generator
-    sinx = soutx // obj.params['generator']['upsampling']
-    siny = souty // obj.params['generator']['upsampling']
+    if small is not None:
+        # Input dimension of the generator
+        sinx = soutx // obj.params['generator']['upsampling']
+        siny = souty // obj.params['generator']['upsampling']
 
-    # Number of part to be generated
-    nx = lx // sinx
-    ny = ly // siny
+        # Number of part to be generated
+        nx = lx // sinx
+        ny = ly // siny
+
+    else:
+        if resolution is None:
+            raise ValueError("Both small and resolution cannot be None")
+        else:
+            nx = resolution // soutx
+            ny = resolution // souty
+
 
     # Final output image
     output_image = np.zeros(
@@ -185,9 +204,13 @@ def upscale_image(obj, small, checkpoint=None):
                 border[:, :, :, 2:3] = output_image[:, (
                     i - 1) * soutx:i * soutx, (j - 1) * souty:j * souty, :]
 
-            # 2) Prepare low resolution
-            y = np.expand_dims(small[:N][:, i * sinx:(
-                i + 1) * sinx, j * siny:(j + 1) * siny], 3)
+
+            if small is not None:
+                # 2) Prepare low resolution
+                y = np.expand_dims(small[:N][:, i * sinx:(
+                    i + 1) * sinx, j * siny:(j + 1) * siny], 3)
+            else:
+                y = None
 
             # 3) Generate the image
             gen_sample, _ = obj.generate(

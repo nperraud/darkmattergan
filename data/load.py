@@ -4,7 +4,7 @@ import utils
 from data import gaussian_synthetic_data
 from data import path
 from data import transformation, fmap
-from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_time
+from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time
 
 
 import blocks
@@ -110,9 +110,8 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
     for file in os.listdir(rootpath):
         if file.endswith(file_ext) and input_pattern in file:
             queue.append(os.path.join(rootpath, file))
-
     if len(queue) == 0:
-        ValueError('No file founds, check path and parameters')
+        raise LookupError('No file founds, check path and parameters')
     raw_images = []
     for file_path in queue:
         raw_images.append(
@@ -120,7 +119,7 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
                 filename=file_path, dataset_name='data', mode='r'))
         if type(raw_images[-1]) is not np.ndarray:
             raise ValueError(
-                "Data stroed in file {} is not of type np.ndarray".format(
+                "Data stored in file {} is not of type np.ndarray".format(
                     file_path))
 
     raw_images = np.array(raw_images).astype(np.float32)
@@ -189,7 +188,11 @@ def load_dataset(
     
     # 5) Make a dataset
     if patch:
-        dataset = Dataset_2d_patch(images, spix=spix, shuffle=shuffle, transform=t)
+        if is_3d:
+            dataset = Dataset_3d_patch(images, spix=spix, shuffle=shuffle, transform=t)
+        else:
+            dataset = Dataset_2d_patch(images, spix=spix, shuffle=shuffle, transform=t)
+
     else:
         if is_3d:
             dataset = Dataset_3d(images, spix=spix, shuffle=shuffle, transform=t)
