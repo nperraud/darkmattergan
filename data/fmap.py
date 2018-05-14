@@ -114,7 +114,7 @@ def inv_pre_process(X, k=10., scale=1., real_max=1e8):
     return X_raw
 
 
-def stat_forward_0(x, c=1e4):
+def stat_forward_0(x, c=2e4):
     if not type(x).__module__ == np.__name__:
         x = np.array([x])
     res = np.zeros(shape=x.shape)
@@ -125,7 +125,7 @@ def stat_forward_0(x, c=1e4):
     res = 3*res / np.log(c+1)
     return res
 
-def stat_backward_0(x, c=1e4):
+def stat_backward_0(x, c=2e4):
     if not type(x).__module__ == np.__name__:
         x = np.array([x])
     res = np.zeros(shape=x.shape)
@@ -137,15 +137,15 @@ def stat_backward_0(x, c=1e4):
     res[mask] = c*(x[mask] - np.log(c+1) + 1)
     return np.round(res)
 
-def stat_forward(x, c=1e4, shift=3):
+def stat_forward(x, c=2e4, shift=3):
     return stat_forward_0(x+shift, c=c) - stat_forward_0(shift, c=c)
 
 
-def stat_backward(x, c=1e4, shift=3):
+def stat_backward(x, c=2e4, shift=3):
     clip_max = c*100
     return stat_backward_0(x+stat_forward_0(shift, c=c), c=c) - shift
 
 
-forward = nati_forward
-backward = nati_backward
+forward = stat_forward
+backward = stat_forward
 

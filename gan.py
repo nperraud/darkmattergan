@@ -284,26 +284,23 @@ class GAN(object):
             return optim_learning_rate
 
         if gen_optimizer == "adam":
-            optim_learning_rate_G = tf.log(
-                get_lr_ADAM(optimizer_G, gen_learning_rate))
+            optim_learning_rate_G = get_lr_ADAM(optimizer_G, gen_learning_rate)
             tf.summary.scalar(
-                'Gen/Log_of_ADAM_learning_rate',
+                'Gen/ADAM_learning_rate',
                 optim_learning_rate_G,
                 collections=["Training"])
 
             if optimizer_E is not None:
-                optim_learning_rate_E = tf.log(
-                    get_lr_ADAM(optimizer_E, enc_learning_rate))
+                optim_learning_rate_E = get_lr_ADAM(optimizer_E, enc_learning_rate)
                 tf.summary.scalar(
-                    'Gen/Log_of_ADAM_learning_rate',
+                    'Gen/ADAM_learning_rate',
                     optim_learning_rate_E,
                     collections=["Training"])
 
         if disc_optimizer == "adam":
-            optim_learning_rate_D = tf.log(
-                get_lr_ADAM(optimizer_D, disc_learning_rate))
+            optim_learning_rate_D = get_lr_ADAM(optimizer_D, disc_learning_rate)
             tf.summary.scalar(
-                'Disc/Log_of_ADAM_learning_rate',
+                'Disc/ADAM_learning_rate',
                 optim_learning_rate_D,
                 collections=["Training"])
 
@@ -1059,7 +1056,7 @@ class CosmoGAN(GAN):
                         total_stats_error, self._stats['total_stats_error']))
                 self._stats['total_stats_error'] = total_stats_error
                 self._save_current_step = True
-            print(' {} current PSD L2 {}, logL2 {}, total'.format(
+            print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
                 self._counter, l2psd, logel2psd, total_stats_error))
 
             # To save the stats in params

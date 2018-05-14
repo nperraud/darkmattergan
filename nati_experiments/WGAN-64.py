@@ -12,21 +12,27 @@ from gan import CosmoGAN
 import utils
 from data import fmap
 import tensorflow as tf
+import functools
 
 # Parameters
 
 ns = 64
 try_resume = True
 Mpch = 70
+shift = 3
+c = 20000
+res = 256
+forward = functools.partial(fmap.stat_forward, shift=shift, c=c)
+backward = functools.partial(fmap.stat_backward, shift=shift, c=c)
 
-
-forward = fmap.nati_forward
-backward = fmap.nati_backward
 
 def non_lin(x):
-	return tf.nn.relu(x+1.0)-1.0
+	return tf.nn.relu(x)
 
-time_str = 'nati_map_limit_non_lin{}'.format(Mpch)
+# def non_lin(x):
+#     return tf.nn.tanh(x)
+
+time_str = 'new_stat_c_{}_shift_{}_laplacian{}_no_full'.format(c, shift, Mpch)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
@@ -44,14 +50,13 @@ params_discriminator['summary'] = True
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 2, 1, 1]
-params_generator['latent_dim'] = 100
+params_generator['latent_dim'] = 4*4*64
 params_generator['nfilter'] = [64, 256, 512, 256, 64, 1]
 params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
-params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
-params_generator['full'] = [4*4*64]
+params_generator['batch_norm'] = [False, False, False, False, False]
+params_generator['full'] = []
 params_generator['summary'] = True
 params_generator['non_lin'] = non_lin
-
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
@@ -71,7 +76,7 @@ params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
 params_cosmology['forward_map'] = forward
 params_cosmology['backward_map'] = backward
-params_cosmology['Nstats'] = 1000
+params_cosmology['Nstats'] = 5000
 
 
 params = dict()
@@ -82,7 +87,7 @@ params['cosmology'] = params_cosmology
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
-params['prior_distribution'] = 'gaussian'
+params['prior_distribution'] = 'laplacian'
 params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
@@ -91,11 +96,13 @@ params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary
 params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
 
 resume, params = utils.test_resume(try_resume, params)
+params['optimization']['disc_learning_rate'] = 3e-6
+params['optimization']['gen_learning_rate'] = 3e-6
 
 
 # Build the model
 wgan = CosmoGAN(params, WGanModel)
 
-dataset = data.load.load_dataset(resolution=256, Mpch=Mpch, forward_map=forward, spix=ns)
+dataset = data.load.load_dataset(resolution=res, Mpch=Mpch, forward_map=forward, spix=ns)
 
 wgan.train(dataset=dataset, resume=resume)

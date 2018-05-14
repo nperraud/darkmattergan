@@ -336,12 +336,12 @@ def total_stats_error(feed_dict, params=None):
 
     if params is None:
         w_l2_logpsd = 1
-        w_l1_logpsd = 1
+        w_l1_logpsd = 0
         w_l2_logmass = 1
-        w_l1_logmass = 1
-        w_l2_logpeak = 0.1
-        w_l1_logpeak = 0.1
-        w_wasserstein_mass = 10
+        w_l1_logmass = 0
+        w_l2_logpeak = 1
+        w_l1_logpeak = 0
+        w_wasserstein_mass = 0
     else:
         raise NotImplementedError('TODO')
 

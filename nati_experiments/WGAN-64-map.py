@@ -18,12 +18,12 @@ import functools
 
 ns = 64
 try_resume = False
-Mpch = 350
-shift = 20
+Mpch = 70
+shift = 3
 c = 20000
 res = 256
-forward = functools.partial(fmap.stat_forward, shift=shift)
-backward = functools.partial(fmap.stat_backward, shift=shift)
+forward = functools.partial(fmap.stat_forward, shift=shift, c=c)
+backward = functools.partial(fmap.stat_backward, shift=shift, c=c)
 
 
 def non_lin(x):
@@ -32,12 +32,12 @@ def non_lin(x):
 # def non_lin(x):
 #     return tf.nn.tanh(x)
 
-time_str = 'stat_c_{}_shift_{}_laplacian_bn_Mpch_{}_res_{}'.format(c, shift, Mpch, res)
+time_str = 'stat_c_{}_shift_{}_laplacian_Mpch_{}_res_{}_adam1e-5_0.5_0.99_OK'.format(c, shift, Mpch, res)
 global_path = '../../../saved_result/'
 
 name = 'WGAN{}'.format(ns)
 
-bn = True
+bn = False
 
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
@@ -61,12 +61,12 @@ params_generator['non_lin'] = non_lin
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 16
-params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
-params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 3e-5
-params_optimization['gen_learning_rate'] = 3e-5
-params_optimization['beta1'] = 0.9
-params_optimization['beta2'] = 0.999
+params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
+params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
+params_optimization['disc_learning_rate'] = 1e-5
+params_optimization['gen_learning_rate'] = 1e-5
+params_optimization['beta1'] = 0.5
+params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
 
