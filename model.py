@@ -564,7 +564,6 @@ class LapPatchWGANModel(GanModel):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
 
-
 class LapPatchWGANsingleModel(GanModel):
     """Seems to work fine but is recursive, so might be a bit slow."""
     def __init__(self, params, X, z, name='lapgan', is_3d=False):
@@ -667,6 +666,87 @@ class LapPatchWGANsingleModel(GanModel):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
 
+class upscale_WGAN_single_model(GanModel):
+    '''
+    Divide image into 4 parts, and iterative generate them
+    '''
+    def __init__(self, params, X, z, name='upscale_WGAN_single_model', is_3d=False):
+        ''' z must have the same dimension as X'''
+        super().__init__(params=params, name=name, is_3d=is_3d)
+
+        # A) Split latent in 4 parts
+        bs = tf.shape(X)[0]  # Batch size
+        inshape = X.shape.as_list()[1:]
+        z = tf.reshape(z, [bs, *inshape])
+        topz, bottomz = tf.split(z, 2, axis=1)
+        z1, z2 = tf.split(topz, 2, axis=2)
+        z3, z4 = tf.split(bottomz, 2, axis=2)
+        
+
+        tinshape = tf.shape(z1)
+
+        y00 = tf.fill(tinshape, -1.)
+        y0 = tf.concat([y00, y00, y00], axis=3)
+        self.G_fake1 = self.generator(X=None, z=z1, y=y0, reuse=False, scope='generator')
+
+        y11 = tf.reverse(self.G_fake1, axis=[2])
+        y1 = tf.concat([y11, y00, y00], axis=3)
+        self.G_fake2 = self.generator(X=None, z=z2, y=y1, reuse=True, scope='generator')
+
+        y21 = tf.reverse(self.G_fake1, axis=[1])
+        y22 = tf.reverse(self.G_fake2, axis=[1,2])
+        y2 = tf.concat([y21, y22, y00], axis=3)
+        self.G_fake3 = self.generator(X=None, z=z3,y=y2, reuse=True, scope='generator')
+
+        y31 = tf.reverse(self.G_fake1, axis=[1,2])
+        y32 = tf.reverse(self.G_fake2, axis=[1])
+        y33 = tf.reverse(self.G_fake3, axis=[2])
+        y3 = tf.concat([y31, y32, y33], axis=3)
+        self.G_fake4 = self.generator(X=None, z=z4, y=y3, reuse=True, scope='generator')
+
+        # B) Concatenate back
+        top = tf.concat([self.G_fake1,self.G_fake2], axis=2)
+        bottom = tf.concat([self.G_fake3,self.G_fake4], axis=2)
+        self.G_fake = tf.concat([top,bottom], axis=1)
+
+        # C) Discriminator
+        self.D_real = self.discriminator(X, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+
+        # D) Losses
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+
+        # E) Summaries
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+        tf.summary.image("training/Real", X, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/G_fake", self.G_fake, max_outputs=2, collections=['Images'])
+        if True:
+            tf.summary.image("SmallerImg/G_fake1", self.G_fake1, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/G_fake2", self.G_fake2, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/G_fake3", self.G_fake3, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/G_fake4", self.G_fake4, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y1", y11, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y21", y21, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y22", y22, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y31", y31, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y32", y32, max_outputs=1, collections=['Images'])
+            tf.summary.image("SmallerImg/y33", y33, max_outputs=1, collections=['Images'])
+
+    def generator(self, X, z, reuse, scope, y=None):
+        '''
+        X = down-sampled information
+        y = border information
+        '''
+        return generator_up(X, z, self.params['generator'], y=y, reuse=reuse, scope=scope)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
 
 class LapPatchWGANsimpleModel(GanModel):
     def __init__(self, params, X, z, name='lapgansimple', is_3d=False):
@@ -737,7 +817,6 @@ class LapPatchWGANsimpleModel(GanModel):
 
     def discriminator(self, X, Xsu, border, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu, border], axis=3), self.params['discriminator'], reuse=reuse)
-
 
 
 class LapPatchWGANsimpleUnfoldModel(GanModel):
@@ -811,6 +890,132 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
+
+class upscale_WGAN_pixel_CNN(GanModel):
+    '''
+    Generate blocks, using top, left and top-left border information
+    '''
+    def __init__(self, params, X, z, name='upscale_WGAN_pixel_CNN', is_3d=False):
+        ''' z must have the same dimension as X'''
+        super().__init__(params=params, name=name, is_3d=is_3d)
+
+        if self.is_3d:
+            self.__init_3d(params, X, z)
+
+        else:
+            self.__init_2d(params, X, z)
+
+    def __init_3d(self, params, X, z):
+        '''
+        build the computation graph for 3d case.
+        '''
+
+        # A) Separate real data and border information
+        real, border = tf.split(X, [1,7], axis=4)
+
+        # B) Split the borders
+        inshape = border.shape.as_list()[1:]
+        self.border = tf.placeholder_with_default(border, shape=[None, *inshape], name='border')
+        d_above, d_left, d_corner, up, u_above, u_left, u_corner = tf.split(self.border, [1, 1, 1, 1, 1, 1, 1], axis=4)
+
+        # C) Flip the borders for proper alignment with original data
+        flip_d_above  = tf.reverse( d_above, axis=[2])
+        flip_d_left   = tf.reverse(  d_left, axis=[3])
+        flip_d_corner = tf.reverse(d_corner, axis=[2, 3])
+        flip_up       = tf.reverse(      up, axis=[1])
+        flip_u_above  = tf.reverse( u_above, axis=[1, 2])
+        flip_u_left   = tf.reverse(  u_left, axis=[1, 3])
+        flip_u_corner = tf.reverse(u_corner, axis=[1, 2, 3])
+
+        flip_border = tf.concat([flip_d_above, flip_d_left, flip_d_corner, flip_up, flip_u_above, flip_u_left, flip_u_corner], axis=4)
+
+        self.G_fake = self.generator(y=None, z=z, border=flip_border, reuse=False, scope='generator')
+
+        # D) Concatenate back
+        down_left     = tf.concat([ d_corner,      d_left], axis=2)
+        down_right    = tf.concat([  d_above,        real], axis=2)
+        down_right_g  = tf.concat([  d_above, self.G_fake], axis=2)
+        
+        down_cuboid     = tf.concat([down_left,   down_right], axis=3)
+        down_cuboid_g   = tf.concat([down_left, down_right_g], axis=3)
+
+        up_left   = tf.concat([u_corner,   u_left], axis=2)
+        up_right  = tf.concat([ u_above,       up], axis=2)
+        up_cuboid = tf.concat([ up_left, up_right], axis=3)
+
+        X_real = tf.concat([up_cuboid,   down_cuboid], axis=1)
+        G_fake = tf.concat([up_cuboid, down_cuboid_g], axis=1)
+
+        # E) Discriminator
+        self.D_real = self.discriminator(X_real, reuse=False)
+        self.D_fake = self.discriminator(G_fake, reuse=True)
+
+        # F) Losses
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+
+        # G) Summaries
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def __init_2d(self, params, X, z):
+        '''
+        build the computation graph for 2d case.
+        '''
+        X0, border = tf.split(X, [1,3],axis=3)
+
+        # The border is provided as condition to the generator
+        inshape = border.shape.as_list()[1:]
+        self.border = tf.placeholder_with_default(border, shape=[None, *inshape], name='border')
+        X1, X2, X3 = tf.split(self.border, [1,1,1],axis=3)
+        X1f = tf.reverse(X1, axis=[1])
+        X2f = tf.reverse(X2, axis=[2])
+        X3f = tf.reverse(X3, axis=[1,2])
+        flip_border = tf.concat([X1f, X2f, X3f], axis=3)
+
+        self.G_fake = self.generator(y=None, z=z, border=flip_border, reuse=False, scope='generator')
+
+        # D) Concatenate back
+        left = tf.concat([X3,X2], axis=1)
+        right = tf.concat([X1,X0], axis=1)
+        right_g = tf.concat([X1,self.G_fake], axis=1)
+        X_real = tf.concat([left,right], axis=2)
+        G_fake = tf.concat([left,right_g], axis=2)
+
+        # E) Discriminator
+        self.D_real = self.discriminator(X_real, reuse=False)
+        self.D_fake = self.discriminator(G_fake, reuse=True)
+
+        # F) Losses
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+
+        # G) Summaries
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+        tf.summary.image("training/Real_full_image", X_real, max_outputs=2, collections=['Images'])
+        tf.summary.image("training/Fake_full_image", G_fake, max_outputs=2, collections=['Images'])
+
+        if True:
+            tf.summary.image("checking/X0", X0, max_outputs=2, collections=['Images'])
+            tf.summary.image("checking/X1", X1, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X2", X2, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X3", X3, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X1f", X1f, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X2f", X2f, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/X3f", X3f, max_outputs=1, collections=['Images'])
+
+    def generator(self, y, z, border, reuse, scope):
+        return generator_up(y, z, self.params['generator'], y=border, reuse=reuse, scope=scope)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
 
 
 class LapPatchWGANDirect(GanModel):
@@ -976,7 +1181,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d
                               output_shape=output_shape,
                               shape=shape,
                               stride=stride,
-                              name='{}_deconv'.format(conv_num),
+                              name='{}_deconv_2d'.format(conv_num),
                               summary=summary)
 
     return out_tensor
@@ -1125,57 +1330,93 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
 
     Arguments
     ---------
-    X       : Low sampled image
+    X       : Low sampled image, or None
     z       : Latent variable (same size as X)
     y       : border added a layer param['y_layer']
     """
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
+    nfull = len(params['full'])
 
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n'+''.join(['-']*50), reuse)
-        rprint('     The input X is of size {}'.format(X.shape), reuse)
+        if X is not None:
+            rprint('     The input X is of size {}'.format(X.shape), reuse)
 
         rprint('     The input z is of size {}'.format(z.shape), reuse)
         if y is not None:
             rprint('     The input y is of size {}'.format(y.shape), reuse)
-        bs = tf.shape(X)[0]  # Batch size
-        sx = X.shape.as_list()[1]
-        sy = X.shape.as_list()[2]
-        z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img')
+        
+        ## Increase the dimensionality of the latent variable to that of borders, before adding the border information as channels
+        for i in range(nfull):
+            z = linear(z,
+                       params['full'][i],
+                       '{}_full'.format(i),
+                       summary=params['summary'])
+            z = lrelu(z)
+            rprint('     {} Full layer with {} outputs'.format(i, params['full'][i]), reuse)
+            rprint('         Size of the variables: {}'.format(z.shape), reuse)
+
+
+        bs = tf.shape(z)[0]  # Batch size
+        sx = y.shape.as_list()[1]
+        sy = y.shape.as_list()[2]
+        
+        if params['is_3d']:
+            sz = y.shape.as_list()[3]
+            z = tf.reshape(z, [bs, sx, sy, sz, 1], name='vec2img_3d')
+        else:
+            z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img_2d')
         rprint('     Reshape z to {}'.format(z.shape), reuse)
 
-        x = tf.concat([X, z], axis=3)
-        rprint('     Concat x and z to {}'.format(x.shape), reuse)
+        if X is None:
+            x = z
+        else:
+            if params['is_3d']:
+                x = tf.concat([X, z], axis=4)
+            else:
+                x = tf.concat([X, z], axis=3)
+            rprint('     Concat x and z to {}'.format(x.shape), reuse)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
+
             if (y is not None) and (params['y_layer'] == i):
                 rprint('     Merge input y of size{}'.format(y.shape), reuse)
-                x = tf.concat([x,y],axis=3)
+
+                if params['is_3d']:
+                    x = tf.concat([x,y], axis=4)
+                else:
+                    x = tf.concat([x,y],axis=3)
                 rprint('     Concat x and y to {}'.format(x.shape), reuse) 
-            x = deconv2d(x,
-                         output_shape=[bs, sx, sx, params['nfilter'][i]],
-                         shape=params['shape'][i],
-                         stride=params['stride'][i],
-                         name='{}_deconv'.format(i),
-                         summary=params['summary'])
+
+            x = deconv(in_tensor=x, 
+                       bs=bs, 
+                       sx=sx,
+                       n_filters=params['nfilter'][i],
+                       shape=params['shape'][i],
+                       stride=params['stride'][i],
+                       summary=params['summary'],
+                       conv_num=i,
+                       is_3d=params['is_3d'])
             rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
+
                 x = lrelu(x)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
+
         if len(params['one_pixel_mapping']):
             x = one_pixel_mapping(x,
                                   params['one_pixel_mapping'],
                                   summary=params['summary'],
                                   reuse=reuse)
+
         x = apply_non_lin(params['non_lin'], x, reuse)
-        # Xu = up_sampler(X, params['upsampling'])
-        # x = x + Xu
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
     return x

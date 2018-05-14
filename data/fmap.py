@@ -38,7 +38,6 @@ def log_backward(x, shift=6, clip_max=1e6):
 def shifted_log_forward(X, shift=1.0):
     return np.log(np.sqrt(X) + np.e**shift) - shift
 
-
 def shifted_log_backard(Xmap, clip_max=1e6, shift=1.0):
     Xmap = np.clip(Xmap, 0, shifted_log_forward(clip_max))
     tmp = np.exp(Xmap + shift) - np.e**shift
