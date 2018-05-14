@@ -180,6 +180,15 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
         nx = lx // sinx
         ny = ly // siny
 
+    if small is not None:
+        # Input dimension of the generator
+        sinx = soutx // obj.params['generator']['upsampling']
+        siny = souty // obj.params['generator']['upsampling']
+
+        # Number of part to be generated
+        nx = lx // sinx
+        ny = ly // siny
+
     else:
         if resolution is None:
             raise ValueError("Both small and resolution cannot be None")

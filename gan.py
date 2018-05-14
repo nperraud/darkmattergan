@@ -287,26 +287,23 @@ class GAN(object):
             return optim_learning_rate
 
         if gen_optimizer == "adam":
-            optim_learning_rate_G = tf.log(
-                get_lr_ADAM(optimizer_G, gen_learning_rate))
+            optim_learning_rate_G = get_lr_ADAM(optimizer_G, gen_learning_rate)
             tf.summary.scalar(
-                'Gen/Log_of_ADAM_learning_rate',
+                'Gen/ADAM_learning_rate',
                 optim_learning_rate_G,
                 collections=["Training"])
 
             if optimizer_E is not None:
-                optim_learning_rate_E = tf.log(
-                    get_lr_ADAM(optimizer_E, enc_learning_rate))
+                optim_learning_rate_E = get_lr_ADAM(optimizer_E, enc_learning_rate)
                 tf.summary.scalar(
-                    'Gen/Log_of_ADAM_learning_rate',
+                    'Gen/ADAM_learning_rate',
                     optim_learning_rate_E,
                     collections=["Training"])
 
         if disc_optimizer == "adam":
-            optim_learning_rate_D = tf.log(
-                get_lr_ADAM(optimizer_D, disc_learning_rate))
+            optim_learning_rate_D = get_lr_ADAM(optimizer_D, disc_learning_rate)
             tf.summary.scalar(
-                'Disc/Log_of_ADAM_learning_rate',
+                'Disc/ADAM_learning_rate',
                 optim_learning_rate_D,
                 collections=["Training"])
 
@@ -426,9 +423,7 @@ class GAN(object):
                             prev_iter_time = current_time
 
                         self._train_log(
-                            self._get_dict(sample_z, X_real),
-                            epoch=epoch,
-                            batch_num=idx)
+                            self._get_dict(sample_z, X_real))
 
                         if (np.mod(self._counter, self.params['save_every'])
                                 == 0) | self._save_current_step:
@@ -441,7 +436,7 @@ class GAN(object):
                 pass
             self._save(self._savedir, self._counter)
 
-    def _train_log(self, feed_dict, epoch=None, batch_num=None):
+    def _train_log(self, feed_dict):
         if np.mod(self._counter, self.params['viz_every']) == 0:
             summary_str, real_arr, fake_arr = self._sess.run(
                 [self.summary_op_img, self._X, self._G_fake],
@@ -806,6 +801,10 @@ class CosmoGAN(GAN):
             self._md['log_l1_mass_hist'],
             collections=['Metrics'])
         tf.summary.scalar(
+            "MASS_HIST/wasserstein_mass_hist",
+            self._md['wasserstein_mass_hist'],
+            collections=['Metrics'])
+        tf.summary.scalar(
             "total_stats_error",
             self._md['total_stats_error'],
             collections=['Metrics'])
@@ -816,15 +815,10 @@ class CosmoGAN(GAN):
         self.summary_op_metrics = tf.summary.merge(
             tf.get_collection("Metrics"))
 
-    def _compute_real_stats(self, X):
+    def _compute_real_stats(self, dataset):
         """Compute the main statistics on the real data."""
-        real = self._backward_map(X)
+        real = self._backward_map(dataset.get_all_data())
         self._stats = dict()
-
-        if self.params['cosmology']['clip_max_real']:
-            self._stats['clip_max'] = np.max(real)
-        else:
-            self._stats['clip_max'] = 1e8
 
         # This line should be improved, probably going to mess with Jonathan code
         if self.is_3d:
@@ -840,15 +834,15 @@ class CosmoGAN(GAN):
         self._stats['psd_axis'] = psd_axis
         del psd_real
 
-        peak_hist_real, x_peak, lim_peak = metrics.peak_count_hist(data=real)
+        peak_hist_real, x_peak, lim_peak = metrics.peak_count_hist(dat=real)
         self._stats['peak_hist_real'] = peak_hist_real
         self._stats['x_peak'] = x_peak
         self._stats['lim_peak'] = lim_peak
 
-        mass_hist_real, _, lim_mass = metrics.mass_hist(data=real)
+        mass_hist_real, _, lim_mass = metrics.mass_hist(dat=real)
         lim_mass = list(lim_mass)
         lim_mass[1] = lim_mass[1]+1
-        mass_hist_real, x_mass, lim_mass = metrics.mass_hist(data=real, lim=lim_mass)
+        mass_hist_real, x_mass, lim_mass = metrics.mass_hist(dat=real, lim=lim_mass)
         self._stats['mass_hist_real'] = mass_hist_real
         self._stats['x_mass'] = x_mass
         self._stats['lim_mass'] = lim_mass
@@ -856,14 +850,13 @@ class CosmoGAN(GAN):
         self._stats['best_psd'] = 1e10
         self._stats['best_log_psd'] = 10000
         self._stats['total_stats_error'] = 10000
+        del real
 
-    def train(self, dataset, resume=False):
-        X = dataset.get_all_data()
-        
+    def train(self, dataset, resume=False):        
         if resume:
             self._stats = self.params['cosmology']['stats']
         else:
-            self._compute_real_stats(X)
+            self._compute_real_stats(dataset)
             self.params['cosmology']['stats'] = self._stats
         # Out of the _compute_real_stats function since we may want to change
         # this parameter during training.
@@ -872,8 +865,8 @@ class CosmoGAN(GAN):
 
         super().train(dataset=dataset, resume=resume)
 
-    def _train_log(self, feed_dict, epoch=None, batch_num=None):
-        super()._train_log(feed_dict, epoch, batch_num)
+    def _train_log(self, feed_dict):
+        super()._train_log(feed_dict)
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
             z_sel = self._sample_latent(self._stats['N'])
@@ -948,7 +941,6 @@ class CosmoGAN(GAN):
             feed_dict[self._md['log_l2_mass_hist']] = logel2
             feed_dict[self._md['l1_mass_hist']] = l1
             feed_dict[self._md['log_l1_mass_hist']] = logel1
-
 
             summary_str = self._mass_hist_plot.produceSummaryToWrite(
                 self._sess,
@@ -1080,7 +1072,7 @@ class CosmoGAN(GAN):
                         total_stats_error, self._stats['total_stats_error']))
                 self._stats['total_stats_error'] = total_stats_error
                 self._save_current_step = True
-            print(' {} current PSD L2 {}, logL2 {}, total'.format(
+            print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
                 self._counter, l2psd, logel2psd, total_stats_error))
 
             # To save the stats in params
@@ -1186,8 +1178,8 @@ class TimeGAN(GAN):
     #
     #     super().train(dataset=dataset, resume=resume)
 
-    def _train_log(self, feed_dict, epoch=None, batch_num=None):
-        super()._train_log(feed_dict, epoch, batch_num)
+    def _train_log(self, feed_dict):
+        super()._train_log(feed_dict)
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
             z_sel = self._sample_latent(self._stats['N'])

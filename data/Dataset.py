@@ -14,7 +14,7 @@ class Dataset(object):
         Transform should probably be False for a classical GAN.
     '''
 
-    def __init__(self, X, shuffle=True, slice_fn=None, transform=None):
+    def __init__(self, X, shuffle=True, slice_fn=None, transform=None, dtype=np.float32):
         ''' Initialize a Dataset object
 
         Arguments
@@ -25,7 +25,7 @@ class Dataset(object):
                       This allows extend the dataset.
         * slice_fn : Slicing function to cut the data into smaller parts
         '''
-
+        X = X.astype(dtype)
         self._shuffle = shuffle
         if slice_fn:
             self._slice_fn = slice_fn
