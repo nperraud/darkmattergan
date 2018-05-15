@@ -85,7 +85,10 @@ def default_params_cosmology(params=None):
 
 
 def default_params_time(params=dict()):
+    
     d_param = default_params()
+    d_param['time'] = dict()
+
     d_param['time']['num_classes'] = 1
     # Number of classes to condition on
     d_param['time']['classes'] = None
