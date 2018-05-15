@@ -14,6 +14,14 @@ import utils
 from data import fmap, path, Dataset
 import tensorflow as tf
 import numpy as np
+import functools
+
+
+def get_latent_width(out_width, strides):
+    w = out_width
+    for stride in strides:
+        w = w // stride
+    return w
 
 # Parameters
 ns = 64
@@ -21,14 +29,16 @@ try_resume = False
 Mpch = 100
 
 
-forward = fmap.forward
-backward = fmap.backward
+shift = 3
+bandwidth = 20000
+forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
+backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 
-time_str = '_0r-6r_4c_{}'.format(Mpch)
+time_str = '0r-6r_4c_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGAN{}'.format(ns)
+name = 'TWGAN{}_SF_'.format(ns)
 
 bn = False
 
@@ -43,23 +53,24 @@ params_discriminator['summary'] = True
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 2, 1, 1]
-params_generator['latent_dim'] = 100
+latent_w = get_latent_width(ns, params_generator['stride'])
+params_generator['latent_dim'] = 32 * latent_w * latent_w
 params_generator['nfilter'] = [64, 256, 512, 256, 64, 1]
 params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
-params_generator['full'] = [4*4*64]
+params_generator['full'] = []
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 16
-params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
-params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 3e-5
-params_optimization['gen_learning_rate'] = 3e-5
-params_optimization['beta1'] = 0.9
-params_optimization['beta2'] = 0.999
+params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
+params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
+params_optimization['disc_learning_rate'] = 1e-5
+params_optimization['gen_learning_rate'] = 1e-5
+params_optimization['beta1'] = 0.5
+params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
 
