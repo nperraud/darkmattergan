@@ -7,7 +7,6 @@ import matplotlib
 matplotlib.use('Agg')
 
 import os
-import data
 from model import TemporalGanModelv3
 from gan import TimeCosmoGAN
 import utils
@@ -17,11 +16,11 @@ import numpy as np
 import functools
 
 
-def get_latent_width(out_width, strides):
+def get_latent_dim(out_width, param):
     w = out_width
-    for stride in strides:
+    for stride in param['stride']:
         w = w // stride
-    return w
+    return w * w * param['nfilter'][0]
 
 # Parameters
 ns = 64
@@ -53,9 +52,8 @@ params_discriminator['summary'] = True
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 2, 1, 1]
-latent_w = get_latent_width(ns, params_generator['stride'])
-params_generator['latent_dim'] = 32 * latent_w * latent_w
 params_generator['nfilter'] = [64, 256, 512, 256, 64, 1]
+params_generator['latent_dim'] = get_latent_dim(ns, params_generator)
 params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = []
