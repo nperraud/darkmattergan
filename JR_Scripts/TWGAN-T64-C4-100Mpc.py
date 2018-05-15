@@ -25,7 +25,7 @@ def get_latent_dim(out_width, param):
 # Parameters
 ns = 64
 try_resume = False
-Mpch = 500
+Mpch = 100
 
 
 shift = 3
