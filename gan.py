@@ -852,6 +852,7 @@ class CosmoGAN(GAN):
         self._stats['total_stats_error'] = 10000
         del real
 
+
     def train(self, dataset, resume=False):        
         if resume:
             self._stats = self.params['cosmology']['stats']
@@ -1216,13 +1217,18 @@ class TimeGAN(GAN):
         latent = super()._sample_latent(bs=bs)
         return np.repeat(latent, self.params['time']['num_classes'], axis=0)
 
+    def _sample_single_latent(self, bs=None):
+        if bs is None:
+            bs = 1
+        return super(TimeGAN, self)._sample_latent(bs)
+
 
 class TimeCosmoGAN(CosmoGAN, TimeGAN):
     def __init__(self, params, model=None, is_3d=False):
         super().__init__(params=params, model=model, is_3d=is_3d)
 
-    def _train_log(self, feed_dict, epoch=None, batch_num=None):
-        super()._train_log(feed_dict, epoch, batch_num)
+    def _train_log(self, feed_dict):
+        super()._train_log(feed_dict)
 
     def _sample_latent(self, bs=None):
         return TimeGAN._sample_latent(self, bs)
