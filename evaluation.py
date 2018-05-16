@@ -143,11 +143,13 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
     return l2, logel2, l1, logel1
 
 
-def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint=None):
+def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint=None, is_3d=False):
     """Upscale image using the lappachsimple model, or upscale_WGAN_pixel_CNN model.
 
     For model upscale_WGAN_pixel_CNN, pass num_samples to generate and resolution of the final bigger histogram.
     for model lappachsimple         , pass small.
+
+    3D only works for upscale_WGAN_pixel_CNN.
 
     This function can be accelerated if the model is created only once.
     """
@@ -166,6 +168,17 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
 
     # Output dimension of the generator
     soutx, souty = obj.params['image_size'][:2]
+    if is_3d:
+        soutz = obj.params['image_size'][2]
+
+    if small is not None:
+        # Input dimension of the generator
+        sinx = soutx // obj.params['generator']['upsampling']
+        siny = souty // obj.params['generator']['upsampling']
+
+        # Number of part to be generated
+        nx = lx // sinx
+        ny = ly // siny
 
     if small is not None:
         # Input dimension of the generator
@@ -182,27 +195,111 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
         else:
             nx = resolution // soutx
             ny = resolution // souty
+            nz = resolution // soutz
 
 
     # Final output image
+    if is_3d:
+        output_image = generate_3d_output(obj, N, nx, ny, nz, soutx, souty, soutz, checkpoint)
+    else:
+        output_image = generate_2d_output(obj, N, nx, ny, soutx, souty, small, sinx, siny, checkpoint)
+        
+    return np.squeeze(output_image)
+
+
+def generate_3d_output(obj, N, nx, ny, nz, soutx, souty, soutz, checkpoint):
     output_image = np.zeros(
-        shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
+            shape=[N, soutz * nz, souty * ny, soutx * nx, 1], dtype=np.float32)
     output_image[:] = np.nan
 
-    # C) Generate the rest of the lines
+    for k in range(nz): # height
+        for j in range(ny): # rows
+            for i in range(nx): # columns
+
+                # 1) Generate the border
+                border = np.zeros([N, soutz, souty, soutx, 7])
+
+                if j: # one row above, same height
+                    border[:, :, :, :, 0:1] = output_image[:, 
+                                                            k * soutz:(k + 1) * soutz,
+                                                            (j - 1) * souty:j * souty, 
+                                                            i * soutx:(i + 1) * soutx, 
+                                                        :]
+                if i: # one column left, same height
+                    border[:, :, :, :, 1:2] = output_image[:,
+                                                            k * soutz:(k + 1) * soutz,
+                                                            j * souty:(j + 1) * souty, 
+                                                            (i - 1) * soutx:i * soutx, 
+                                                        :]
+                if i and j: # one row above, one column left, same height
+                    border[:, :, :, :, 2:3] = output_image[:,
+                                                            k * soutz:(k + 1) * soutz,
+                                                            (j - 1) * souty:j * souty, 
+                                                            (i - 1) * soutx:i * soutx, 
+                                                        :]
+                if k: # same row, same column, one height above
+                    border[:, :, :, :, 3:4] = output_image[:,
+                                                            (k - 1) * soutz:k * soutz,
+                                                            j * souty:(j + 1) * souty, 
+                                                            i * soutx:(i + 1) * soutx, 
+                                                        :]
+                if k and j: # one row above, same column, one height above
+                    border[:, :, :, :, 4:5] = output_image[:,
+                                                            (k - 1) * soutz:k * soutz,
+                                                            (j - 1) * souty:j * souty, 
+                                                            i * soutx:(i + 1) * soutx, 
+                                                        :]
+                if k and i: # same row, one column left, one height above
+                    border[:, :, :, :, 5:6] = output_image[:,
+                                                            (k - 1) * soutz:k * soutz,
+                                                            j * souty:(j + 1) * souty, 
+                                                            (i - 1) * soutx:i * soutx, 
+                                                        :]
+                if k and i and j: # one row above, one column left, one height above
+                    border[:, :, :, :, 6:7] = output_image[:,
+                                                            (k - 1) * soutz:k * soutz,
+                                                            (j - 1) * souty:j * souty, 
+                                                            (i - 1) * soutx:i * soutx, 
+                                                        :]
+
+
+                # 2) Generate the image
+                gen_sample, _ = obj.generate(
+                    N=N, border=border, y=None, checkpoint=checkpoint)
+
+                output_image[:, 
+                                k * soutz:(k + 1) * soutz,
+                                j * souty:(j + 1) * souty, 
+                                i * soutx:(i + 1) * soutx, 
+                            :] = gen_sample
+
+    return output_image
+
+
+def generate_2d_output(obj, N, nx, ny, soutx, souty, small, sinx, siny, checkpoint):
+    output_image = np.zeros(
+            shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
+    output_image[:] = np.nan
+
     for j in range(ny):
         for i in range(nx):
             # 1) Generate the border
             border = np.zeros([N, soutx, souty, 3])
             if i:
-                border[:, :, :, :1] = output_image[:, (
-                    i - 1) * soutx:i * soutx, j * souty:(j + 1) * souty, :]
+                border[:, :, :, :1] = output_image[:, 
+                                                    (i - 1) * soutx:i * soutx, 
+                                                    j * souty:(j + 1) * souty, 
+                                                :]
             if j:
-                border[:, :, :, 1:2] = output_image[:, i * soutx:(
-                    i + 1) * soutx, (j - 1) * souty:j * souty, :]
+                border[:, :, :, 1:2] = output_image[:, 
+                                                    i * soutx:(i + 1) * soutx, 
+                                                    (j - 1) * souty:j * souty, 
+                                                :]
             if i and j:
-                border[:, :, :, 2:3] = output_image[:, (
-                    i - 1) * soutx:i * soutx, (j - 1) * souty:j * souty, :]
+                border[:, :, :, 2:3] = output_image[:, 
+                                                    (i - 1) * soutx:i * soutx, 
+                                                    (j - 1) * souty:j * souty, 
+                                                :]
 
 
             if small is not None:
@@ -215,10 +312,13 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
             # 3) Generate the image
             gen_sample, _ = obj.generate(
                 N=N, border=border, y=y, checkpoint=checkpoint)
-            output_image[:, i * soutx:(i + 1) * soutx, j * souty:(
-                j + 1) * souty, :] = gen_sample
 
-    return np.squeeze(output_image)
+            output_image[:, 
+                            i * soutx:(i + 1) * soutx, 
+                            j * souty:(j + 1) * souty, 
+                        :] = gen_sample
+
+    return output_image
 
 
 def equalizing_histogram(real, fake, nbins=1000, bs=2000):

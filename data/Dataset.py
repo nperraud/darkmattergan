@@ -288,7 +288,7 @@ def slice_2d_patch(img0, spix=64):
 
 def slice_3d_patch(cubes, spix=32):
     '''
-    cubes: the 3d histograms 
+    cubes: the 3d histograms - [:, :, :, :]
     '''
 
     # Handle the dimesnsions
