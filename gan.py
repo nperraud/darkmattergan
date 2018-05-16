@@ -873,10 +873,6 @@ class CosmoGAN(GAN):
             z_sel = self._sample_latent(self._stats['N'])
             Xsel = next(self._sum_data_iterator)
 
-            # TODO ensure works and then remove commented legacy
-            #if self._is_3d or not (len(Xsel.shape) == 4):
-            #    Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
-
             # reshape input according to 2d, 3d, or patch case
             Xsel = self.add_input_channel(Xsel)
 
