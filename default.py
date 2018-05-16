@@ -11,6 +11,16 @@ def arg_helper(params, d_param):
     return params
 
 
+def default_params_optimization(params=None):
+    d_param = dict()
+    d_param['optimizer'] = "rmsprop"
+    d_param['learning_rate'] = 3e-5
+    d_param['n_critic'] = 5
+    if params is None or 'optimization' not in params.keys():
+        return d_param
+    return arg_helper(params['optimization'], d_param)
+
+
 def default_params(params=None):
 
     # Global parameters
@@ -45,14 +55,13 @@ def default_params(params=None):
 
     # Optimization parameters
     # -----------------------
-    d_param['optimization'] = dict()
-    d_param['optimization']['disc_optimizer'] = "rmsprop"
-    d_param['optimization']['gen_optimizer'] = "rmsprop"
-    d_param['optimization']['enc_optimizer'] = "rmsprop"
-    d_param['optimization']['gen_learning_rate'] = 3e-5
-    d_param['optimization']['enc_learning_rate'] = 3e-5
-    d_param['optimization']['disc_learning_rate'] = 3e-5
-    d_param['optimization']['n_critic'] = 5
+    d_param['optimization'] = default_params_optimization(params)
+    d_param['optimization']['disc_optimizer'] = d_param['optimization']['optimizer']
+    d_param['optimization']['gen_optimizer'] = d_param['optimization']['optimizer']
+    d_param['optimization']['enc_optimizer'] = d_param['optimization']['optimizer']
+    d_param['optimization']['gen_learning_rate'] = d_param['optimization']['learning_rate']
+    d_param['optimization']['enc_learning_rate'] = d_param['optimization']['learning_rate']
+    d_param['optimization']['disc_learning_rate'] = d_param['optimization']['learning_rate']
 
     # Generator parameters
     # --------------------
