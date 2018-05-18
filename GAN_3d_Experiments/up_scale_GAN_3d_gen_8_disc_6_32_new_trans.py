@@ -18,20 +18,20 @@ def current_time_str():
 
 
 if __name__ == "__main__":
-	ns = 16
+	ns = 32
 	try_resume = True
 	latent_dim = ns**3
 	Mpch = 350
 
 
-	time_str = 'upscaling_GAN_3d_gen_8_disc_6_16_log_sqrt'
+	time_str = 'upscaling_GAN_3d_gen_8_disc_6_32_new_trans' 
 	global_path = '../saved_result/'
 	name = 'upscaling_GAN_3d_{}'.format(ns)
 
 	bn = False
 
 	params_discriminator = dict()
-	params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
+	params_discriminator['stride'] = [2, 2, 2, 2, 2, 1]
 	params_discriminator['nfilter'] = [128, 128, 64, 32, 16, 16]
 	params_discriminator['shape'] = [[5, 5, 5], [5, 5, 5], [5, 5, 5], [3, 3, 3], [3, 3, 3], [3, 3, 3]]
 	params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
@@ -67,8 +67,8 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = data.fmap.shifted_log_forward
-	params_cosmology['backward_map'] = data.fmap.shifted_log_backard
+	params_cosmology['forward_map'] = data.fmap.stat_forward
+	params_cosmology['backward_map'] = data.fmap.stat_backward
 	params_cosmology['Nstats'] = 2000
 	
 	params = dict()

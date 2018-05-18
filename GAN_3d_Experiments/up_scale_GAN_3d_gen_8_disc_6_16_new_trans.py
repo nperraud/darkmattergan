@@ -24,7 +24,7 @@ if __name__ == "__main__":
 	Mpch = 350
 
 
-	time_str = 'upscaling_GAN_3d_gen_8_disc_6_16_log_sqrt'
+	time_str = 'upscaling_GAN_3d_gen_8_disc_6_16_new_trans' 
 	global_path = '../saved_result/'
 	name = 'upscaling_GAN_3d_{}'.format(ns)
 
@@ -67,8 +67,8 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = data.fmap.shifted_log_forward
-	params_cosmology['backward_map'] = data.fmap.shifted_log_backard
+	params_cosmology['forward_map'] = data.fmap.stat_forward
+	params_cosmology['backward_map'] = data.fmap.stat_backward
 	params_cosmology['Nstats'] = 2000
 	
 	params = dict()

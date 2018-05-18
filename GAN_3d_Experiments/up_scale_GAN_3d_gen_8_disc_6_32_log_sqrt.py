@@ -67,8 +67,8 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = data.fmap.forward_old
-	params_cosmology['backward_map'] = data.fmap.backward_old
+	params_cosmology['forward_map'] = data.fmap.shifted_log_forward
+	params_cosmology['backward_map'] = data.fmap.shifted_log_backard
 	params_cosmology['Nstats'] = 2000
 	
 	params = dict()
