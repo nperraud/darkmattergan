@@ -505,7 +505,8 @@ class GAN(object):
         if not os.path.exists(self.params['save_dir']):
             os.makedirs(self.params['save_dir'], exist_ok=True)
 
-        with open(self.params['save_dir'] + 'params.pkl', 'wb') as f:
+        path_param = os.path.join(self.params['save_dir'], 'params.pkl')
+        with open(path_param, 'wb') as f:
             pickle.dump(self.params, f)
 
     def _load(self, file_name=None):
@@ -544,10 +545,9 @@ class GAN(object):
         * checkpoint : number of the checkpoint (Default None)
         * kwargs : keywords arguments that are defined in the model
         """
-
         if checkpoint:
-            file_name = self._savedir + self._model_name + '-' + str(
-                checkpoint)
+            file_name = os.path.join(self._savedir, self._model_name + '-' + str(
+                checkpoint))
         else:
             file_name = None
 

@@ -10,11 +10,12 @@ import plot
 import matplotlib.pyplot as plt
 from model import *
 from gan import *
+import os
 
 
 def load_gan(pathgan, GANtype=CosmoGAN):
     """Load GAN object from path."""
-    with open(pathgan + 'params.pkl', 'rb') as f:
+    with open(os.path.join(pathgan, 'params.pkl'), 'rb') as f:
         params = pickle.load(f)
     params['save_dir'] = pathgan
     obj = GANtype(params)

@@ -121,7 +121,7 @@ def stat_forward_0(x, c=2e4):
     maski = mask==False
     res[maski] = np.log(x[maski]+1)
     res[mask] = np.log(c+1) + (x[mask]/c-1)
-    res = 3*res / np.log(c+1)
+    res *= 3/ np.log(c+1)
     return res
 
 def stat_backward_0(x, c=2e4):
@@ -129,7 +129,7 @@ def stat_backward_0(x, c=2e4):
         x = np.array([x])
     res = np.zeros(shape=x.shape)
     mc = np.log(c+1)
-    x = x*mc/3
+    x *= mc/3
     mask = x>mc
     maski = mask==False
     res[maski] = np.exp(x[maski])-1
@@ -141,7 +141,6 @@ def stat_forward(x, c=2e4, shift=3):
 
 
 def stat_backward(x, c=2e4, shift=3):
-    clip_max = c*100
     return stat_backward_0(x+stat_forward_0(shift, c=c), c=c) - shift
 
 
