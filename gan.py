@@ -97,8 +97,7 @@ class GAN(object):
         g_vars = [var for var in t_vars if 'generator' in var.name]
         e_vars = [var for var in t_vars if 'encoder' in var.name]
 
-        if len(e_vars) and (
-                'enc_learning_rate' in params['optimization'].keys()):
+        if params['has_enc']:
             self._has_encoder = True
         else:
             self._has_encoder = False
