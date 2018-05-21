@@ -3,6 +3,7 @@
 This module contains helping functions for the evaluation of the models.
 """
 
+import tensorflow as tf
 import pickle
 import numpy as np
 import metrics
@@ -162,16 +163,15 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
     else:
         N = small.shape[0]
 
-    # Dimension of the low res image
-    if small is not None:
-        lx, ly = small.shape[1:3]
-
     # Output dimension of the generator
     soutx, souty = obj.params['image_size'][:2]
     if is_3d:
         soutz = obj.params['image_size'][2]
 
     if small is not None:
+        # Dimension of the low res image
+        lx, ly = small.shape[1:3]
+
         # Input dimension of the generator
         sinx = soutx // obj.params['generator']['upsampling']
         siny = souty // obj.params['generator']['upsampling']
@@ -180,7 +180,6 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
         nx = lx // sinx
         ny = ly // siny
 
-    if small is not None:
         # Input dimension of the generator
         sinx = soutx // obj.params['generator']['upsampling']
         siny = souty // obj.params['generator']['upsampling']
@@ -199,15 +198,18 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
 
 
     # Final output image
-    if is_3d:
-        output_image = generate_3d_output(obj, N, nx, ny, nz, soutx, souty, soutz, checkpoint)
-    else:
-        output_image = generate_2d_output(obj, N, nx, ny, soutx, souty, small, sinx, siny, checkpoint)
+    with tf.Session() as sess:
+        obj.load(sess=sess, checkpoint=checkpoint)
+
+        if is_3d:
+            output_image = generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz)
+        else:
+            output_image = generate_2d_output(sess, obj, N, nx, ny, soutx, souty, small, sinx, siny)
         
     return np.squeeze(output_image)
 
 
-def generate_3d_output(obj, N, nx, ny, nz, soutx, souty, soutz, checkpoint):
+def generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz):
     output_image = np.zeros(
             shape=[N, soutz * nz, souty * ny, soutx * nx, 1], dtype=np.float32)
     output_image[:] = np.nan
@@ -264,8 +266,9 @@ def generate_3d_output(obj, N, nx, ny, nz, soutx, souty, soutz, checkpoint):
 
 
                 # 2) Generate the image
+                print('Current patch: column={}, row={}, height={}'.format(i+1, j+1, k+1))
                 gen_sample, _ = obj.generate(
-                    N=N, border=border, y=None, checkpoint=checkpoint)
+                    N=N, border=border, y=None, sess=sess)
 
                 output_image[:, 
                                 k * soutz:(k + 1) * soutz,
@@ -276,7 +279,7 @@ def generate_3d_output(obj, N, nx, ny, nz, soutx, souty, soutz, checkpoint):
     return output_image
 
 
-def generate_2d_output(obj, N, nx, ny, soutx, souty, small, sinx, siny, checkpoint):
+def generate_2d_output(sess, obj, N, nx, ny, soutx, souty, small, sinx, siny):
     output_image = np.zeros(
             shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
     output_image[:] = np.nan
@@ -310,8 +313,9 @@ def generate_2d_output(obj, N, nx, ny, soutx, souty, small, sinx, siny, checkpoi
                 y = None
 
             # 3) Generate the image
+            print('Current patch: column={}, row={}'.format(j+1, i+1))
             gen_sample, _ = obj.generate(
-                N=N, border=border, y=y, checkpoint=checkpoint)
+                N=N, border=border, y=y, sess=sess)
 
             output_image[:, 
                             i * soutx:(i + 1) * soutx, 
