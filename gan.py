@@ -891,7 +891,7 @@ class CosmoGAN(GAN):
         stat_dict['l1_psd'] = l1psd
         stat_dict['log_l1_psd'] = logel1psd
 
-        summary_str = _plots['psd_plot'].produceSummaryToWrite(
+        summary_str = _plots['psd'].produceSummaryToWrite(
             self._sess,
             _stats['psd_axis'],
             _stats['psd_real'],
