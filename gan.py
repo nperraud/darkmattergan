@@ -1250,6 +1250,10 @@ class TimeGAN(GAN):
             bs = 1
         return super(TimeGAN, self)._sample_latent(bs)
 
+    @property
+    def num_classes(self):
+        return self.params['time']['num_classes']
+
 
 class TimeCosmoGAN(CosmoGAN, TimeGAN):
     def __init__(self, params, model=None, is_3d=False):
@@ -1257,7 +1261,7 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         self._md_t = dict()
         self._plots_t = dict()
         for c in range(params['time']['num_classes']):
-            self._md_t[c], self._plots[c] = CosmoGAN._init_logs('Time Cosmo Metrics')
+            self._md_t[c], self._plots_t[c] = CosmoGAN._init_logs('Time Cosmo Metrics')
         self.summary_op_metrics_t = tf.summary.merge(
             tf.get_collection("Time Cosmo Metrics"))
 
