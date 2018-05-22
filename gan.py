@@ -983,6 +983,8 @@ class CosmoGAN(GAN):
             np.mean(cross_rr)
         ]
 
+        stat_dict['total_stats_error'] = metrics.total_stats_error(stat_dict)
+
         return stat_dict
 
     def _train_log(self, feed_dict):
@@ -1013,19 +1015,6 @@ class CosmoGAN(GAN):
             stat_dict = self._get_stat_dict(real, fake)
             for key in stat_dict.keys():
                 feed_dict[self._md[key]] = stat_dict[key]
-
-            # del cross_ff, cross_rf, cross_rr
-            fd = dict()
-            fd['log_l2_psd'] = feed_dict[self._md['log_l2_psd']]
-            fd['log_l1_psd'] = feed_dict[self._md['log_l1_psd']]
-            fd['log_l2_mass_hist'] = feed_dict[self._md['log_l2_mass_hist']]
-            fd['log_l1_mass_hist'] = feed_dict[self._md['log_l1_mass_hist']]
-            fd['log_l2_peak_hist'] = feed_dict[self._md['log_l2_peak_hist']]
-            fd['log_l1_peak_hist'] = feed_dict[self._md['log_l1_peak_hist']]
-            fd['wasserstein_mass_hist'] = feed_dict[self._md['wasserstein_mass_hist']]
-
-            total_stats_error = metrics.total_stats_error(fd)
-            feed_dict[self._md['total_stats_error']] = total_stats_error
 
             summary_str = self._sess.run(
                 self.summary_op_metrics, feed_dict=feed_dict)
