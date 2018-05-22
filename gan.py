@@ -865,6 +865,126 @@ class CosmoGAN(GAN):
 
         super().train(dataset=dataset, resume=resume)
 
+    def _get_stat_dict(self, real, fake):
+        stat_dict = dict()
+
+        psd_gen, _ = metrics.power_spectrum_batch_phys(
+            X1=fake, is_3d=self.is_3d)
+        psd_gen = np.mean(psd_gen, axis=0)
+        l2psd, logel2psd, l1psd, logel1psd = metrics.diff_vec(
+            self._stats['psd_real'], psd_gen)
+
+        stat_dict['l2_psd'] = l2psd
+        stat_dict['log_l2_psd'] = logel2psd
+        stat_dict['l1_psd'] = l1psd
+        stat_dict['log_l1_psd'] = logel1psd
+
+        summary_str = self._psd_plot.produceSummaryToWrite(
+            self._sess,
+            self._stats['psd_axis'],
+            self._stats['psd_real'],
+            psd_gen)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        peak_hist_fake, _, _ = metrics.peak_count_hist(
+            fake, lim=self._stats['lim_peak'])
+        l2, logel2, l1, logel1 = metrics.diff_vec(
+            self._stats['peak_hist_real'], peak_hist_fake)
+
+        stat_dict['l2_peak_hist'] = l2
+        stat_dict['log_l2_peak_hist'] = logel2
+        stat_dict['log_l1_peak_hist'] = logel1
+        stat_dict['l1_peak_hist'] = l1
+
+        summary_str = self._peak_hist_plot.produceSummaryToWrite(
+            self._sess,
+            self._stats['x_peak'],
+            self._stats['peak_hist_real'],
+            peak_hist_fake)
+
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        mass_hist_fake, _, _ = metrics.mass_hist(
+            fake, lim=self._stats['lim_mass'])
+        l2, logel2, l1, logel1 = metrics.diff_vec(
+            self._stats['mass_hist_real'], mass_hist_fake)
+
+        ws_hist = metrics.wasserstein_distance(
+            self._stats['mass_hist_real'],
+            mass_hist_fake,
+            safe=False)
+
+        stat_dict['wasserstein_mass_hist'] = ws_hist
+        stat_dict['l2_mass_hist'] = l2
+        stat_dict['log_l2_mass_hist'] = logel2
+        stat_dict['l1_mass_hist'] = l1
+        stat_dict['log_l1_mass_hist'] = logel1
+
+        summary_str = self._mass_hist_plot.produceSummaryToWrite(
+            self._sess,
+            self._stats['x_mass'],
+            self._stats['mass_hist_real'],
+            mass_hist_fake)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        # Descriptive Stats
+        descr_fake = np.array([metrics.describe(x) for x in fake])
+        descr_real = np.array([metrics.describe(x) for x in real])
+
+        stat_dict['descriptives'] = np.stack((np.mean(
+            descr_fake, axis=0), np.mean(descr_real, axis=0)))
+
+        # Distance of Peak Histogram
+        index = np.random.choice(
+            real.shape[0], min(50, real.shape[0]), replace=False
+        )  # computing all pairwise comparisons is expensive
+        peak_fake = np.array([
+            metrics.peak_count(x, neighborhood_size=5, threshold=0)
+            for x in fake[index]
+        ])
+        peak_real = np.array([
+            metrics.peak_count(x, neighborhood_size=5, threshold=0)
+            for x in real[index]
+        ])
+
+        # if tensorboard:
+        stat_dict['peak_fake'] = np.log(np.hstack(peak_fake))
+        stat_dict['peak_real'] = np.log(np.hstack(peak_real))
+        stat_dict['distance_peak_comp'] = metrics.distance_chi2_peaks(
+            peak_fake, peak_real)
+        stat_dict['distance_peak_fake'] = metrics.distance_chi2_peaks(
+            peak_fake, peak_fake)
+        stat_dict['distance_peak_real'] = metrics.distance_chi2_peaks(
+            peak_real, peak_real)
+
+        # del peak_real, peak_fake
+
+        # Measure Cross PS
+        box_l = box_l = 100 / 0.7
+        cross_rf, _ = metrics.power_spectrum_batch_phys(
+            X1=real[index],
+            X2=fake[index],
+            box_l=box_l,
+            is_3d=self.is_3d)
+        cross_ff, _ = metrics.power_spectrum_batch_phys(
+            X1=fake[index],
+            X2=fake[index],
+            box_l=box_l,
+            is_3d=self.is_3d)
+        cross_rr, _ = metrics.power_spectrum_batch_phys(
+            X1=real[index],
+            X2=real[index],
+            box_l=box_l,
+            is_3d=self.is_3d)
+
+        stat_dict['cross_ps'] = [
+            np.mean(cross_rf),
+            np.mean(cross_ff),
+            np.mean(cross_rr)
+        ]
+
+        return stat_dict
+
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
 
@@ -890,123 +1010,9 @@ class CosmoGAN(GAN):
                 fake = fake[:, :, :, 0]
             fake = np.squeeze(fake)
 
-            psd_gen, _ = metrics.power_spectrum_batch_phys(
-                X1=fake, is_3d=self.is_3d)
-            psd_gen = np.mean(psd_gen, axis=0)
-            l2psd, logel2psd, l1psd, logel1psd = metrics.diff_vec(
-                self._stats['psd_real'], psd_gen)
-
-            feed_dict[self._md['l2_psd']] = l2psd
-            feed_dict[self._md['log_l2_psd']] = logel2psd
-            feed_dict[self._md['l1_psd']] = l1psd
-            feed_dict[self._md['log_l1_psd']] = logel1psd
-
-            summary_str = self._psd_plot.produceSummaryToWrite(
-                self._sess,
-                self._stats['psd_axis'],
-                self._stats['psd_real'],
-                psd_gen)
-            self._summary_writer.add_summary(summary_str, self._counter)
-
-            peak_hist_fake, _, _ = metrics.peak_count_hist(
-                fake, lim=self._stats['lim_peak'])
-            l2, logel2, l1, logel1 = metrics.diff_vec(
-                self._stats['peak_hist_real'], peak_hist_fake)
-
-            feed_dict[self._md['l2_peak_hist']] = l2
-            feed_dict[self._md['log_l2_peak_hist']] = logel2
-            feed_dict[self._md['log_l1_peak_hist']] = logel1
-            feed_dict[self._md['l1_peak_hist']] = l1
-
-            summary_str = self._peak_hist_plot.produceSummaryToWrite(
-                self._sess,
-                self._stats['x_peak'],
-                self._stats['peak_hist_real'],
-                peak_hist_fake)
-
-            self._summary_writer.add_summary(summary_str, self._counter)
-
-            mass_hist_fake, _, _ = metrics.mass_hist(
-                fake, lim=self._stats['lim_mass'])
-            l2, logel2, l1, logel1 = metrics.diff_vec(
-                self._stats['mass_hist_real'], mass_hist_fake)
-
-            ws_hist = metrics.wasserstein_distance(
-                self._stats['mass_hist_real'],
-                mass_hist_fake,
-                safe=False)
-
-            feed_dict[self._md['wasserstein_mass_hist']] = ws_hist
-            feed_dict[self._md['l2_mass_hist']] = l2
-            feed_dict[self._md['log_l2_mass_hist']] = logel2
-            feed_dict[self._md['l1_mass_hist']] = l1
-            feed_dict[self._md['log_l1_mass_hist']] = logel1
-
-            summary_str = self._mass_hist_plot.produceSummaryToWrite(
-                self._sess,
-                self._stats['x_mass'],
-                self._stats['mass_hist_real'],
-                mass_hist_fake)
-            self._summary_writer.add_summary(summary_str, self._counter)
-
-            # Descriptive Stats
-            descr_fake = np.array([metrics.describe(x) for x in fake])
-            descr_real = np.array([metrics.describe(x) for x in real])
-
-            feed_dict[self._md['descriptives']] = np.stack((np.mean(
-                descr_fake, axis=0), np.mean(descr_real, axis=0)))
-
-            # Distance of Peak Histogram
-            index = np.random.choice(
-                real.shape[0], min(50, real.shape[0]), replace=False
-            )  # computing all pairwise comparisons is expensive
-            peak_fake = np.array([
-                metrics.peak_count(x, neighborhood_size=5, threshold=0)
-                for x in fake[index]
-            ])
-            peak_real = np.array([
-                metrics.peak_count(x, neighborhood_size=5, threshold=0)
-                for x in real[index]
-            ])
-
-            # if tensorboard:
-            feed_dict[self._md['peak_fake']] = np.log(np.hstack(peak_fake))
-            feed_dict[self._md['peak_real']] = np.log(np.hstack(peak_real))
-            feed_dict[self._md[
-                'distance_peak_comp']] = metrics.distance_chi2_peaks(
-                    peak_fake, peak_real)
-            feed_dict[self._md[
-                'distance_peak_fake']] = metrics.distance_chi2_peaks(
-                    peak_fake, peak_fake)
-            feed_dict[self._md[
-                'distance_peak_real']] = metrics.distance_chi2_peaks(
-                    peak_real, peak_real)
-
-            # del peak_real, peak_fake
-
-            # Measure Cross PS
-            box_l = box_l = 100 / 0.7
-            cross_rf, _ = metrics.power_spectrum_batch_phys(
-                X1=real[index],
-                X2=fake[index],
-                box_l=box_l,
-                is_3d=self.is_3d)
-            cross_ff, _ = metrics.power_spectrum_batch_phys(
-                X1=fake[index],
-                X2=fake[index],
-                box_l=box_l,
-                is_3d=self.is_3d)
-            cross_rr, _ = metrics.power_spectrum_batch_phys(
-                X1=real[index],
-                X2=real[index],
-                box_l=box_l, 
-                is_3d=self.is_3d)
-
-            feed_dict[self._md['cross_ps']] = [
-                np.mean(cross_rf),
-                np.mean(cross_ff),
-                np.mean(cross_rr)
-            ]
+            stat_dict = self._get_stat_dict(real, fake)
+            for key in stat_dict.keys():
+                feed_dict[self._md[key]] = stat_dict[key]
 
             # del cross_ff, cross_rf, cross_rr
             fd = dict()
