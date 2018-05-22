@@ -240,13 +240,13 @@ def slice_3d(cubes, spix=64):
     cubes = cubes[:, :limit, :limit, :limit]
 
     # split along first dimension
-    sliced_dim1 = np.vstack(np.split(cubes, num_slices, axis=1))
+    cubes = np.vstack(np.split(cubes, num_slices, axis=1))
     # split along second dimension
-    sliced_dim2 = np.vstack(np.split(sliced_dim1, num_slices, axis=2))
+    cubes = np.vstack(np.split(cubes, num_slices, axis=2))
     # split along third dimension
-    sliced_dim3 = np.vstack(np.split(sliced_dim2, num_slices, axis=3))
+    cubes = np.vstack(np.split(cubes, num_slices, axis=3))
 
-    return sliced_dim3
+    return cubes
 
 
 def slice_2d_patch(img0, spix=64):
@@ -333,8 +333,8 @@ def slice_3d_patch(cubes, spix=32):
 
 
     # 3) Slice the cubes
-    sliced_dim1 = np.vstack(np.split(img_with_nbrs, nx, axis=1))
-    sliced_dim2 = np.vstack(np.split(sliced_dim1, ny, axis=2))
-    sliced_dim3 = np.vstack(np.split(sliced_dim2, nz, axis=3))
+    img_with_nbrs = np.vstack(np.split(img_with_nbrs, nx, axis=1))
+    img_with_nbrs = np.vstack(np.split(img_with_nbrs, ny, axis=2))
+    img_with_nbrs = np.vstack(np.split(img_with_nbrs, nz, axis=3))
 
-    return sliced_dim3
+    return img_with_nbrs

@@ -339,7 +339,7 @@ class GAN(object):
         with tf.Session(config=run_config) as self._sess:
             if resume:
                 print('Load weights in the nework')
-                self._load()
+                self.load()
             else:
                 self._sess.run(tf.global_variables_initializer())
                 utils.saferm(self.params['summary_dir'])
@@ -507,7 +507,22 @@ class GAN(object):
         with open(self.params['save_dir'] + 'params.pkl', 'wb') as f:
             pickle.dump(self.params, f)
 
-    def _load(self, file_name=None):
+    def load(self, sess=None, checkpoint=None):
+        '''
+        Given checkpoint, load the model.
+        By default, load the latest model saved.
+        '''
+        if checkpoint:
+            file_name = self._savedir + self._model_name + '-' + str(
+                checkpoint)
+        else:
+            file_name = None
+
+        if sess:
+            self._sess = sess
+        elif self._sess is None:
+            raise ValueError("Session not available at the time of loading model!")
+
         print(" [*] Reading checkpoints...")
         if file_name:
             self._saver.restore(self._sess, file_name)
@@ -544,29 +559,22 @@ class GAN(object):
         * kwargs : keywords arguments that are defined in the model
         """
 
-        if checkpoint:
-            file_name = self._savedir + self._model_name + '-' + str(
-                checkpoint)
-        else:
-            file_name = None
-
-        if N and z:
-            ValueError('Please choose between N and z')
         if sess is not None:
             self._sess = sess
             return self._generate_sample(
-                N=N, z=z, X=X, file_name=file_name, **kwargs)
+                N=N, z=z, X=X, **kwargs)
+
         with tf.Session() as self._sess:
+            self.load(checkpoint=checkpoint)
+
             return self._generate_sample(
-                N=N, z=z, X=X, file_name=file_name, **kwargs)
+                N=N, z=z, X=X, **kwargs)
 
     def _generate_sample(self,
                          N=None,
                          z=None,
                          X=None,
-                         file_name=None,
                          **kwargs):
-        self._load(file_name=file_name)
 
         if z is None:
             if N is None:
@@ -1114,6 +1122,19 @@ class CosmoGAN(GAN):
                  sess=None,
                  checkpoint=None,
                  **kwargs):
+        '''
+        Generate samples from already trained model.
+        Arguments:
+        Pass either N or z.
+        Pass either sess or checkpoint.
+        If sess is passed, it is assumed that the model has already been loaded using gan.load method
+        '''
+        if N and z:
+            ValueError('Please choose between N and z')
+
+        if sess and checkpoint:
+            ValueError('Please choose between sess and checkpoint.\nIf sess is passed, it is assumed that the model is already loaded')
+
         images = super().generate(
             N=N, z=z, X=X, sess=sess, checkpoint=checkpoint, **kwargs)
 
