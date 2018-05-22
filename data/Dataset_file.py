@@ -99,7 +99,6 @@ class Dataset_file(object):
 
         # 1) Load raw images
         images = self._load_hists_raw(num_hists_at_once, indices)
-        print("images shape = ", images.shape)
 
         # 2) Apply forward map if necessary
         if self._forward_map:
@@ -164,7 +163,7 @@ class Dataset_file(object):
         batch_size: number of samples to return at once
         num_hists_at_once: number of histograms to be loaded at once in memory
         '''
-        
+
         if num_hists_at_once > 10:
             raise ValueError('Load less than 10 histograms at a time due to memory concerns!')
 
