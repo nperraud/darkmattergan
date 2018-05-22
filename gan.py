@@ -627,6 +627,10 @@ class GAN(object):
     def is_3d(self):
         return self._is_3d
 
+    @property
+    def average_over_all_channels(self):
+        return False
+
 
 class CosmoGAN(GAN):
     def __init__(self, params, model=None, is_3d=False):
@@ -862,7 +866,6 @@ class CosmoGAN(GAN):
                     real = real[:, :, :, :, 0]
             else:
                 if len(real.shape) > 3:
-                    #real = real[:, :, :, 0]
                     real = np.transpose(real, [0,3,1,2])
                     real = np.vstack(real)
             self._stats = self._compute_real_stats(real)
@@ -874,7 +877,7 @@ class CosmoGAN(GAN):
 
         super().train(dataset=dataset, resume=resume)
 
-    def _process_stat_dict(self, real, fake, _stats = None, _plots = None):
+    def _process_stat_dict(self, real, fake, _stats=None, _plots=None):
         if _stats is None:
             _stats = self._stats
 
@@ -1056,6 +1059,7 @@ class CosmoGAN(GAN):
         print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
             self._counter, l2_psd, log_l2_psd, total_stats_error))
 
+
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
 
@@ -1072,14 +1076,21 @@ class CosmoGAN(GAN):
             if self._is_3d:
                 Xsel = Xsel[:, :, :, :, 0]
             else:
-                Xsel = np.transpose(Xsel, [0, 3, 1, 2])
-                Xsel = np.vstack(Xsel)
+                if self.average_over_all_channels:
+                    Xsel = np.transpose(Xsel, [0, 3, 1, 2])
+                    Xsel = np.vstack(Xsel)
+                else:
+                    Xsel= Xsel[:, :, :, 0]
 
             real = self._backward_map(Xsel)
 
             fake = self._backward_map(fake_image)
             if not self._is_3d and len(fake.shape) == 4:
-                fake = fake[:, :, :, 0]
+                if self.average_over_all_channels:
+                    fake = np.transpose(fake, [0, 3, 1, 2])
+                    fake = np.vstack(fake)
+                else:
+                    fake = fake[:, :, :, 0]
             fake = np.squeeze(fake)
 
             stat_dict = self._process_stat_dict(real, fake)
@@ -1247,42 +1258,44 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         self._plots_t = dict()
         for c in range(params['time']['num_classes']):
             self._md_t[c], self._plots[c] = CosmoGAN._init_logs('Time Cosmo Metrics')
+        self.summary_op_metrics_t = tf.summary.merge(
+            tf.get_collection("Time Cosmo Metrics"))
+
+    def train(self, dataset, resume=False):
+        real = self._backward_map(dataset.get_all_data())
+        self._stats_t = []
+        for t in range(self.params['time']['num_classes']):
+            self._stats_t.append(self._compute_real_stats(real[:,:,:,t]))
+        super().train(dataset=dataset, resume=resume)
 
     def _train_log(self, feed_dict):
-        TimeGAN._train_log(self, feed_dict)
+        super()._train_log(feed_dict)
         if np.mod(self._counter, self.params['sum_every']) == 0:
             z_sel = self._sample_latent(self._stats['N'])
             Xsel = next(self._sum_data_iterator)
-
             # reshape input according to 2d, 3d, or patch case
             Xsel = self.add_input_channel(Xsel)
+            real_image = self._backward_map(Xsel)
 
             fake_image = self._generate_sample_safe(z_sel, Xsel)
-            fake = self._backward_map(fake_image)
+            fake_image = self._backward_map(fake_image)
 
-            Xsel = np.transpose(Xsel, [0, 3, 1, 2])
-            Xsel = np.vstack(Xsel)
-            real = self._backward_map(Xsel)
+            for t in range(self.params['time']['num_classes']):
+                real = real_image[:,:,:,t]
+                fake = fake_image[:,:,:,t]
 
-            fake = np.transpose(fake, [0, 3, 1, 2])
-            fake = np.vstack(fake)
-            fake = np.squeeze(fake)
-
-            stat_dict = self._process_stat_dict(real, fake)
-            for key in stat_dict.keys():
-                feed_dict[self._md[key]] = stat_dict[key]
+                stat_dict = self._process_stat_dict(real, fake, self._stats_t[t],
+                                                    self._plots_t[t])
+                for key in stat_dict.keys():
+                    feed_dict[self._md_t[t][key]] = stat_dict[key]
 
             summary_str = self._sess.run(
-                self.summary_op_metrics, feed_dict=feed_dict)
+                self.summary_op_metrics_t, feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
-
-            # Print the results
-            self._process_stat_results(stat_dict)
-
-            # To save the stats in params
-            self.params['cosmology']['stats'] = self._stats
-
-
 
     def _sample_latent(self, bs=None):
         return TimeGAN._sample_latent(self, bs)
+
+    @property
+    def average_over_all_channels(self):
+        return True
