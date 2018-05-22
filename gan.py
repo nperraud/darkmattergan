@@ -1046,21 +1046,24 @@ class CosmoGAN(GAN):
                     feed_dict[self._md['cross_ps']][1],
                     feed_dict[self._md['cross_ps']][2]))
             # Save a summary if a new minimum of PSD is achieved
-            if l2psd < self._stats['best_psd']:
+            l2_psd = stat_dict['l2_psd']
+            if l2_psd < self._stats['best_psd']:
                 print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(
-                    l2psd, self._stats['best_psd']))
-                self._stats['best_psd'] = l2psd
+                    l2_psd, self._stats['best_psd']))
+                self._stats['best_psd'] = l2_psd
                 self._save_current_step = True
 
-            if logel2psd < self._stats['best_log_psd']:
+            log_l2_psd = stat_dict['log_l2_psd']
+            if log_l2_psd < self._stats['best_log_psd']:
                 print(
                     ' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(
-                        logel2psd, self._stats['best_log_psd']))
-                self._stats['best_log_psd'] = logel2psd
+                        log_l2_psd, self._stats['best_log_psd']))
+                self._stats['best_log_psd'] = log_l2_psd
                 self._save_current_step = True
             print(' {} current PSD L2 {}, logL2 {}'.format(
-                self._counter, l2psd, logel2psd))
+                self._counter, stat_dict['l2_psd'], log_l2_psd))
 
+            total_stats_error = stat_dict['total_stats_error']
             if total_stats_error < self._stats['total_stats_error']:
                 print(
                     ' [*] New stats Low achieved {:3f} (was {:3f})'.format(
@@ -1068,7 +1071,7 @@ class CosmoGAN(GAN):
                 self._stats['total_stats_error'] = total_stats_error
                 self._save_current_step = True
             print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
-                self._counter, l2psd, logel2psd, total_stats_error))
+                self._counter, l2_psd, log_l2_psd, total_stats_error))
 
             # To save the stats in params
             self.params['cosmology']['stats'] = self._stats
