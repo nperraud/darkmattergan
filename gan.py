@@ -1259,9 +1259,8 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
     def __init__(self, params, model=None, is_3d=False):
         super().__init__(params=params, model=model, is_3d=is_3d)
         self._md_t = dict()
-        self._plots_t = dict()
         for c in range(params['time']['num_classes']):
-            self._md_t[c], self._plots_t[c] = CosmoGAN._init_logs('Time Cosmo Metrics')
+            self._md_t[c], self._plots[c] = CosmoGAN._init_logs('Time Cosmo Metrics')
         self.summary_op_metrics_t = tf.summary.merge(
             tf.get_collection("Time Cosmo Metrics"))
 
@@ -1289,7 +1288,7 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
                 fake = fake_image[:,:,:,t]
 
                 stat_dict = self._process_stat_dict(real, fake, self._stats_t[t],
-                                                    self._plots_t[t])
+                                                    self._plots[t])
                 for key in stat_dict.keys():
                     feed_dict[self._md_t[t][key]] = stat_dict[key]
 
