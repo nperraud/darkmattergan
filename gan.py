@@ -878,6 +878,9 @@ class CosmoGAN(GAN):
         if _stats is None:
             _stats = self._stats
 
+        if _plots is None:
+            _plots = self._plots
+
         stat_dict = dict()
 
         psd_gen, _ = metrics.power_spectrum_batch_phys(
