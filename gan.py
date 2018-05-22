@@ -645,15 +645,11 @@ class CosmoGAN(GAN):
         #                                     self.params['cosmology']['k'],
         #                                     scale=self.params['cosmology']['map_scale'])
 
-        self._md = CosmoGAN._init_logs('Metrics')
+        self._md, self._plots = CosmoGAN._init_logs('Metrics')
 
         tf.summary.histogram(
             "Pixel/Fake", self._G_fake, collections=['Metrics'])
         tf.summary.histogram("Pixel/Real", self._X, collections=['Metrics'])
-
-        self._psd_plot = PlotSummaryLog('Power_spectrum_density', 'PLOT')
-        self._mass_hist_plot = PlotSummaryLog('Mass_histogram', 'PLOT')
-        self._peak_hist_plot = PlotSummaryLog('Peak_histogram', 'PLOT')
 
         self.summary_op_metrics = tf.summary.merge(
             tf.get_collection("Metrics"))
@@ -819,12 +815,17 @@ class CosmoGAN(GAN):
             md['total_stats_error'],
             collections=[collection])
 
-        return md
+        plots = dict()
+        plots['psd'] = PlotSummaryLog('Power_spectrum_density', 'PLOT')
+        plots['mass_hist'] = PlotSummaryLog('Mass_histogram', 'PLOT')
+        plots['peak_hist'] = PlotSummaryLog('Peak_histogram', 'PLOT')
+
+        return md, plots
 
     def _compute_real_stats(self, dataset):
         """Compute the main statistics on the real data."""
         real = self._backward_map(dataset.get_all_data())
-        self._stats = dict()
+        stats = dict()
 
         # This line should be improved, probably going to mess with Jonathan code
         if self.is_3d:
@@ -836,34 +837,34 @@ class CosmoGAN(GAN):
 
         psd_real, psd_axis = metrics.power_spectrum_batch_phys(
             X1=real, is_3d=self.is_3d)
-        self._stats['psd_real'] = np.mean(psd_real, axis=0)
-        self._stats['psd_axis'] = psd_axis
+        stats['psd_real'] = np.mean(psd_real, axis=0)
+        stats['psd_axis'] = psd_axis
         del psd_real
 
         peak_hist_real, x_peak, lim_peak = metrics.peak_count_hist(dat=real)
-        self._stats['peak_hist_real'] = peak_hist_real
-        self._stats['x_peak'] = x_peak
-        self._stats['lim_peak'] = lim_peak
+        stats['peak_hist_real'] = peak_hist_real
+        stats['x_peak'] = x_peak
+        stats['lim_peak'] = lim_peak
 
         mass_hist_real, _, lim_mass = metrics.mass_hist(dat=real)
         lim_mass = list(lim_mass)
         lim_mass[1] = lim_mass[1]+1
         mass_hist_real, x_mass, lim_mass = metrics.mass_hist(dat=real, lim=lim_mass)
-        self._stats['mass_hist_real'] = mass_hist_real
-        self._stats['x_mass'] = x_mass
-        self._stats['lim_mass'] = lim_mass
+        stats['mass_hist_real'] = mass_hist_real
+        stats['x_mass'] = x_mass
+        stats['lim_mass'] = lim_mass
 
-        self._stats['best_psd'] = 1e10
-        self._stats['best_log_psd'] = 10000
-        self._stats['total_stats_error'] = 10000
+        stats['best_psd'] = 1e10
+        stats['best_log_psd'] = 10000
+        stats['total_stats_error'] = 10000
         del real
-
+        return stats
 
     def train(self, dataset, resume=False):        
         if resume:
             self._stats = self.params['cosmology']['stats']
         else:
-            self._compute_real_stats(dataset)
+            self._stats = self._compute_real_stats(dataset)
             self.params['cosmology']['stats'] = self._stats
         # Out of the _compute_real_stats function since we may want to change
         # this parameter during training.
@@ -872,52 +873,55 @@ class CosmoGAN(GAN):
 
         super().train(dataset=dataset, resume=resume)
 
-    def _get_stat_dict(self, real, fake):
+    def _process_stat_dict(self, real, fake, _stats = None, _plots = None):
+        if _stats is None:
+            _stats = self._stats
+
         stat_dict = dict()
 
         psd_gen, _ = metrics.power_spectrum_batch_phys(
             X1=fake, is_3d=self.is_3d)
         psd_gen = np.mean(psd_gen, axis=0)
         l2psd, logel2psd, l1psd, logel1psd = metrics.diff_vec(
-            self._stats['psd_real'], psd_gen)
+            _stats['psd_real'], psd_gen)
 
         stat_dict['l2_psd'] = l2psd
         stat_dict['log_l2_psd'] = logel2psd
         stat_dict['l1_psd'] = l1psd
         stat_dict['log_l1_psd'] = logel1psd
 
-        summary_str = self._psd_plot.produceSummaryToWrite(
+        summary_str = _plots['psd_plot'].produceSummaryToWrite(
             self._sess,
-            self._stats['psd_axis'],
-            self._stats['psd_real'],
+            _stats['psd_axis'],
+            _stats['psd_real'],
             psd_gen)
         self._summary_writer.add_summary(summary_str, self._counter)
 
         peak_hist_fake, _, _ = metrics.peak_count_hist(
-            fake, lim=self._stats['lim_peak'])
+            fake, lim=_stats['lim_peak'])
         l2, logel2, l1, logel1 = metrics.diff_vec(
-            self._stats['peak_hist_real'], peak_hist_fake)
+            _stats['peak_hist_real'], peak_hist_fake)
 
         stat_dict['l2_peak_hist'] = l2
         stat_dict['log_l2_peak_hist'] = logel2
         stat_dict['log_l1_peak_hist'] = logel1
         stat_dict['l1_peak_hist'] = l1
 
-        summary_str = self._peak_hist_plot.produceSummaryToWrite(
+        summary_str = _plots['peak_hist'].produceSummaryToWrite(
             self._sess,
-            self._stats['x_peak'],
-            self._stats['peak_hist_real'],
+            _stats['x_peak'],
+            _stats['peak_hist_real'],
             peak_hist_fake)
 
         self._summary_writer.add_summary(summary_str, self._counter)
 
         mass_hist_fake, _, _ = metrics.mass_hist(
-            fake, lim=self._stats['lim_mass'])
+            fake, lim=_stats['lim_mass'])
         l2, logel2, l1, logel1 = metrics.diff_vec(
-            self._stats['mass_hist_real'], mass_hist_fake)
+            _stats['mass_hist_real'], mass_hist_fake)
 
         ws_hist = metrics.wasserstein_distance(
-            self._stats['mass_hist_real'],
+            _stats['mass_hist_real'],
             mass_hist_fake,
             safe=False)
 
@@ -927,10 +931,10 @@ class CosmoGAN(GAN):
         stat_dict['l1_mass_hist'] = l1
         stat_dict['log_l1_mass_hist'] = logel1
 
-        summary_str = self._mass_hist_plot.produceSummaryToWrite(
+        summary_str = _plots['mass_hist'].produceSummaryToWrite(
             self._sess,
-            self._stats['x_mass'],
-            self._stats['mass_hist_real'],
+            _stats['x_mass'],
+            _stats['mass_hist_real'],
             mass_hist_fake)
         self._summary_writer.add_summary(summary_str, self._counter)
 
@@ -994,6 +998,60 @@ class CosmoGAN(GAN):
 
         return stat_dict
 
+    def _process_stat_results(self, stat_dict):
+        print(" [*] [Fake, Real] Min [{:.3f}, {:.3f}],\t"
+              "Median [{:.3f},{:.3f}],\t"
+              "Mean [{:.3E},{:.3E}],\t"
+              "Max [{:.3E},{:.3E}],\t"
+              "Var [{:.3E},{:.3E}]".format(
+                stat_dict['descriptives'][0, 2],
+                stat_dict['descriptives'][1, 2],
+                stat_dict['descriptives'][0, 4],
+                stat_dict['descriptives'][1, 4],
+                stat_dict['descriptives'][0, 0],
+                stat_dict['descriptives'][1, 0],
+                stat_dict['descriptives'][0, 3],
+                stat_dict['descriptives'][1, 3],
+                stat_dict['descriptives'][0, 1],
+                stat_dict['descriptives'][1, 1]))
+
+        print(
+            " [*] [Comp, Fake, Real] PeakDistance:[{:.3f}, {:.3f}, {:.3f}]"
+            "\tCrossPS:[{:.3f}, {:.3f}, {:.3f}]".format(
+                stat_dict['distance_peak_comp'],
+                stat_dict['distance_peak_fake'],
+                stat_dict['distance_peak_real'],
+                stat_dict['cross_ps'][0],
+                stat_dict['cross_ps'][1],
+                stat_dict['cross_ps'][2]))
+        # Save a summary if a new minimum of PSD is achieved
+        l2_psd = stat_dict['l2_psd']
+        if l2_psd < self._stats['best_psd']:
+            print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(
+                l2_psd, self._stats['best_psd']))
+            self._stats['best_psd'] = l2_psd
+            self._save_current_step = True
+
+        log_l2_psd = stat_dict['log_l2_psd']
+        if log_l2_psd < self._stats['best_log_psd']:
+            print(
+                ' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(
+                    log_l2_psd, self._stats['best_log_psd']))
+            self._stats['best_log_psd'] = log_l2_psd
+            self._save_current_step = True
+        print(' {} current PSD L2 {}, logL2 {}'.format(
+            self._counter, stat_dict['l2_psd'], log_l2_psd))
+
+        total_stats_error = stat_dict['total_stats_error']
+        if total_stats_error < self._stats['total_stats_error']:
+            print(
+                ' [*] New stats Low achieved {:3f} (was {:3f})'.format(
+                    total_stats_error, self._stats['total_stats_error']))
+            self._stats['total_stats_error'] = total_stats_error
+            self._save_current_step = True
+        print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
+            self._counter, l2_psd, log_l2_psd, total_stats_error))
+
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
 
@@ -1019,66 +1077,16 @@ class CosmoGAN(GAN):
                 fake = fake[:, :, :, 0]
             fake = np.squeeze(fake)
 
-            stat_dict = self._get_stat_dict(real, fake)
+            stat_dict = self._process_stat_dict(real, fake)
             for key in stat_dict.keys():
                 feed_dict[self._md[key]] = stat_dict[key]
 
             summary_str = self._sess.run(
                 self.summary_op_metrics, feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
+
             # Print the results
-            print(" [*] [Fake, Real] Min [{:.3f}, {:.3f}],\t"
-                  "Median [{:.3f},{:.3f}],\t"
-                  "Mean [{:.3E},{:.3E}],\t"
-                  "Max [{:.3E},{:.3E}],\t"
-                  "Var [{:.3E},{:.3E}]".format(
-                      feed_dict[self._md['descriptives']][0, 2],
-                      feed_dict[self._md['descriptives']][1, 2],
-                      feed_dict[self._md['descriptives']][0, 4],
-                      feed_dict[self._md['descriptives']][1, 4],
-                      feed_dict[self._md['descriptives']][0, 0],
-                      feed_dict[self._md['descriptives']][1, 0],
-                      feed_dict[self._md['descriptives']][0, 3],
-                      feed_dict[self._md['descriptives']][1, 3],
-                      feed_dict[self._md['descriptives']][0, 1],
-                      feed_dict[self._md['descriptives']][1, 1]))
-
-            print(
-                " [*] [Comp, Fake, Real] PeakDistance:[{:.3f}, {:.3f}, {:.3f}]"
-                "\tCrossPS:[{:.3f}, {:.3f}, {:.3f}]".format(
-                    feed_dict[self._md['distance_peak_comp']],
-                    feed_dict[self._md['distance_peak_fake']],
-                    feed_dict[self._md['distance_peak_real']],
-                    feed_dict[self._md['cross_ps']][0],
-                    feed_dict[self._md['cross_ps']][1],
-                    feed_dict[self._md['cross_ps']][2]))
-            # Save a summary if a new minimum of PSD is achieved
-            l2_psd = stat_dict['l2_psd']
-            if l2_psd < self._stats['best_psd']:
-                print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(
-                    l2_psd, self._stats['best_psd']))
-                self._stats['best_psd'] = l2_psd
-                self._save_current_step = True
-
-            log_l2_psd = stat_dict['log_l2_psd']
-            if log_l2_psd < self._stats['best_log_psd']:
-                print(
-                    ' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(
-                        log_l2_psd, self._stats['best_log_psd']))
-                self._stats['best_log_psd'] = log_l2_psd
-                self._save_current_step = True
-            print(' {} current PSD L2 {}, logL2 {}'.format(
-                self._counter, stat_dict['l2_psd'], log_l2_psd))
-
-            total_stats_error = stat_dict['total_stats_error']
-            if total_stats_error < self._stats['total_stats_error']:
-                print(
-                    ' [*] New stats Low achieved {:3f} (was {:3f})'.format(
-                        total_stats_error, self._stats['total_stats_error']))
-                self._stats['total_stats_error'] = total_stats_error
-                self._save_current_step = True
-            print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
-                self._counter, l2_psd, log_l2_psd, total_stats_error))
+            self._process_stat_results(stat_dict)
 
             # To save the stats in params
             self.params['cosmology']['stats'] = self._stats
@@ -1230,9 +1238,42 @@ class TimeGAN(GAN):
 class TimeCosmoGAN(CosmoGAN, TimeGAN):
     def __init__(self, params, model=None, is_3d=False):
         super().__init__(params=params, model=model, is_3d=is_3d)
+        self._md_t = dict()
+        self._plots_t = dict()
+        for c in range(params['time']['num_classes']):
+            self._md_t[c], self._plots[c] = CosmoGAN._init_logs('Time Cosmo Metrics')
 
     def _train_log(self, feed_dict):
-        super()._train_log(feed_dict)
+        TimeGAN._train_log(self, feed_dict)
+        if np.mod(self._counter, self.params['sum_every']) == 0:
+            z_sel = self._sample_latent(self._stats['N'])
+            Xsel = next(self._sum_data_iterator)
+
+            # reshape input according to 2d, 3d, or patch case
+            Xsel = self.add_input_channel(Xsel)
+
+            fake_image = self._generate_sample_safe(z_sel, Xsel)
+            fake = self._backward_map(fake_image)
+
+            real = self._backward_map(Xsel)
+
+            fake = np.squeeze(fake)
+
+            stat_dict = self._process_stat_dict(real, fake)
+            for key in stat_dict.keys():
+                feed_dict[self._md[key]] = stat_dict[key]
+
+            summary_str = self._sess.run(
+                self.summary_op_metrics, feed_dict=feed_dict)
+            self._summary_writer.add_summary(summary_str, self._counter)
+
+            # Print the results
+            self._process_stat_results(stat_dict)
+
+            # To save the stats in params
+            self.params['cosmology']['stats'] = self._stats
+
+
 
     def _sample_latent(self, bs=None):
         return TimeGAN._sample_latent(self, bs)
