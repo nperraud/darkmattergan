@@ -34,7 +34,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 
-time_str = '0r-2r_7v6s_{}'.format(Mpch)
+time_str = '0r-2r_7v6s2_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGAN{}_SF_'.format(ns)
@@ -67,7 +67,7 @@ params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 1e-5
 params_optimization['gen_learning_rate'] = 1e-5
-params_optimization['beta1'] = 0.5
+params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
