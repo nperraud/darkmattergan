@@ -822,18 +822,9 @@ class CosmoGAN(GAN):
 
         return md, plots
 
-    def _compute_real_stats(self, dataset):
+    def _compute_real_stats(self, real):
         """Compute the main statistics on the real data."""
-        real = self._backward_map(dataset.get_all_data())
         stats = dict()
-
-        # This line should be improved, probably going to mess with Jonathan code
-        if self.is_3d:
-            if len(real.shape) > 4:
-                real = real[:, :, :, :, 0]
-        else:
-            if len(real.shape) > 3:
-                real = real[:, :, :, 0]
 
         psd_real, psd_axis = metrics.power_spectrum_batch_phys(
             X1=real, is_3d=self.is_3d)
@@ -864,7 +855,17 @@ class CosmoGAN(GAN):
         if resume:
             self._stats = self.params['cosmology']['stats']
         else:
-            self._stats = self._compute_real_stats(dataset)
+            real = self._backward_map(dataset.get_all_data())
+            # This line should be improved, probably going to mess with Jonathan code
+            if self.is_3d:
+                if len(real.shape) > 4:
+                    real = real[:, :, :, :, 0]
+            else:
+                if len(real.shape) > 3:
+                    #real = real[:, :, :, 0]
+                    real = np.transpose(real, [0,3,1,2])
+                    real = np.vstack(real)
+            self._stats = self._compute_real_stats(real)
             self.params['cosmology']['stats'] = self._stats
         # Out of the _compute_real_stats function since we may want to change
         # this parameter during training.
@@ -1068,7 +1069,8 @@ class CosmoGAN(GAN):
             if self._is_3d:
                 Xsel = Xsel[:, :, :, :, 0]
             else:
-                Xsel = Xsel[:, :, :, 0]
+                Xsel = np.transpose(Xsel, [0, 3, 1, 2])
+                Xsel = np.vstack(Xsel)
 
             real = self._backward_map(Xsel)
 
@@ -1255,8 +1257,12 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
             fake_image = self._generate_sample_safe(z_sel, Xsel)
             fake = self._backward_map(fake_image)
 
+            Xsel = np.transpose(Xsel, [0, 3, 1, 2])
+            Xsel = np.vstack(Xsel)
             real = self._backward_map(Xsel)
 
+            fake = np.transpose(fake, [0, 3, 1, 2])
+            fake = np.vstack(fake)
             fake = np.squeeze(fake)
 
             stat_dict = self._process_stat_dict(real, fake)
