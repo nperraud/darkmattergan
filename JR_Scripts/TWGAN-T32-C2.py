@@ -34,7 +34,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 
-time_str = '0r-2r_{}'.format(Mpch)
+time_str = '0r_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGAN{}'.format(ns)
@@ -81,9 +81,9 @@ params_cosmology['backward_map'] = backward
 params_cosmology['Nstats'] = 1000
 
 params_time = dict()
-params_time['num_classes'] = 2
-params_time['classes'] = [2, 0]
-params_time['class_weights'] = [0.9, 1]
+params_time['num_classes'] = 1
+params_time['classes'] = [0]
+params_time['class_weights'] = [1]
 params_time['model_idx'] = 2
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
