@@ -42,6 +42,8 @@ def default_params(params=None):
     # Prior distribution to sample from ('Gaussian','Uniform',...)
     d_param['image_size'] = [32, 32, 1]
     # size of input image
+    d_param['has_enc'] = False
+    # whether the model has an encoder
 
     # Discriminator parameters
     # ------------------------
@@ -57,11 +59,11 @@ def default_params(params=None):
     # -----------------------
     d_param['optimization'] = default_params_optimization(params)
     d_param['optimization']['disc_optimizer'] = d_param['optimization']['optimizer']
-    d_param['optimization']['gen_optimizer'] = d_param['optimization']['optimizer']
-    d_param['optimization']['enc_optimizer'] = d_param['optimization']['optimizer']
-    d_param['optimization']['gen_learning_rate'] = d_param['optimization']['learning_rate']
-    d_param['optimization']['enc_learning_rate'] = d_param['optimization']['learning_rate']
     d_param['optimization']['disc_learning_rate'] = d_param['optimization']['learning_rate']
+    d_param['optimization']['gen_optimizer'] = d_param['optimization']['optimizer']
+    d_param['optimization']['gen_learning_rate'] = d_param['optimization']['learning_rate']
+    d_param['optimization']['enc_optimizer'] = d_param['optimization']['optimizer']
+    d_param['optimization']['enc_learning_rate'] = d_param['optimization']['learning_rate']
 
     # Generator parameters
     # --------------------

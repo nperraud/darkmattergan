@@ -23,7 +23,7 @@ def get_latent_dim(out_width, param):
     return w * w * param['nfilter'][0]
 
 # Parameters
-ns = 64
+ns = 32
 try_resume = False
 Mpch = 500
 
@@ -34,28 +34,28 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 
-time_str = '0r-2r_7v6s2_{}'.format(Mpch)
+time_str = '0r-2r_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGAN{}_SF_'.format(ns)
+name = 'TWGAN{}'.format(ns)
 
 bn = False
 
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [16, 128, 256, 512, 128, 64]
-params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3], [3, 3]]
-params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
+params_discriminator['stride'] = [2, 2, 2, 1, 1]
+params_discriminator['nfilter'] = [16, 128, 256, 128, 64]
+params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3]]
+params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_discriminator['full'] = [64]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
 params_generator = dict()
-params_generator['stride'] = [2, 2, 2, 2, 1, 1, 1]
-params_generator['nfilter'] = [64, 256, 512, 256, 128, 64, 1]
+params_generator['stride'] = [2, 2, 2, 1, 1, 1]
+params_generator['nfilter'] = [64, 256, 256, 128, 64, 1]
 params_generator['latent_dim'] = get_latent_dim(ns, params_generator)
-params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [5, 5], [3, 3]]
-params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
+params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [3, 3]]
+params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = []
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
@@ -83,7 +83,7 @@ params_cosmology['Nstats'] = 1000
 params_time = dict()
 params_time['num_classes'] = 2
 params_time['classes'] = [2, 0]
-params_time['class_weights'] = [0.9, 1.11]
+params_time['class_weights'] = [0.9, 1]
 params_time['model_idx'] = 2
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
@@ -102,8 +102,8 @@ params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
 params['name'] = name
-params['summary_dir'] = global_path + 'summaries_A8_D/' + params['name'] + '_' + time_str +'_summary/'
-params['save_dir'] = global_path + 'models_A8_D/' + params['name'] + '_' + time_str + '_checkpoints/'
+params['summary_dir'] = global_path + 'summaries_32_C2/' + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + 'models_32_C2/' + params['name'] + '_' + time_str + '_checkpoints/'
 
 print("All params")
 print(params)
