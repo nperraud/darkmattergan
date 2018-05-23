@@ -10,10 +10,10 @@ import h5py
 
 
 def test_resume(try_resume, params):
-    ''' Try to load the parameters saved in `params['save_dir']+'params.pkl',` 
+    """ Try to load the parameters saved in `params['save_dir']+'params.pkl',`
 
         Not sure we should implement this function that way.
-    '''
+    """
 
     resume = False
 
@@ -27,6 +27,7 @@ def test_resume(try_resume, params):
             print('No resume, the training will start from the beginning!')
 
     return resume, params
+
 
 def sample_latent(m, n, prior="uniform", normalize=False):
     if prior == "uniform":
@@ -76,7 +77,6 @@ def sample_latent(m, n, prior="uniform", normalize=False):
         raise ValueError(' [!] distribution not defined')
 
 
-
 def show_all_variables():
     model_vars = tf.trainable_variables()
     slim.model_analyzer.analyze_vars(model_vars, print_info=True)
@@ -121,6 +121,7 @@ def makeit_square(x):
         new_x = x
     return new_x
 
+
 def get_tile_shape_from_3d_image(image_size):
     '''
     given a 3d image, tile it as a rectangle with slices of the 3d image,
@@ -139,6 +140,7 @@ def get_tile_shape_from_3d_image(image_size):
     tile_shape = ( y_dim * (x_dim//num_images_in_each_row), z_dim * num_images_in_each_row)
     return tile_shape
 
+
 def num_images_each_row(x_dim):
     num_images_in_each_row = int(x_dim**0.5)
     while x_dim % num_images_in_each_row != 0:#smallest number that is larger than square root of x_dim and divides x_dim
@@ -146,11 +148,12 @@ def num_images_each_row(x_dim):
 
     return num_images_in_each_row
 
+
 def tile_cube_slices(cubes):
-    '''
+    """
     cubes = [:, :, :, :]
     arrange each cube in cubes, as tile of squares
-    '''
+    """
     x_dim = cubes.shape[1]
     y_dim = cubes.shape[2]
     z_dim = cubes.shape[3]
@@ -171,6 +174,7 @@ def tile_cube_slices(cubes):
         tiles.append(tile.reshape([*(tile.shape), 1]))
 
     return np.array(tiles)
+
 
 def get_3d_hists_dir_paths(path_3d_hists):
     dir_paths = []
@@ -299,6 +303,7 @@ def save_dict_for_humans(filename, dict_):
 def compose2(first,second):
     ''' Return the composed function `second(first(arg))` '''
     return lambda x: second(first(x))
+
 
 def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
