@@ -1147,58 +1147,7 @@ class TimeGAN(GAN):
     def __init__(self, params, model=None, is_3d=False):
         super().__init__(params=params, model=model, is_3d=is_3d)
 
-        params = default_params_time(self.params)
-
-        self._mdt = dict()
-
-        self._mdt['c_descriptives'] = tf.placeholder(
-            tf.float64, shape=[params['time']['num_classes'], 2, 5], name="DescriptiveTimeStatistics")
-
-        for c in range(params['time']['num_classes']):
-            tf.summary.scalar(
-                "c_descriptives/mean_Fake",
-                self._mdt['c_descriptives'][c, 0, 0],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/var_Fake",
-                self._mdt['c_descriptives'][c, 0, 1],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/min_Fake",
-                self._mdt['c_descriptives'][c, 0, 2],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/max_Fake",
-                self._mdt['c_descriptives'][c, 0, 3],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/median_Fake",
-                self._mdt['c_descriptives'][c, 0, 4],
-                collections=['Time Metrics'])
-
-            tf.summary.scalar(
-                "c_descriptives/mean_Real",
-                self._mdt['c_descriptives'][c, 1, 0],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/var_Real",
-                self._mdt['c_descriptives'][c, 1, 1],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/min_Real",
-                self._mdt['c_descriptives'][c, 1, 2],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/max_Real",
-                self._mdt['c_descriptives'][c, 1, 3],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/median_Real",
-                self._mdt['c_descriptives'][c, 1, 4],
-                collections=['Time Metrics'])
-
-        self.summary_time_metrics = tf.summary.merge(
-            tf.get_collection("Time Metrics"))
+        self.params = default_params_time(self.params)
 
     def _build_image_summary(self):
         for c in range(self.params["time"]["num_classes"]):
@@ -1212,53 +1161,6 @@ class TimeGAN(GAN):
                 self._G_fake[:, :, :, c:(c+1)],
                 max_outputs=4,
                 collections=['Images'])
-
-    # def train(self, dataset, resume=False):
-    #     X = dataset.get_all_data()
-    #
-    #     #if resume:
-    #     #    self._stats = self.params['cosmology']['stats']
-    #     #else:
-    #     #    self._compute_real_stats(X)
-    #     #    self.params['cosmology']['stats'] = self._stats
-    #     # Out of the _compute_real_stats function since we may want to change
-    #     # this parameter during training.
-    #     #self._stats['N'] = self.params['cosmology']['Nstats']
-    #     #self._sum_data_iterator = itertools.cycle(dataset.iter(self._stats['N']))
-    #
-    #     super().train(dataset=dataset, resume=resume)
-
-    def _train_log(self, feed_dict):
-        super()._train_log(feed_dict)
-
-        if np.mod(self._counter, self.params['sum_every']) == 0:
-            z_sel = self._sample_latent(self._stats['N'])
-            Xsel = next(self._sum_data_iterator)
-
-            # if self.params['num_classes'] > 1:
-            #    self._multiclass_l2_psd(feed_dict, Xsel)
-
-            # TODO better
-            #if not (len(Xsel.shape) == 4):
-            #    Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
-
-            fake_image = self._generate_sample_safe(z_sel, Xsel)
-
-            stats = np.zeros((self.params['time']['num_classes'], 2, 5))
-            for c in range(self.params['time']['num_classes']):
-                real = Xsel[:, :, :, c]
-                fake = fake_image[:, :, :, c]
-                fake = np.squeeze(fake)
-
-                # Descriptive Stats
-                stats[c, 0, :] = np.mean(np.array([metrics.describe(x) for x in fake]), axis=0)
-                stats[c, 1, :] = np.mean(np.array([metrics.describe(x) for x in real]), axis=0)
-
-            feed_dict[self._mdt['c_descriptives']] = stats
-
-            summary_str = self._sess.run(
-                self.summary_time_metrics, feed_dict=feed_dict)
-            self._summary_writer.add_summary(summary_str, self._counter)
 
     def _sample_latent(self, bs=None):
         if bs is None:
