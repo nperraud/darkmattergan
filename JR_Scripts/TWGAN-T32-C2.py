@@ -15,26 +15,17 @@ import tensorflow as tf
 import numpy as np
 import functools
 
-
-def get_latent_dim(out_width, param):
-    w = out_width
-    for stride in param['stride']:
-        w = w // stride
-    return w * w * param['nfilter'][0]
-
 # Parameters
 ns = 32
 try_resume = False
 Mpch = 500
-
 
 shift = 3
 bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-
-time_str = '0r_{}'.format(Mpch)
+time_str = '0r-2r_0812_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGAN{}'.format(ns)
@@ -53,7 +44,7 @@ params_discriminator['summary'] = True
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 1, 1, 1]
 params_generator['nfilter'] = [64, 256, 256, 128, 64, 1]
-params_generator['latent_dim'] = get_latent_dim(ns, params_generator)
+params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
 params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [3, 3]]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = []
@@ -81,9 +72,9 @@ params_cosmology['backward_map'] = backward
 params_cosmology['Nstats'] = 1000
 
 params_time = dict()
-params_time['num_classes'] = 1
-params_time['classes'] = [0]
-params_time['class_weights'] = [1]
+params_time['num_classes'] = 2
+params_time['classes'] = [2, 0]
+params_time['class_weights'] = [0.8, 1.2]
 params_time['model_idx'] = 2
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
