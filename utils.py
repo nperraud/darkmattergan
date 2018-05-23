@@ -259,9 +259,10 @@ def save_dict_pickle(filename, dict_):
         pickle.dump(dict_, outfile)
 
 
-# Save dict in a pretty text format for humans. Cannot parse this back!
-# Use save_dict_pickle for a load friendly version.
 def save_dict_for_humans(filename, dict_):
+    """ Save dict in a pretty text format for humans. Cannot parse this back!
+    Use save_dict_pickle for a load friendly version.
+    """
     with open(filename, 'w') as outfile:
 
         outfile.write("All Params")
@@ -288,20 +289,8 @@ def save_dict_for_humans(filename, dict_):
             outfile.write(str(dict_['time']))
 
 
-# Nati: This is a strange function. I do not think we need it.
-# def load_hdf5_all_datasets(filename, num=100):
-#     lst = []
-#     h5f = h5py.File(filename, 'r')
-#     for i in range(num):
-#         data = h5f['data' + str(i)][:]
-#         lst.append(data)
-
-#     h5f.close()
-#     return lst
-
-
 def compose2(first,second):
-    ''' Return the composed function `second(first(arg))` '''
+    """ Return the composed function `second(first(arg))` """
     return lambda x: second(first(x))
 
 
