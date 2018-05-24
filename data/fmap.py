@@ -148,5 +148,5 @@ def stat_backward(x, c=2e4, shift=3):
 
 
 forward = stat_forward
-backward = stat_forward
+backward = stat_backward
 
