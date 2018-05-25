@@ -25,28 +25,28 @@ bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-time_str = '0r-2r_b05{}'.format(Mpch)
+time_str = '0r-2r_0911{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGAN{}'.format(ns)
+name = 'TWGAN{}|7-6'.format(ns)
 
 bn = False
 
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [16, 128, 256, 128, 64]
-params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3]]
-params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn]
+params_discriminator['stride'] = [2, 2, 2, 1, 1, 1]
+params_discriminator['nfilter'] = [16, 128, 256, 128, 64, 32]
+params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3], [3,3]]
+params_discriminator['batch_norm'] = [bn] * (len(params_discriminator['nfilter']) + 1)
 params_discriminator['full'] = [64]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
 params_generator = dict()
-params_generator['stride'] = [2, 2, 2, 1, 1, 1]
-params_generator['nfilter'] = [64, 256, 256, 128, 64, 1]
+params_generator['stride'] = [2, 2, 2, 1, 1, 1, 1]
+params_generator['nfilter'] = [64, 256, 256, 128, 64, 32, 1]
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
-params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [3, 3]]
-params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
+params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [3,3], [3, 3]]
+params_generator['batch_norm'] = [bn] * (len(params_generator['nfilter']) + 1)
 params_generator['full'] = []
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
@@ -58,7 +58,7 @@ params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 1e-5
 params_optimization['gen_learning_rate'] = 1e-5
-params_optimization['beta1'] = 0.5
+params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
@@ -74,7 +74,7 @@ params_cosmology['Nstats'] = 1000
 params_time = dict()
 params_time['num_classes'] = 2
 params_time['classes'] = [2, 0]
-params_time['class_weights'] = [0.9, 1.0]
+params_time['class_weights'] = [0.9, 1.1]
 params_time['model_idx'] = 2
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
