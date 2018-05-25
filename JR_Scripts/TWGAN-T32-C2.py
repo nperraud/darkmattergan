@@ -37,7 +37,7 @@ bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-time_str = '0r-2r_0911{}'.format(Mpch)
+time_str = '0r-2r_ff0911{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGAN{}|6-5dls'.format(ns)
@@ -57,7 +57,7 @@ params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 1, 1, 1]
 params_generator['nfilter'] = [64, 512, 512, 256, 128, 1]
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
-params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [3, 3]]
+params_generator['shape'] = [[5, 5], [5, 5], [5, 5], [3, 3], [3, 3], [3, 3]]
 params_generator['batch_norm'] = [bn] * (len(params_generator['nfilter']) - 1)
 params_generator['full'] = []
 params_generator['summary'] = True
