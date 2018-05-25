@@ -15,6 +15,18 @@ import tensorflow as tf
 import numpy as np
 import functools
 
+
+def save_dict(params):
+    if not os.path.exists(params['summary_dir']):
+        os.makedirs(params['summary_dir'])
+    utils.save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
+    utils.save_dict_for_humans(params['summary_dir'] + 'params.txt', params)
+    if not os.path.exists(params['save_dir']):
+        os.makedirs(params['save_dir'])
+    utils.save_dict_pickle(params['save_dir'] + 'params.pkl', params)
+    utils.save_dict_for_humans(params['save_dir'] + 'params.txt', params)
+
+
 # Parameters
 ns = 32
 try_resume = False
@@ -28,24 +40,24 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '0r-2r_0911{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGAN{}|7-6'.format(ns)
+name = 'TWGAN{}|6-5dls'.format(ns)
 
 bn = False
 
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 2, 1, 1, 1]
-params_discriminator['nfilter'] = [16, 128, 256, 128, 64, 32]
-params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3], [3,3]]
+params_discriminator['stride'] = [2, 2, 2, 1, 1]
+params_discriminator['nfilter'] = [16, 256, 512, 256, 96]
+params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
 params_generator = dict()
-params_generator['stride'] = [2, 2, 2, 1, 1, 1, 1]
-params_generator['nfilter'] = [64, 256, 256, 128, 64, 32, 1]
+params_generator['stride'] = [2, 2, 2, 1, 1, 1]
+params_generator['nfilter'] = [64, 512, 512, 256, 128, 1]
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
-params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [3,3], [3, 3]]
+params_generator['shape'] = [[3, 3], [3, 3], [5, 5], [5, 5], [5, 5], [3, 3]]
 params_generator['batch_norm'] = [bn] * (len(params_generator['nfilter']) - 1)
 params_generator['full'] = []
 params_generator['summary'] = True
@@ -110,15 +122,6 @@ print("\nTime Params")
 print(params['time'])
 print()
 
-if not os.path.exists(params['summary_dir']):
-    os.makedirs(params['summary_dir'])
-utils.save_dict_pickle(params['summary_dir'] + 'params.pkl', params)
-utils.save_dict_for_humans(params['summary_dir'] + 'params.txt', params)
-if not os.path.exists(params['save_dir']):
-    os.makedirs(params['save_dir'])
-utils.save_dict_pickle(params['save_dir'] + 'params.pkl', params)
-utils.save_dict_for_humans(params['save_dir'] + 'params.txt', params)
-
 resume, params = utils.test_resume(try_resume, params)
 
 # Build the model
@@ -135,5 +138,7 @@ for box_idx in params['time']['classes']:
 images = np.array(img_list)
 print ("Images shape: {}".format(images.shape))
 dataset = Dataset.Dataset_time(images, spix=ns, shuffle=True)
+
+save_dict(params)
 
 twgan.train(dataset=dataset, resume=resume)
