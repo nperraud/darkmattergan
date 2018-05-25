@@ -1186,7 +1186,7 @@ def apply_non_lin(non_lin, x, reuse):
             x = non_lin_f(x)
             rprint('    Non lienarity: {}'.format(non_lin), reuse)
         else:
-            x = non_lin(x)
+            x = non_lin(x)   
             rprint('    Costum non linearity: {}'.format(non_lin), reuse)
 
     return x
@@ -1212,6 +1212,14 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             non_lin_f = getattr(tf, params['non_lin'])
             x = non_lin_f(x)
             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+        if params['cdf']:
+            cdf = tf_cdf(x, params['cdf'])
+            rprint('    Cdf layer: {}'.format(params['cdf']), reuse)
+            rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+            cdf = linear(cdf, 2 * params['cdf'], 'cdf_full', summary=params['summary'])
+            cdf = lrelu(cdf)
+            rprint('     CDF Full layer with {} outputs'.format(2*params['cdf']), reuse)
+            rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
         for i in range(nconv):
             x = conv(x,
                      nf_out=params['nfilter'][i],
@@ -1233,6 +1241,9 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         if z is not None:
             x = tf.concat([x, z], axis=1)
             rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
+        if params['cdf']:
+            x = tf.concat([x, cdf], axis=1)
+            rprint('     Contenate with CDF variables to {}'.format(x.shape), reuse)           
 
         for i in range(nfull):
             x = linear(x,
@@ -1514,7 +1525,7 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
 def one_pixel_mapping(x, n_filters, summary=True, reuse=False):
     """One pixel mapping."""
     rprint('  Begining of one Pixel Mapping '+''.join(['-']*20), reuse)
-    xsh = tf.shape(x)  # Batch size
+    xsh = tf.shape(x) 
 
     rprint('     The input is of size {}'.format(x.shape), reuse)
     x = tf.reshape(x, [xsh[0], prod(x.shape.as_list()[1:]), 1, 1])
@@ -1542,3 +1553,5 @@ def one_pixel_mapping(x, n_filters, summary=True, reuse=False):
     rprint('     Reshape x to size {}'.format(x.shape), reuse)
     rprint('  End of one Pixel Mapping '+''.join(['-']*20)+'\n', reuse)
     return x
+
+

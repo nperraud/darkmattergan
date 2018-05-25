@@ -265,8 +265,11 @@ def peak_count_hist(dat, bins=20, lim=None):
     bins : number of bins for the histogram (default 20)
     lim  : limit for the histogram, if None, then min(peak), max(peak)
     """
-    peak = np.array(
-        [peak_count(x, neighborhood_size=5, threshold=0) for x in dat])
+    num_workers = mp.cpu_count() - 1
+    with mp.Pool(processes=num_workers) as pool:
+        peak = np.array(pool.map(peak_count, dat))
+    # peak = np.array(
+    #     [peak_count(x, neighborhood_size=5, threshold=0) for x in dat])
     peak = np.log(np.hstack(peak)+np.e)
     if lim is None:
         lim = (np.min(peak), np.max(peak))

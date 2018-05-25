@@ -14,6 +14,7 @@ from data import fmap
 import tensorflow as tf
 import functools
 import os
+import tensorflow as tf
 
 # Parameters
 
@@ -28,9 +29,9 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=c)
 
 
 def non_lin(x):
-	return tf.nn.relu(x)
+	return tf.nn.relu(x) 
 
-time_str = 'stat_c_{}_shift_{}_one-sided-laplacian_Mpch_{}_res_{}'.format(c, shift, Mpch, res)
+time_str = 'stat_c_{}_shift_{}_laplacian_Mpch_{}_res_{}'.format(c, shift, Mpch, res)
 global_path = '/scratch/snx3000/nperraud/saved_result'
 
 name = 'WGAN{}'.format(ns)
@@ -82,7 +83,7 @@ params['cosmology'] = params_cosmology
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
-params['prior_distribution'] = 'one-sided-laplacian'
+params['prior_distribution'] = 'laplacian'
 params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
