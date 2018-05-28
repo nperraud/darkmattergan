@@ -97,11 +97,6 @@ class GAN(object):
         g_vars = [var for var in t_vars if 'generator' in var.name]
         e_vars = [var for var in t_vars if 'encoder' in var.name]
 
-        if params['has_enc']:
-            self._has_encoder = True
-        else:
-            self._has_encoder = False
-
         global_step = tf.Variable(0, name="global_step", trainable=False)
 
         optimizer_D, optimizer_G, optimizer_E = self._build_optmizer()
@@ -508,10 +503,10 @@ class GAN(object):
             pickle.dump(self.params, f)
 
     def load(self, sess=None, checkpoint=None):
-        '''
+        """
         Given checkpoint, load the model.
         By default, load the latest model saved.
-        '''
+        """
         if checkpoint:
             file_name = self._savedir + self._model_name + '-' + str(
                 checkpoint)
@@ -625,7 +620,7 @@ class GAN(object):
 
     @property
     def has_encoder(self):
-        return self._has_encoder
+        return self._model.has_encoder
 
     @property
     def model_name(self):

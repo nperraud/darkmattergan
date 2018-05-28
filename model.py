@@ -34,6 +34,10 @@ class GanModel(object):
     def is_3d(self):
         return self._is_3d
 
+    @property
+    def has_encoder(self):
+        return False
+
 
 class WGanModel(GanModel):
     def __init__(self, params, X, z, name='wgan', is_3d=False):
@@ -332,6 +336,10 @@ class TemporalGanModelv4(GanModel):
     def E_loss(self):
         return self._E_loss
 
+    @property
+    def has_encoder(self):
+        return True
+
 
 def reshape_channels_to_separate(self, X):
     t = tf.transpose(X, [0, 3, 1, 2])
@@ -379,6 +387,10 @@ class WVeeGanModel(GanModel):
     @property
     def E_loss(self):
         return self._E_loss
+
+    @property
+    def has_encoder(self):
+        return True
 
 
 class LapGanModel(GanModel):
