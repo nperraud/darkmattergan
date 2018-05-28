@@ -37,7 +37,7 @@ bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-time_str = '0r-2r_all5v5_0911{}'.format(Mpch)
+time_str = '0r-2r_0911{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGAN{}|6-5'.format(ns)
@@ -47,7 +47,7 @@ bn = False
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 1, 1]
 params_discriminator['nfilter'] = [16, 128, 256, 128, 64]
-params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [5, 5]]
+params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
 params_discriminator['minibatch_reg'] = False
@@ -57,7 +57,7 @@ params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 1, 1, 1]
 params_generator['nfilter'] = [64, 256, 256, 128, 64, 1]
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
-params_generator['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5], [5, 5], [5, 5]]
+params_generator['shape'] = [[3, 3], [3, 3], [3, 3], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn] * (len(params_generator['nfilter']) - 1)
 params_generator['full'] = []
 params_generator['summary'] = True
