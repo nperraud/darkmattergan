@@ -309,3 +309,20 @@ def tf_cdf(x, n_out):
         initializer=weights_initializer)
     x = tf.expand_dims(reshape2d(x), axis=2)
     return tf.reduce_mean(tf.sigmoid(10 * (w - x)), axis=1)
+
+
+def tf_covmat(x, shape):
+    nel = np.prod(shape)
+    bs = tf.shape(x)[0]
+#     w = tf.get_variable("conv_kernel", dtype=tf.float32,  initializer=tf.constant(np.eye(nel).reshape(shape[0], shape[1], 1, nel).astype(np.float32)), trainable=False)
+    sh = [shape[0], shape[1], 1, nel]
+    wi = tf.constant_initializer(0.0)
+    w = _tf_variable('covmat_var', sh, wi)
+    conv = tf.nn.conv2d(x, w, strides=[1, 1, 1, 1], padding='VALID')
+    nx = conv.shape[1]*conv.shape[2]
+    conv_vec = tf.reshape(conv,shape=[bs, nx ,nel])
+    m = tf.reduce_mean(conv_vec, axis=[1,2])
+    conv_vec = tf.subtract(conv_vec,tf.expand_dims(tf.expand_dims(m,axis=1), axis=2))
+    c = 1/tf.cast(nx, tf.float32)*tf.matmul(tf.transpose(conv_vec,perm=[0,2,1]), conv_vec)
+    return c
+

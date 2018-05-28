@@ -1220,6 +1220,18 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             cdf = lrelu(cdf)
             rprint('     CDF Full layer with {} outputs'.format(2*params['cdf']), reuse)
             rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
+        if params['moment']:
+            rprint('    Covariance layer with {} shape'.format(params['moment']), reuse)
+            cov = tf_covmat(x, params['moment'])
+            rprint('        Layer output {} shape'.format(cov.shape), reuse)
+            cov = reshape2d(cov)
+            rprint('        Reshape output {} shape'.format(cov.shape), reuse)
+            nel = np.prod(params['moment'])**2
+            cov = linear(cov, nel, 'cov_full', summary=params['summary'])
+            cov = lrelu(cov)
+            rprint('     Covariance Full layer with {} outputs'.format(nel), reuse)
+            rprint('         Size of the CDF variables: {}'.format(cov.shape), reuse)
+            
         for i in range(nconv):
             x = conv(x,
                      nf_out=params['nfilter'][i],
@@ -1244,6 +1256,9 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         if params['cdf']:
             x = tf.concat([x, cdf], axis=1)
             rprint('     Contenate with CDF variables to {}'.format(x.shape), reuse)           
+        if params['moment']:
+            x = tf.concat([x, cov], axis=1)
+            rprint('     Contenate with covairance variables to {}'.format(x.shape), reuse)           
 
         for i in range(nfull):
             x = linear(x,
