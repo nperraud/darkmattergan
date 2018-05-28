@@ -97,8 +97,7 @@ class GAN(object):
         g_vars = [var for var in t_vars if 'generator' in var.name]
         e_vars = [var for var in t_vars if 'encoder' in var.name]
 
-        if len(e_vars) and (
-                'enc_learning_rate' in params['optimization'].keys()):
+        if params['has_enc']:
             self._has_encoder = True
         else:
             self._has_encoder = False
@@ -340,7 +339,7 @@ class GAN(object):
         with tf.Session(config=run_config) as self._sess:
             if resume:
                 print('Load weights in the nework')
-                self._load()
+                self.load()
             else:
                 self._sess.run(tf.global_variables_initializer())
                 utils.saferm(self.params['summary_dir'])
@@ -509,7 +508,22 @@ class GAN(object):
         with open(path_param, 'wb') as f:
             pickle.dump(self.params, f)
 
-    def _load(self, file_name=None):
+    def load(self, sess=None, checkpoint=None):
+        '''
+        Given checkpoint, load the model.
+        By default, load the latest model saved.
+        '''
+        if checkpoint:
+            file_name = self._savedir + self._model_name + '-' + str(
+                checkpoint)
+        else:
+            file_name = None
+
+        if sess:
+            self._sess = sess
+        elif self._sess is None:
+            raise ValueError("Session not available at the time of loading model!")
+
         print(" [*] Reading checkpoints...")
         if file_name:
             self._saver.restore(self._sess, file_name)
@@ -556,18 +570,19 @@ class GAN(object):
         if sess is not None:
             self._sess = sess
             return self._generate_sample(
-                N=N, z=z, X=X, file_name=file_name, **kwargs)
+                N=N, z=z, X=X, **kwargs)
+
         with tf.Session() as self._sess:
+            self.load(checkpoint=checkpoint)
+
             return self._generate_sample(
-                N=N, z=z, X=X, file_name=file_name, **kwargs)
+                N=N, z=z, X=X, **kwargs)
 
     def _generate_sample(self,
                          N=None,
                          z=None,
                          X=None,
-                         file_name=None,
                          **kwargs):
-        self._load(file_name=file_name)
 
         if z is None:
             if N is None:
@@ -628,6 +643,10 @@ class GAN(object):
     def is_3d(self):
         return self._is_3d
 
+    @property
+    def average_over_all_channels(self):
+        return False
+
 
 class CosmoGAN(GAN):
     def __init__(self, params, model=None, is_3d=False):
@@ -646,217 +665,226 @@ class CosmoGAN(GAN):
         #                                     self.params['cosmology']['k'],
         #                                     scale=self.params['cosmology']['map_scale'])
 
-        self._md = dict()
-
-        self._md['descriptives'] = tf.placeholder(
-            tf.float64, shape=[2, 5], name="DescriptiveStatistics")
-
-        tf.summary.scalar(
-            "descriptives/mean_Fake",
-            self._md['descriptives'][0, 0],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "descriptives/var_Fake",
-            self._md['descriptives'][0, 1],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "descriptives/min_Fake",
-            self._md['descriptives'][0, 2],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "descriptives/max_Fake",
-            self._md['descriptives'][0, 3],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "descriptives/median_Fake",
-            self._md['descriptives'][0, 4],
-            collections=['Metrics'])
-
-        tf.summary.scalar(
-            "descriptives/mean_Real",
-            self._md['descriptives'][1, 0],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "descriptives/var_Real",
-            self._md['descriptives'][1, 1],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "descriptives/min_Real",
-            self._md['descriptives'][1, 2],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "descriptives/max_Real",
-            self._md['descriptives'][1, 3],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "descriptives/median_Real",
-            self._md['descriptives'][1, 4],
-            collections=['Metrics'])
-
-        self._md['peak_fake'] = tf.placeholder(
-            tf.float64, shape=[None], name="peak_fake")
-        self._md['peak_real'] = tf.placeholder(
-            tf.float64, shape=[None], name="peak_real")
-        tf.summary.histogram(
-            "Peaks/Fake_log", self._md['peak_fake'], collections=['Metrics'])
-        tf.summary.histogram(
-            "Peaks/Real_log", self._md['peak_real'], collections=['Metrics'])
-
-        self._md['distance_peak_comp'] = tf.placeholder(
-            tf.float64, name='distance_peak_comp')
-        self._md['distance_peak_fake'] = tf.placeholder(
-            tf.float64, name='distance_peak_fake')
-        self._md['distance_peak_real'] = tf.placeholder(
-            tf.float64, name='distance_peak_real')
-
-        tf.summary.scalar(
-            "Peaks/Ch2_Fake-Real",
-            self._md['distance_peak_comp'],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "Peaks/Ch2_Fake-Fake",
-            self._md['distance_peak_fake'],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "Peaks/Ch2_Real-Real",
-            self._md['distance_peak_real'],
-            collections=['Metrics'])
-
-        self._md['cross_ps'] = tf.placeholder(
-            tf.float64, shape=[3], name='cross_ps')
-
-        tf.summary.scalar(
-            "PSD/Cross_Fake-Real",
-            self._md['cross_ps'][0],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "PSD/Cross_Fake-Fake",
-            self._md['cross_ps'][1],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "PSD/Cross_Real-Real",
-            self._md['cross_ps'][2],
-            collections=['Metrics'])
+        self._md, self._plots = CosmoGAN._init_logs('Metrics')
 
         tf.summary.histogram(
             "Pixel/Fake", self._G_fake, collections=['Metrics'])
         tf.summary.histogram("Pixel/Real", self._X, collections=['Metrics'])
 
-        self._md['l2_psd'] = tf.placeholder(tf.float32, name='l2_psd')
-        self._md['log_l2_psd'] = tf.placeholder(tf.float32, name='log_l2_psd')
-        self._md['l1_psd'] = tf.placeholder(tf.float32, name='l1_psd')
-        self._md['log_l1_psd'] = tf.placeholder(tf.float32, name='log_l1_psd')
-        tf.summary.scalar(
-            "PSD/l2", self._md['l2_psd'], collections=['Metrics'])
-        tf.summary.scalar(
-            "PSD/log_l2", self._md['log_l2_psd'], collections=['Metrics'])
-        tf.summary.scalar(
-            "PSD/l1", self._md['l1_psd'], collections=['Metrics'])
-        tf.summary.scalar(
-            "PSD/log_l1", self._md['log_l1_psd'], collections=['Metrics'])
-
-        self._md['l2_peak_hist'] = tf.placeholder(
-            tf.float32, name='l2_peak_hist')
-        self._md['log_l2_peak_hist'] = tf.placeholder(
-            tf.float32, name='log_l2_peak_hist')
-        self._md['l1_peak_hist'] = tf.placeholder(
-            tf.float32, name='l1_peak_hist')
-        self._md['log_l1_peak_hist'] = tf.placeholder(
-            tf.float32, name='log_l1_peak_hist')
-        tf.summary.scalar(
-            "PEAK_HIST/l2", self._md['l2_peak_hist'], collections=['Metrics'])
-        tf.summary.scalar(
-            "PEAK_HIST/log_l2",
-            self._md['log_l2_peak_hist'],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "PEAK_HIST/l1", self._md['l1_peak_hist'], collections=['Metrics'])
-        tf.summary.scalar(
-            "PEAK_HIST/log_l1",
-            self._md['log_l1_peak_hist'],
-            collections=['Metrics'])
-
-        self._md['wasserstein_mass_hist'] = tf.placeholder(
-            tf.float32, name='wasserstein_mass_hist')
-        self._md['l2_mass_hist'] = tf.placeholder(
-            tf.float32, name='l2_mass_hist')
-        self._md['log_l2_mass_hist'] = tf.placeholder(
-            tf.float32, name='log_l2_mass_hist')
-        self._md['l1_mass_hist'] = tf.placeholder(
-            tf.float32, name='l1_mass_hist')
-        self._md['log_l1_mass_hist'] = tf.placeholder(
-            tf.float32, name='log_l1_mass_hist')        
-        self._md['total_stats_error'] = tf.placeholder(
-            tf.float32, name='total_stats_error')
-        tf.summary.scalar(
-            "MASS_HIST/l2", self._md['l2_mass_hist'], collections=['Metrics'])
-        tf.summary.scalar(
-            "MASS_HIST/log_l2",
-            self._md['log_l2_mass_hist'],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "MASS_HIST/l1", self._md['l1_mass_hist'], collections=['Metrics'])
-        tf.summary.scalar(
-            "MASS_HIST/log_l1",
-            self._md['log_l1_mass_hist'],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "MASS_HIST/wasserstein_mass_hist",
-            self._md['wasserstein_mass_hist'],
-            collections=['Metrics'])
-        tf.summary.scalar(
-            "total_stats_error",
-            self._md['total_stats_error'],
-            collections=['Metrics'])
-        self._psd_plot = PlotSummaryLog('Power_spectrum_density', 'PLOT')
-        self._mass_hist_plot = PlotSummaryLog('Mass_histogram', 'PLOT')
-        self._peak_hist_plot = PlotSummaryLog('Peak_histogram', 'PLOT')
-
         self.summary_op_metrics = tf.summary.merge(
             tf.get_collection("Metrics"))
 
-    def _compute_real_stats(self, dataset):
-        """Compute the main statistics on the real data."""
-        real = self._backward_map(dataset.get_all_data())
-        self._stats = dict()
+    @staticmethod
+    def _init_logs(collection):
+        md = dict()
 
-        # This line should be improved, probably going to mess with Jonathan code
-        if self.is_3d:
-            if len(real.shape) > 4:
-                real = real[:, :, :, :, 0]
-        else:
-            if len(real.shape) > 3:
-                real = real[:, :, :, 0]
+        md['descriptives'] = tf.placeholder(
+            tf.float64, shape=[2, 5], name="DescriptiveStatistics")
+
+        tf.summary.scalar(
+            "descriptives/mean_Fake",
+            md['descriptives'][0, 0],
+            collections=[collection])
+        tf.summary.scalar(
+            "descriptives/var_Fake",
+            md['descriptives'][0, 1],
+            collections=[collection])
+        tf.summary.scalar(
+            "descriptives/min_Fake",
+            md['descriptives'][0, 2],
+            collections=[collection])
+        tf.summary.scalar(
+            "descriptives/max_Fake",
+            md['descriptives'][0, 3],
+            collections=[collection])
+        tf.summary.scalar(
+            "descriptives/median_Fake",
+            md['descriptives'][0, 4],
+            collections=[collection])
+
+        tf.summary.scalar(
+            "descriptives/mean_Real",
+            md['descriptives'][1, 0],
+            collections=[collection])
+        tf.summary.scalar(
+            "descriptives/var_Real",
+            md['descriptives'][1, 1],
+            collections=[collection])
+        tf.summary.scalar(
+            "descriptives/min_Real",
+            md['descriptives'][1, 2],
+            collections=[collection])
+        tf.summary.scalar(
+            "descriptives/max_Real",
+            md['descriptives'][1, 3],
+            collections=[collection])
+        tf.summary.scalar(
+            "descriptives/median_Real",
+            md['descriptives'][1, 4],
+            collections=[collection])
+
+        md['peak_fake'] = tf.placeholder(
+            tf.float64, shape=[None], name="peak_fake")
+        md['peak_real'] = tf.placeholder(
+            tf.float64, shape=[None], name="peak_real")
+        tf.summary.histogram(
+            "Peaks/Fake_log", md['peak_fake'], collections=[collection])
+        tf.summary.histogram(
+            "Peaks/Real_log", md['peak_real'], collections=[collection])
+
+        md['distance_peak_comp'] = tf.placeholder(
+            tf.float64, name='distance_peak_comp')
+        md['distance_peak_fake'] = tf.placeholder(
+            tf.float64, name='distance_peak_fake')
+        md['distance_peak_real'] = tf.placeholder(
+            tf.float64, name='distance_peak_real')
+
+        tf.summary.scalar(
+            "Peaks/Ch2_Fake-Real",
+            md['distance_peak_comp'],
+            collections=[collection])
+        tf.summary.scalar(
+            "Peaks/Ch2_Fake-Fake",
+            md['distance_peak_fake'],
+            collections=[collection])
+        tf.summary.scalar(
+            "Peaks/Ch2_Real-Real",
+            md['distance_peak_real'],
+            collections=[collection])
+
+        md['cross_ps'] = tf.placeholder(
+            tf.float64, shape=[3], name='cross_ps')
+
+        tf.summary.scalar(
+            "PSD/Cross_Fake-Real",
+            md['cross_ps'][0],
+            collections=[collection])
+        tf.summary.scalar(
+            "PSD/Cross_Fake-Fake",
+            md['cross_ps'][1],
+            collections=[collection])
+        tf.summary.scalar(
+            "PSD/Cross_Real-Real",
+            md['cross_ps'][2],
+            collections=[collection])
+
+        md['l2_psd'] = tf.placeholder(tf.float32, name='l2_psd')
+        md['log_l2_psd'] = tf.placeholder(tf.float32, name='log_l2_psd')
+        md['l1_psd'] = tf.placeholder(tf.float32, name='l1_psd')
+        md['log_l1_psd'] = tf.placeholder(tf.float32, name='log_l1_psd')
+        tf.summary.scalar(
+            "PSD/l2", md['l2_psd'], collections=[collection])
+        tf.summary.scalar(
+            "PSD/log_l2", md['log_l2_psd'], collections=[collection])
+        tf.summary.scalar(
+            "PSD/l1", md['l1_psd'], collections=[collection])
+        tf.summary.scalar(
+            "PSD/log_l1", md['log_l1_psd'], collections=[collection])
+
+        md['l2_peak_hist'] = tf.placeholder(
+            tf.float32, name='l2_peak_hist')
+        md['log_l2_peak_hist'] = tf.placeholder(
+            tf.float32, name='log_l2_peak_hist')
+        md['l1_peak_hist'] = tf.placeholder(
+            tf.float32, name='l1_peak_hist')
+        md['log_l1_peak_hist'] = tf.placeholder(
+            tf.float32, name='log_l1_peak_hist')
+        tf.summary.scalar(
+            "PEAK_HIST/l2", md['l2_peak_hist'], collections=[collection])
+        tf.summary.scalar(
+            "PEAK_HIST/log_l2",
+            md['log_l2_peak_hist'],
+            collections=[collection])
+        tf.summary.scalar(
+            "PEAK_HIST/l1", md['l1_peak_hist'], collections=[collection])
+        tf.summary.scalar(
+            "PEAK_HIST/log_l1",
+            md['log_l1_peak_hist'],
+            collections=[collection])
+
+        md['wasserstein_mass_hist'] = tf.placeholder(
+            tf.float32, name='wasserstein_mass_hist')
+        md['l2_mass_hist'] = tf.placeholder(
+            tf.float32, name='l2_mass_hist')
+        md['log_l2_mass_hist'] = tf.placeholder(
+            tf.float32, name='log_l2_mass_hist')
+        md['l1_mass_hist'] = tf.placeholder(
+            tf.float32, name='l1_mass_hist')
+        md['log_l1_mass_hist'] = tf.placeholder(
+            tf.float32, name='log_l1_mass_hist')
+        md['total_stats_error'] = tf.placeholder(
+            tf.float32, name='total_stats_error')
+        tf.summary.scalar(
+            "MASS_HIST/l2", md['l2_mass_hist'], collections=[collection])
+        tf.summary.scalar(
+            "MASS_HIST/log_l2",
+            md['log_l2_mass_hist'],
+            collections=[collection])
+        tf.summary.scalar(
+            "MASS_HIST/l1", md['l1_mass_hist'], collections=[collection])
+        tf.summary.scalar(
+            "MASS_HIST/log_l1",
+            md['log_l1_mass_hist'],
+            collections=[collection])
+        tf.summary.scalar(
+            "MASS_HIST/wasserstein_mass_hist",
+            md['wasserstein_mass_hist'],
+            collections=[collection])
+        tf.summary.scalar(
+            "total_stats_error",
+            md['total_stats_error'],
+            collections=[collection])
+
+        plots = dict()
+        plots['psd'] = PlotSummaryLog('Power_spectrum_density', 'PLOT')
+        plots['mass_hist'] = PlotSummaryLog('Mass_histogram', 'PLOT')
+        plots['peak_hist'] = PlotSummaryLog('Peak_histogram', 'PLOT')
+
+        return md, plots
+
+    def _compute_real_stats(self, real):
+        """Compute the main statistics on the real data."""
+        stats = dict()
 
         psd_real, psd_axis = metrics.power_spectrum_batch_phys(
             X1=real, is_3d=self.is_3d)
-        self._stats['psd_real'] = np.mean(psd_real, axis=0)
-        self._stats['psd_axis'] = psd_axis
+        stats['psd_real'] = np.mean(psd_real, axis=0)
+        stats['psd_axis'] = psd_axis
         del psd_real
 
         peak_hist_real, x_peak, lim_peak = metrics.peak_count_hist(dat=real)
-        self._stats['peak_hist_real'] = peak_hist_real
-        self._stats['x_peak'] = x_peak
-        self._stats['lim_peak'] = lim_peak
+        stats['peak_hist_real'] = peak_hist_real
+        stats['x_peak'] = x_peak
+        stats['lim_peak'] = lim_peak
 
         mass_hist_real, _, lim_mass = metrics.mass_hist(dat=real)
         lim_mass = list(lim_mass)
         lim_mass[1] = lim_mass[1]+1
         mass_hist_real, x_mass, lim_mass = metrics.mass_hist(dat=real, lim=lim_mass)
-        self._stats['mass_hist_real'] = mass_hist_real
-        self._stats['x_mass'] = x_mass
-        self._stats['lim_mass'] = lim_mass
+        stats['mass_hist_real'] = mass_hist_real
+        stats['x_mass'] = x_mass
+        stats['lim_mass'] = lim_mass
 
-        self._stats['best_psd'] = 1e10
-        self._stats['best_log_psd'] = 10000
-        self._stats['total_stats_error'] = 10000
+        stats['best_psd'] = 1e10
+        stats['best_log_psd'] = 10000
+        stats['total_stats_error'] = 10000
         del real
+        return stats
 
     def train(self, dataset, resume=False):        
         if resume:
             self._stats = self.params['cosmology']['stats']
         else:
-            self._compute_real_stats(dataset)
+            real = self._backward_map(dataset.get_all_data())
+            # This line should be improved, probably going to mess with Jonathan code
+            if self.is_3d:
+                if len(real.shape) > 4:
+                    real = real[:, :, :, :, 0]
+            else:
+                if len(real.shape) > 3:
+                    real = np.transpose(real, [0,3,1,2])
+                    real = np.vstack(real)
+            self._stats = self._compute_real_stats(real)
             self.params['cosmology']['stats'] = self._stats
         # Out of the _compute_real_stats function since we may want to change
         # this parameter during training.
@@ -864,6 +892,189 @@ class CosmoGAN(GAN):
         self._sum_data_iterator = itertools.cycle(dataset.iter(self._stats['N']))
 
         super().train(dataset=dataset, resume=resume)
+
+    def _process_stat_dict(self, real, fake, _stats=None, _plots=None):
+        if _stats is None:
+            _stats = self._stats
+
+        if _plots is None:
+            _plots = self._plots
+
+        stat_dict = dict()
+
+        psd_gen, _ = metrics.power_spectrum_batch_phys(
+            X1=fake, is_3d=self.is_3d)
+        psd_gen = np.mean(psd_gen, axis=0)
+        l2psd, logel2psd, l1psd, logel1psd = metrics.diff_vec(
+            _stats['psd_real'], psd_gen)
+
+        stat_dict['l2_psd'] = l2psd
+        stat_dict['log_l2_psd'] = logel2psd
+        stat_dict['l1_psd'] = l1psd
+        stat_dict['log_l1_psd'] = logel1psd
+
+        summary_str = _plots['psd'].produceSummaryToWrite(
+            self._sess,
+            _stats['psd_axis'],
+            _stats['psd_real'],
+            psd_gen)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        peak_hist_fake, _, _ = metrics.peak_count_hist(
+            fake, lim=_stats['lim_peak'])
+        l2, logel2, l1, logel1 = metrics.diff_vec(
+            _stats['peak_hist_real'], peak_hist_fake)
+
+        stat_dict['l2_peak_hist'] = l2
+        stat_dict['log_l2_peak_hist'] = logel2
+        stat_dict['log_l1_peak_hist'] = logel1
+        stat_dict['l1_peak_hist'] = l1
+
+        summary_str = _plots['peak_hist'].produceSummaryToWrite(
+            self._sess,
+            _stats['x_peak'],
+            _stats['peak_hist_real'],
+            peak_hist_fake)
+
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        mass_hist_fake, _, _ = metrics.mass_hist(
+            fake, lim=_stats['lim_mass'])
+        l2, logel2, l1, logel1 = metrics.diff_vec(
+            _stats['mass_hist_real'], mass_hist_fake)
+
+        ws_hist = metrics.wasserstein_distance(
+            _stats['mass_hist_real'],
+            mass_hist_fake,
+            safe=False)
+
+        stat_dict['wasserstein_mass_hist'] = ws_hist
+        stat_dict['l2_mass_hist'] = l2
+        stat_dict['log_l2_mass_hist'] = logel2
+        stat_dict['l1_mass_hist'] = l1
+        stat_dict['log_l1_mass_hist'] = logel1
+
+        summary_str = _plots['mass_hist'].produceSummaryToWrite(
+            self._sess,
+            _stats['x_mass'],
+            _stats['mass_hist_real'],
+            mass_hist_fake)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        # Descriptive Stats
+        descr_fake = np.array([metrics.describe(x) for x in fake])
+        descr_real = np.array([metrics.describe(x) for x in real])
+
+        stat_dict['descriptives'] = np.stack((np.mean(
+            descr_fake, axis=0), np.mean(descr_real, axis=0)))
+
+        # Distance of Peak Histogram
+        index = np.random.choice(
+            real.shape[0], min(50, real.shape[0]), replace=False
+        )  # computing all pairwise comparisons is expensive
+        peak_fake = np.array([
+            metrics.peak_count(x, neighborhood_size=5, threshold=0)
+            for x in fake[index]
+        ])
+        peak_real = np.array([
+            metrics.peak_count(x, neighborhood_size=5, threshold=0)
+            for x in real[index]
+        ])
+
+        # if tensorboard:
+        stat_dict['peak_fake'] = np.log(np.hstack(peak_fake))
+        stat_dict['peak_real'] = np.log(np.hstack(peak_real))
+        stat_dict['distance_peak_comp'] = metrics.distance_chi2_peaks(
+            peak_fake, peak_real)
+        stat_dict['distance_peak_fake'] = metrics.distance_chi2_peaks(
+            peak_fake, peak_fake)
+        stat_dict['distance_peak_real'] = metrics.distance_chi2_peaks(
+            peak_real, peak_real)
+
+        # del peak_real, peak_fake
+
+        # Measure Cross PS
+        box_l = box_l = 100 / 0.7
+        cross_rf, _ = metrics.power_spectrum_batch_phys(
+            X1=real[index],
+            X2=fake[index],
+            box_l=box_l,
+            is_3d=self.is_3d)
+        cross_ff, _ = metrics.power_spectrum_batch_phys(
+            X1=fake[index],
+            X2=fake[index],
+            box_l=box_l,
+            is_3d=self.is_3d)
+        cross_rr, _ = metrics.power_spectrum_batch_phys(
+            X1=real[index],
+            X2=real[index],
+            box_l=box_l,
+            is_3d=self.is_3d)
+
+        stat_dict['cross_ps'] = [
+            np.mean(cross_rf),
+            np.mean(cross_ff),
+            np.mean(cross_rr)
+        ]
+
+        stat_dict['total_stats_error'] = metrics.total_stats_error(stat_dict)
+
+        return stat_dict
+
+    def _process_stat_results(self, stat_dict):
+        print(" [*] [Fake, Real] Min [{:.3f}, {:.3f}],\t"
+              "Median [{:.3f},{:.3f}],\t"
+              "Mean [{:.3E},{:.3E}],\t"
+              "Max [{:.3E},{:.3E}],\t"
+              "Var [{:.3E},{:.3E}]".format(
+                stat_dict['descriptives'][0, 2],
+                stat_dict['descriptives'][1, 2],
+                stat_dict['descriptives'][0, 4],
+                stat_dict['descriptives'][1, 4],
+                stat_dict['descriptives'][0, 0],
+                stat_dict['descriptives'][1, 0],
+                stat_dict['descriptives'][0, 3],
+                stat_dict['descriptives'][1, 3],
+                stat_dict['descriptives'][0, 1],
+                stat_dict['descriptives'][1, 1]))
+
+        print(
+            " [*] [Comp, Fake, Real] PeakDistance:[{:.3f}, {:.3f}, {:.3f}]"
+            "\tCrossPS:[{:.3f}, {:.3f}, {:.3f}]".format(
+                stat_dict['distance_peak_comp'],
+                stat_dict['distance_peak_fake'],
+                stat_dict['distance_peak_real'],
+                stat_dict['cross_ps'][0],
+                stat_dict['cross_ps'][1],
+                stat_dict['cross_ps'][2]))
+        # Save a summary if a new minimum of PSD is achieved
+        l2_psd = stat_dict['l2_psd']
+        if l2_psd < self._stats['best_psd']:
+            print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(
+                l2_psd, self._stats['best_psd']))
+            self._stats['best_psd'] = l2_psd
+            self._save_current_step = True
+
+        log_l2_psd = stat_dict['log_l2_psd']
+        if log_l2_psd < self._stats['best_log_psd']:
+            print(
+                ' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(
+                    log_l2_psd, self._stats['best_log_psd']))
+            self._stats['best_log_psd'] = log_l2_psd
+            self._save_current_step = True
+        print(' {} current PSD L2 {}, logL2 {}'.format(
+            self._counter, stat_dict['l2_psd'], log_l2_psd))
+
+        total_stats_error = stat_dict['total_stats_error']
+        if total_stats_error < self._stats['total_stats_error']:
+            print(
+                ' [*] New stats Low achieved {:3f} (was {:3f})'.format(
+                    total_stats_error, self._stats['total_stats_error']))
+            self._stats['total_stats_error'] = total_stats_error
+            self._save_current_step = True
+        print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
+            self._counter, l2_psd, log_l2_psd, total_stats_error))
+
 
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
@@ -881,199 +1092,33 @@ class CosmoGAN(GAN):
             if self._is_3d:
                 Xsel = Xsel[:, :, :, :, 0]
             else:
-                Xsel = Xsel[:, :, :, 0]
+                if self.average_over_all_channels:
+                    Xsel = np.transpose(Xsel, [0, 3, 1, 2])
+                    Xsel = np.vstack(Xsel)
+                else:
+                    Xsel= Xsel[:, :, :, 0]
 
             real = self._backward_map(Xsel)
 
             fake = self._backward_map(fake_image)
             if not self._is_3d and len(fake.shape) == 4:
-                fake = fake[:, :, :, 0]
+                if self.average_over_all_channels:
+                    fake = np.transpose(fake, [0, 3, 1, 2])
+                    fake = np.vstack(fake)
+                else:
+                    fake = fake[:, :, :, 0]
             fake = np.squeeze(fake)
 
-            psd_gen, _ = metrics.power_spectrum_batch_phys(
-                X1=fake, is_3d=self.is_3d)
-            psd_gen = np.mean(psd_gen, axis=0)
-            l2psd, logel2psd, l1psd, logel1psd = metrics.diff_vec(
-                self._stats['psd_real'], psd_gen)
-
-            feed_dict[self._md['l2_psd']] = l2psd
-            feed_dict[self._md['log_l2_psd']] = logel2psd
-            feed_dict[self._md['l1_psd']] = l1psd
-            feed_dict[self._md['log_l1_psd']] = logel1psd
-
-            summary_str = self._psd_plot.produceSummaryToWrite(
-                self._sess,
-                self._stats['psd_axis'],
-                self._stats['psd_real'],
-                psd_gen)
-            self._summary_writer.add_summary(summary_str, self._counter)
-
-            peak_hist_fake, _, _ = metrics.peak_count_hist(
-                fake, lim=self._stats['lim_peak'])
-            l2, logel2, l1, logel1 = metrics.diff_vec(
-                self._stats['peak_hist_real'], peak_hist_fake)
-
-            feed_dict[self._md['l2_peak_hist']] = l2
-            feed_dict[self._md['log_l2_peak_hist']] = logel2
-            feed_dict[self._md['log_l1_peak_hist']] = logel1
-            feed_dict[self._md['l1_peak_hist']] = l1
-
-            summary_str = self._peak_hist_plot.produceSummaryToWrite(
-                self._sess,
-                self._stats['x_peak'],
-                self._stats['peak_hist_real'],
-                peak_hist_fake)
-
-            self._summary_writer.add_summary(summary_str, self._counter)
-
-            mass_hist_fake, _, _ = metrics.mass_hist(
-                fake, lim=self._stats['lim_mass'])
-            l2, logel2, l1, logel1 = metrics.diff_vec(
-                self._stats['mass_hist_real'], mass_hist_fake)
-
-            ws_hist = metrics.wasserstein_distance(
-                self._stats['mass_hist_real'],
-                mass_hist_fake,
-                safe=False)
-
-            feed_dict[self._md['wasserstein_mass_hist']] = ws_hist
-            feed_dict[self._md['l2_mass_hist']] = l2
-            feed_dict[self._md['log_l2_mass_hist']] = logel2
-            feed_dict[self._md['l1_mass_hist']] = l1
-            feed_dict[self._md['log_l1_mass_hist']] = logel1
-
-            summary_str = self._mass_hist_plot.produceSummaryToWrite(
-                self._sess,
-                self._stats['x_mass'],
-                self._stats['mass_hist_real'],
-                mass_hist_fake)
-            self._summary_writer.add_summary(summary_str, self._counter)
-
-            # Descriptive Stats
-            descr_fake = np.array([metrics.describe(x) for x in fake])
-            descr_real = np.array([metrics.describe(x) for x in real])
-
-            feed_dict[self._md['descriptives']] = np.stack((np.mean(
-                descr_fake, axis=0), np.mean(descr_real, axis=0)))
-
-            # Distance of Peak Histogram
-            index = np.random.choice(
-                real.shape[0], min(50, real.shape[0]), replace=False
-            )  # computing all pairwise comparisons is expensive
-            peak_fake = np.array([
-                metrics.peak_count(x, neighborhood_size=5, threshold=0)
-                for x in fake[index]
-            ])
-            peak_real = np.array([
-                metrics.peak_count(x, neighborhood_size=5, threshold=0)
-                for x in real[index]
-            ])
-
-            # if tensorboard:
-            feed_dict[self._md['peak_fake']] = np.log(np.hstack(peak_fake))
-            feed_dict[self._md['peak_real']] = np.log(np.hstack(peak_real))
-            feed_dict[self._md[
-                'distance_peak_comp']] = metrics.distance_chi2_peaks(
-                    peak_fake, peak_real)
-            feed_dict[self._md[
-                'distance_peak_fake']] = metrics.distance_chi2_peaks(
-                    peak_fake, peak_fake)
-            feed_dict[self._md[
-                'distance_peak_real']] = metrics.distance_chi2_peaks(
-                    peak_real, peak_real)
-
-            # del peak_real, peak_fake
-
-            # Measure Cross PS
-            box_l = box_l = 100 / 0.7
-            cross_rf, _ = metrics.power_spectrum_batch_phys(
-                X1=real[index],
-                X2=fake[index],
-                box_l=box_l,
-                is_3d=self.is_3d)
-            cross_ff, _ = metrics.power_spectrum_batch_phys(
-                X1=fake[index],
-                X2=fake[index],
-                box_l=box_l,
-                is_3d=self.is_3d)
-            cross_rr, _ = metrics.power_spectrum_batch_phys(
-                X1=real[index],
-                X2=real[index],
-                box_l=box_l, 
-                is_3d=self.is_3d)
-
-            feed_dict[self._md['cross_ps']] = [
-                np.mean(cross_rf),
-                np.mean(cross_ff),
-                np.mean(cross_rr)
-            ]
-
-            # del cross_ff, cross_rf, cross_rr
-            fd = dict()
-            fd['log_l2_psd'] = feed_dict[self._md['log_l2_psd']]
-            fd['log_l1_psd'] = feed_dict[self._md['log_l1_psd']]
-            fd['log_l2_mass_hist'] = feed_dict[self._md['log_l2_mass_hist']]
-            fd['log_l1_mass_hist'] = feed_dict[self._md['log_l1_mass_hist']]
-            fd['log_l2_peak_hist'] = feed_dict[self._md['log_l2_peak_hist']]
-            fd['log_l1_peak_hist'] = feed_dict[self._md['log_l1_peak_hist']]
-            fd['wasserstein_mass_hist'] = feed_dict[self._md['wasserstein_mass_hist']]
-
-            total_stats_error = metrics.total_stats_error(fd)
-            feed_dict[self._md['total_stats_error']] = total_stats_error
+            stat_dict = self._process_stat_dict(real, fake)
+            for key in stat_dict.keys():
+                feed_dict[self._md[key]] = stat_dict[key]
 
             summary_str = self._sess.run(
                 self.summary_op_metrics, feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
+
             # Print the results
-            print(" [*] [Fake, Real] Min [{:.3f}, {:.3f}],\t"
-                  "Median [{:.3f},{:.3f}],\t"
-                  "Mean [{:.3E},{:.3E}],\t"
-                  "Max [{:.3E},{:.3E}],\t"
-                  "Var [{:.3E},{:.3E}]".format(
-                      feed_dict[self._md['descriptives']][0, 2],
-                      feed_dict[self._md['descriptives']][1, 2],
-                      feed_dict[self._md['descriptives']][0, 4],
-                      feed_dict[self._md['descriptives']][1, 4],
-                      feed_dict[self._md['descriptives']][0, 0],
-                      feed_dict[self._md['descriptives']][1, 0],
-                      feed_dict[self._md['descriptives']][0, 3],
-                      feed_dict[self._md['descriptives']][1, 3],
-                      feed_dict[self._md['descriptives']][0, 1],
-                      feed_dict[self._md['descriptives']][1, 1]))
-
-            print(
-                " [*] [Comp, Fake, Real] PeakDistance:[{:.3f}, {:.3f}, {:.3f}]"
-                "\tCrossPS:[{:.3f}, {:.3f}, {:.3f}]".format(
-                    feed_dict[self._md['distance_peak_comp']],
-                    feed_dict[self._md['distance_peak_fake']],
-                    feed_dict[self._md['distance_peak_real']],
-                    feed_dict[self._md['cross_ps']][0],
-                    feed_dict[self._md['cross_ps']][1],
-                    feed_dict[self._md['cross_ps']][2]))
-            # Save a summary if a new minimum of PSD is achieved
-            if l2psd < self._stats['best_psd']:
-                print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(
-                    l2psd, self._stats['best_psd']))
-                self._stats['best_psd'] = l2psd
-                self._save_current_step = True
-
-            if logel2psd < self._stats['best_log_psd']:
-                print(
-                    ' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(
-                        logel2psd, self._stats['best_log_psd']))
-                self._stats['best_log_psd'] = logel2psd
-                self._save_current_step = True
-            print(' {} current PSD L2 {}, logL2 {}'.format(
-                self._counter, l2psd, logel2psd))
-
-            if total_stats_error < self._stats['total_stats_error']:
-                print(
-                    ' [*] New stats Low achieved {:3f} (was {:3f})'.format(
-                        total_stats_error, self._stats['total_stats_error']))
-                self._stats['total_stats_error'] = total_stats_error
-                self._save_current_step = True
-            print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
-                self._counter, l2psd, logel2psd, total_stats_error))
+            self._process_stat_results(stat_dict)
 
             # To save the stats in params
             self.params['cosmology']['stats'] = self._stats
@@ -1085,6 +1130,19 @@ class CosmoGAN(GAN):
                  sess=None,
                  checkpoint=None,
                  **kwargs):
+        '''
+        Generate samples from already trained model.
+        Arguments:
+        Pass either N or z.
+        Pass either sess or checkpoint.
+        If sess is passed, it is assumed that the model has already been loaded using gan.load method
+        '''
+        if N and z:
+            ValueError('Please choose between N and z')
+
+        if sess and checkpoint:
+            ValueError('Please choose between sess and checkpoint.\nIf sess is passed, it is assumed that the model is already loaded')
+
         images = super().generate(
             N=N, z=z, X=X, sess=sess, checkpoint=checkpoint, **kwargs)
 
@@ -1097,58 +1155,7 @@ class TimeGAN(GAN):
     def __init__(self, params, model=None, is_3d=False):
         super().__init__(params=params, model=model, is_3d=is_3d)
 
-        params = default_params_time(self.params)
-
-        self._mdt = dict()
-
-        self._mdt['c_descriptives'] = tf.placeholder(
-            tf.float64, shape=[params['time']['num_classes'], 2, 5], name="DescriptiveTimeStatistics")
-
-        for c in range(params['time']['num_classes']):
-            tf.summary.scalar(
-                "c_descriptives/mean_Fake",
-                self._mdt['c_descriptives'][c, 0, 0],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/var_Fake",
-                self._mdt['c_descriptives'][c, 0, 1],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/min_Fake",
-                self._mdt['c_descriptives'][c, 0, 2],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/max_Fake",
-                self._mdt['c_descriptives'][c, 0, 3],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/median_Fake",
-                self._mdt['c_descriptives'][c, 0, 4],
-                collections=['Time Metrics'])
-
-            tf.summary.scalar(
-                "c_descriptives/mean_Real",
-                self._mdt['c_descriptives'][c, 1, 0],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/var_Real",
-                self._mdt['c_descriptives'][c, 1, 1],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/min_Real",
-                self._mdt['c_descriptives'][c, 1, 2],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/max_Real",
-                self._mdt['c_descriptives'][c, 1, 3],
-                collections=['Time Metrics'])
-            tf.summary.scalar(
-                "c_descriptives/median_Real",
-                self._mdt['c_descriptives'][c, 1, 4],
-                collections=['Time Metrics'])
-
-        self.summary_time_metrics = tf.summary.merge(
-            tf.get_collection("Time Metrics"))
+        self.params = default_params_time(self.params)
 
     def _build_image_summary(self):
         for c in range(self.params["time"]["num_classes"]):
@@ -1163,66 +1170,66 @@ class TimeGAN(GAN):
                 max_outputs=4,
                 collections=['Images'])
 
-    # def train(self, dataset, resume=False):
-    #     X = dataset.get_all_data()
-    #
-    #     #if resume:
-    #     #    self._stats = self.params['cosmology']['stats']
-    #     #else:
-    #     #    self._compute_real_stats(X)
-    #     #    self.params['cosmology']['stats'] = self._stats
-    #     # Out of the _compute_real_stats function since we may want to change
-    #     # this parameter during training.
-    #     #self._stats['N'] = self.params['cosmology']['Nstats']
-    #     #self._sum_data_iterator = itertools.cycle(dataset.iter(self._stats['N']))
-    #
-    #     super().train(dataset=dataset, resume=resume)
-
-    def _train_log(self, feed_dict):
-        super()._train_log(feed_dict)
-
-        if np.mod(self._counter, self.params['sum_every']) == 0:
-            z_sel = self._sample_latent(self._stats['N'])
-            Xsel = next(self._sum_data_iterator)
-
-            # if self.params['num_classes'] > 1:
-            #    self._multiclass_l2_psd(feed_dict, Xsel)
-
-            # TODO better
-            #if not (len(Xsel.shape) == 4):
-            #    Xsel = Xsel.reshape([self._stats['N'], *Xsel.shape[1:], 1])
-
-            fake_image = self._generate_sample_safe(z_sel, Xsel)
-
-            stats = np.zeros((self.params['time']['num_classes'], 2, 5))
-            for c in range(self.params['time']['num_classes']):
-                real = Xsel[:, :, :, c]
-                fake = fake_image[:, :, :, c]
-                fake = np.squeeze(fake)
-
-                # Descriptive Stats
-                stats[c, 0, :] = np.mean(np.array([metrics.describe(x) for x in fake]), axis=0)
-                stats[c, 1, :] = np.mean(np.array([metrics.describe(x) for x in real]), axis=0)
-
-            feed_dict[self._mdt['c_descriptives']] = stats
-
-            summary_str = self._sess.run(
-                self.summary_time_metrics, feed_dict=feed_dict)
-            self._summary_writer.add_summary(summary_str, self._counter)
-
     def _sample_latent(self, bs=None):
         if bs is None:
             bs = self.batch_size
         latent = super()._sample_latent(bs=bs)
         return np.repeat(latent, self.params['time']['num_classes'], axis=0)
 
+    def _sample_single_latent(self, bs=None):
+        if bs is None:
+            bs = 1
+        return super(TimeGAN, self)._sample_latent(bs)
+
+    @property
+    def num_classes(self):
+        return self.params['time']['num_classes']
+
 
 class TimeCosmoGAN(CosmoGAN, TimeGAN):
     def __init__(self, params, model=None, is_3d=False):
         super().__init__(params=params, model=model, is_3d=is_3d)
+        self._md_t = dict()
+        for c in range(params['time']['num_classes']):
+            self._md_t[c], self._plots[c] = CosmoGAN._init_logs('Time Cosmo Metrics')
+        self.summary_op_metrics_t = tf.summary.merge(
+            tf.get_collection("Time Cosmo Metrics"))
 
-    def _train_log(self, feed_dict, epoch=None, batch_num=None):
-        super()._train_log(feed_dict, epoch, batch_num)
+    def train(self, dataset, resume=False):
+        real = self._backward_map(dataset.get_all_data())
+        self._stats_t = []
+        for t in range(self.params['time']['num_classes']):
+            self._stats_t.append(self._compute_real_stats(real[:,:,:,t]))
+        super().train(dataset=dataset, resume=resume)
+
+    def _train_log(self, feed_dict):
+        super()._train_log(feed_dict)
+        if np.mod(self._counter, self.params['sum_every']) == 0:
+            z_sel = self._sample_latent(self._stats['N'])
+            Xsel = next(self._sum_data_iterator)
+            # reshape input according to 2d, 3d, or patch case
+            Xsel = self.add_input_channel(Xsel)
+            real_image = self._backward_map(Xsel)
+
+            fake_image = self._generate_sample_safe(z_sel, Xsel)
+            fake_image = self._backward_map(fake_image)
+
+            for t in range(self.params['time']['num_classes']):
+                real = real_image[:,:,:,t]
+                fake = fake_image[:,:,:,t]
+
+                stat_dict = self._process_stat_dict(real, fake, self._stats_t[t],
+                                                    self._plots[t])
+                for key in stat_dict.keys():
+                    feed_dict[self._md_t[t][key]] = stat_dict[key]
+
+            summary_str = self._sess.run(
+                self.summary_op_metrics_t, feed_dict=feed_dict)
+            self._summary_writer.add_summary(summary_str, self._counter)
 
     def _sample_latent(self, bs=None):
         return TimeGAN._sample_latent(self, bs)
+
+    @property
+    def average_over_all_channels(self):
+        return True

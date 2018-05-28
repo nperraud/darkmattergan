@@ -5,6 +5,7 @@ from data import gaussian_synthetic_data
 from data import path
 from data import transformation, fmap
 from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time
+from data.Dataset_file import Dataset_file_2d, Dataset_file_3d, Dataset_file_2d_patch, Dataset_file_3d_patch, Dataset_file_time
 
 
 import blocks
@@ -110,6 +111,9 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
     for file in os.listdir(rootpath):
         if file.endswith(file_ext) and input_pattern in file:
             queue.append(os.path.join(rootpath, file))
+            if len(queue) == 10:
+                break
+
     if len(queue) == 0:
         raise LookupError('No file founds, check path and parameters')
     raw_images = []
@@ -167,6 +171,7 @@ def load_dataset(
 
     # 1) Load raw images
     images = load_samples_raw(nsamples=nsamples, resolution=resolution, Mpch=Mpch)
+    print("images shape = ", images.shape)
 
     # 2) Apply forward map if necessary
     if forward_map:
@@ -200,6 +205,69 @@ def load_dataset(
             dataset = Dataset_2d(images, spix=spix, shuffle=shuffle, transform=t)
 
     return dataset
+
+
+def load_dataset_file(
+        nsamples=None,
+        resolution=256,
+        Mpch=70,
+        shuffle=True,
+        forward_map = None,
+        spix=128,
+        augmentation=True,
+        scaling=1,
+        is_3d=False,
+        patch=False):
+
+    ''' Load a 2D dataset object 
+
+     Arguments
+    ---------
+    * nsamples : desired number of samples, if None => all of them (default None)
+    * resolution : [256, 512] (default 256)
+    * Mpch : [70, 350] (default 70)
+    * shuffle: shuffle the data (default True)
+    * foward : foward mapping use None for raw data (default None)
+    * spix : resolution of the image (default 128)
+    * augmentation : use data augmentation (default True)
+    * scaling : downscale the image by a factor (default 1)
+    * is_3d : load a 3d dataset (default False)
+    * patch: experimental feature for patchgan
+    '''
+
+    if augmentation:
+        # With the current implementation, 3d augmentation is not supported
+        # for 2d scaling
+        if scaling>1 and not is_3d:
+            t = transformation.random_transformation_2d
+        else:
+            t = transformation.random_transformation_3d
+    else:
+        t = None
+    
+    # 5) Make a dataset
+    if patch:
+        if is_3d:
+            dataset = Dataset_file_3d_patch(resolution=resolution, Mpch=Mpch,
+            forward_map = forward_map, scaling=scaling, 
+            spix=spix, shuffle=shuffle, transform=t)
+        else:
+            dataset = Dataset_file_2d_patch(resolution=resolution, Mpch=Mpch,
+            forward_map = forward_map, scaling=scaling, 
+            spix=spix, shuffle=shuffle, transform=t)
+
+    else:
+        if is_3d:
+            dataset = Dataset_file_3d(resolution=resolution, Mpch=Mpch,
+            forward_map = forward_map, scaling=scaling,
+            spix=spix, shuffle=shuffle, transform=t)
+        else:
+            dataset = Dataset_file_2d(resolution=resolution, Mpch=Mpch,
+            forward_map = forward_map, scaling=scaling,
+            spix=spix, shuffle=shuffle, transform=t)
+
+    return dataset
+
     
 def load_time_dataset(
         resolution=256,

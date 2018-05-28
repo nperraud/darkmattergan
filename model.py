@@ -888,8 +888,11 @@ class upscale_WGAN_pixel_CNN(GanModel):
     Generate blocks, using top, left and top-left border information
     '''
     def __init__(self, params, X, z, name='upscale_WGAN_pixel_CNN', is_3d=False):
-        ''' z must have the same dimension as X'''
+        ''' z must have the same dimension as X, or downsampled X in case of downsampling'''
         super().__init__(params=params, name=name, is_3d=is_3d)
+
+        # A) Get downsampling factor
+        self.downsampling = params['generator'].get('downsampling', None)
 
         if self.is_3d:
             self.__init_3d(params, X, z)
@@ -904,6 +907,14 @@ class upscale_WGAN_pixel_CNN(GanModel):
 
         # A) Separate real data and border information
         real, border = tf.split(X, [1,7], axis=4)
+
+        if self.downsampling:
+            self.real_downsampled = down_sampler(real, s=self.downsampling, is_3d=True)
+            inshape = self.real_downsampled.shape.as_list()[1:]
+            # The input is the downsampled image
+            self.downsampled = tf.placeholder_with_default(self.real_downsampled, shape=[None, *inshape], name='downsampled')
+        else:
+            self.downsampled = None
 
         # B) Split the borders
         inshape = border.shape.as_list()[1:]
@@ -921,7 +932,7 @@ class upscale_WGAN_pixel_CNN(GanModel):
 
         flip_border = tf.concat([flip_d_above, flip_d_left, flip_d_corner, flip_up, flip_u_above, flip_u_left, flip_u_corner], axis=4)
 
-        self.G_fake = self.generator(y=None, z=z, border=flip_border, reuse=False, scope='generator')
+        self.G_fake = self.generator(downsampled=self.downsampled, z=z, border=flip_border, reuse=False, scope='generator')
 
         # D) Concatenate back
         down_left     = tf.concat([ d_corner,      d_left], axis=2)
@@ -937,16 +948,27 @@ class upscale_WGAN_pixel_CNN(GanModel):
 
         X_real = tf.concat([up_cuboid,   down_cuboid], axis=1)
         G_fake = tf.concat([up_cuboid, down_cuboid_g], axis=1)
+        
+        if self.downsampling:
+            X_down = down_sampler(X_real, s=self.downsampling, is_3d=True)
+            X_down_up = up_sampler(X_down, s=self.downsampling, is_3d=True)
+        else:
+            X_down_up = None
 
         # E) Discriminator
-        self.D_real = self.discriminator(X_real, reuse=False)
-        self.D_fake = self.discriminator(G_fake, reuse=True)
+        self.D_real = self.discriminator(X_real, X_down_up, reuse=False)
+        self.D_fake = self.discriminator(G_fake, X_down_up, reuse=True)
 
         # F) Losses
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+
+        if self.downsampling:
+            D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
+        else:
+            D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
 
@@ -957,35 +979,60 @@ class upscale_WGAN_pixel_CNN(GanModel):
         '''
         build the computation graph for 2d case.
         '''
-        X0, border = tf.split(X, [1,3],axis=3)
 
-        # The border is provided as condition to the generator
+        # A) Separate real data and border information
+        real, border = tf.split(X, [1,3],axis=3)
+
+        if self.downsampling:
+            self.real_downsampled = down_sampler(real, s=self.downsampling, is_3d=False)
+            inshape = self.real_downsampled.shape.as_list()[1:]
+            # The input is the downsampled image
+            self.downsampled = tf.placeholder_with_default(self.real_downsampled, shape=[None, *inshape], name='downsampled')
+        else:
+            self.downsampled = None
+
+        # B) Split the borders
         inshape = border.shape.as_list()[1:]
         self.border = tf.placeholder_with_default(border, shape=[None, *inshape], name='border')
-        X1, X2, X3 = tf.split(self.border, [1,1,1],axis=3)
-        X1f = tf.reverse(X1, axis=[1])
-        X2f = tf.reverse(X2, axis=[2])
-        X3f = tf.reverse(X3, axis=[1,2])
-        flip_border = tf.concat([X1f, X2f, X3f], axis=3)
+        above, left, corner = tf.split(self.border, [1,1,1],axis=3)
 
-        self.G_fake = self.generator(y=None, z=z, border=flip_border, reuse=False, scope='generator')
+        # C) Flip the borders for proper alignment with original data
+        flip_above  = tf.reverse( above, axis=[1])
+        flip_left   = tf.reverse(  left, axis=[2])
+        flip_corner = tf.reverse(corner, axis=[1,2])
+
+        flip_border = tf.concat([flip_above, flip_left, flip_corner], axis=3)
+
+        self.G_fake = self.generator(downsampled=self.downsampled, z=z, border=flip_border, reuse=False, scope='generator')
 
         # D) Concatenate back
-        left = tf.concat([X3,X2], axis=1)
-        right = tf.concat([X1,X0], axis=1)
-        right_g = tf.concat([X1,self.G_fake], axis=1)
-        X_real = tf.concat([left,right], axis=2)
+        left    = tf.concat([corner,        left], axis=1)
+        right   = tf.concat([ above,        real], axis=1)
+        right_g = tf.concat([ above, self.G_fake], axis=1)
+        
+        X_real = tf.concat([left,  right], axis=2)
         G_fake = tf.concat([left,right_g], axis=2)
 
+        if self.downsampling:
+            X_down = down_sampler(X_real, s=self.downsampling, is_3d=False)
+            X_down_up = up_sampler(X_down, s=self.downsampling, is_3d=False)
+        else:
+            X_down_up = None
+
         # E) Discriminator
-        self.D_real = self.discriminator(X_real, reuse=False)
-        self.D_fake = self.discriminator(G_fake, reuse=True)
+        self.D_real = self.discriminator(X_real, X_down_up, reuse=False)
+        self.D_fake = self.discriminator(G_fake, X_down_up, reuse=True)
 
         # F) Losses
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+
+        if self.downsampling:
+            D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
+        else:
+            D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
 
@@ -995,19 +1042,27 @@ class upscale_WGAN_pixel_CNN(GanModel):
         tf.summary.image("training/Fake_full_image", G_fake, max_outputs=2, collections=['Images'])
 
         if True:
-            tf.summary.image("checking/X0", X0, max_outputs=2, collections=['Images'])
-            tf.summary.image("checking/X1", X1, max_outputs=1, collections=['Images'])
-            tf.summary.image("checking/X2", X2, max_outputs=1, collections=['Images'])
-            tf.summary.image("checking/X3", X3, max_outputs=1, collections=['Images'])
-            tf.summary.image("checking/X1f", X1f, max_outputs=1, collections=['Images'])
-            tf.summary.image("checking/X2f", X2f, max_outputs=1, collections=['Images'])
-            tf.summary.image("checking/X3f", X3f, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/real",               real, max_outputs=2, collections=['Images'])
+            tf.summary.image("checking/above",             above, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/left",               left, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/corner",           corner, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/flip_above",   flip_above, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/flip_left",     flip_left, max_outputs=1, collections=['Images'])
+            tf.summary.image("checking/flip_corner", flip_corner, max_outputs=1, collections=['Images'])
 
-    def generator(self, y, z, border, reuse, scope):
-        return generator_up(y, z, self.params['generator'], y=border, reuse=reuse, scope=scope)
+    def generator(self, downsampled, z, border, reuse, scope):
+        return generator_up(downsampled, z, self.params['generator'], y=border, reuse=reuse, scope=scope)
 
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse)
+    def discriminator(self, X, X_down_up=None, reuse=True):
+        if self.is_3d:
+            concat_axis = 4
+        else:
+            concat_axis = 3
+
+        if self.downsampling:
+            return discriminator(tf.concat([X, X_down_up, X-X_down_up], axis=concat_axis), self.params['discriminator'], reuse=reuse)
+        else:
+            return discriminator(X, self.params['discriminator'], reuse=reuse)
 
 
 class LapPatchWGANDirect(GanModel):
@@ -1346,13 +1401,13 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
 
 def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
     """
-
     Arguments
     ---------
     X       : Low sampled image, or None
     z       : Latent variable (same size as X)
     y       : border added a layer param['y_layer']
     """
+
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
@@ -1379,11 +1434,18 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
 
 
         bs = tf.shape(z)[0]  # Batch size
-        sx = X.shape.as_list()[1]
-        sy = X.shape.as_list()[2]
+        if X is None:
+            sx = y.shape.as_list()[1]
+            sy = y.shape.as_list()[2]
+        else:
+            sx = X.shape.as_list()[1]
+            sy = X.shape.as_list()[2]
         
         if params['is_3d']:
-            sz = X.shape.as_list()[3]
+            if X is None:
+                sz = y.shape.as_list()[3]
+            else:
+                sz = X.shape.as_list()[3]
             z = tf.reshape(z, [bs, sx, sy, sz, 1], name='vec2img_3d')
         else:
             z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img_2d')

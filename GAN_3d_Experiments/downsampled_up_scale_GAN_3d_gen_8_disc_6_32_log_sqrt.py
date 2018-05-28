@@ -20,13 +20,14 @@ def current_time_str():
 if __name__ == "__main__":
 	ns = 32
 	try_resume = True
-	latent_dim = ns**3
+	downsampling = 4
+	latent_dim = (ns//downsampling)**3
 	Mpch = 350
 
 
 	time_str = 'upscaling_GAN_3d_gen_8_disc_6_32_log_sqrt' 
 	global_path = '../saved_result/'
-	name = 'upscaling_GAN_3d_{}'.format(ns)
+	name = 'downsampled_upscaling_GAN_3d_{}'.format(ns)
 
 	bn = False
 
@@ -40,8 +41,9 @@ if __name__ == "__main__":
 	params_discriminator['minibatch_reg'] = False
 
 	params_generator = dict()
-	params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
-	params_generator['y_layer'] = 0
+	params_generator['downsampling'] = downsampling
+	params_generator['stride'] = [2, 2, 1, 1, 1, 1, 1, 1]
+	params_generator['y_layer'] = 2
 	params_generator['latent_dim'] = latent_dim
 	params_generator['nfilter'] = [8, 32, 64, 128, 128, 64, 64, 1]
 	params_generator['shape'] = [[3, 3, 3], [3, 3, 3], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5]]

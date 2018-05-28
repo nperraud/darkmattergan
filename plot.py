@@ -2,6 +2,8 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap as cm
+from moviepy.editor import VideoClip
+from moviepy.video.io.bindings import mplfig_to_npimage
 
 from scipy import ndimage
 import matplotlib.gridspec as gridspec
@@ -289,4 +291,58 @@ def tile_and_plot_3d_image(axis, image, **kwargs):
     '''
     tile = tile_cube_to_2d(image)
     #plot = plt.gca()
-    axis.imshow(tile, interpolation='none', **kwargs)
+    axis.imshow(tile, **kwargs)
+
+
+def get_animation(real_cube, fake_cube, figsize=(4, 8), fps=5):
+    '''
+    Given real and fake 3d sample, create animation with slices along all 3 dimensions
+    Return animation object
+    '''
+    ind = [0] # has to be a list, as list are mutable
+    fig = plt.figure(figsize=figsize)
+    def make_frame(t):
+        ax_real = plt.subplot2grid((3, 2), (0, 0) )
+
+        cmin = np.min([np.min(fake_cube[:, :, :]), np.min(real_cube[:, :, :])])
+        cmax = np.max([np.max(fake_cube[:, :, :]), np.max(real_cube[:, :, :])])
+
+        ax_real.imshow(real_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        ax_real.set_title('real-index0')
+
+        ax_fake = plt.subplot2grid((3, 2), (0, 1) )
+        ax_fake.imshow(fake_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        ax_fake.set_title('fake-index0')
+
+
+        ax_real = plt.subplot2grid((3, 2), (1, 0) )
+        ax_real.imshow(real_cube[:, ind[0], :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        ax_real.set_title('real-index1')
+
+        ax_fake = plt.subplot2grid((3, 2), (1, 1) )
+        ax_fake.imshow(fake_cube[:, ind[0], :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        ax_fake.set_title('fake-index1')
+
+
+        ax_real = plt.subplot2grid((3, 2), (2, 0) )
+        ax_real.imshow(real_cube[:,:,ind[0]], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        ax_real.set_title('real-index2')
+
+        ax_fake = plt.subplot2grid((3, 2), (2, 1) )
+        ax_fake.imshow(fake_cube[:,:,ind[0]], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        ax_fake.set_title('fake-index2')
+
+        ind[0] += 1
+        return mplfig_to_npimage(fig)
+    
+    dim = fake_cube.shape[0]
+    animation = VideoClip(make_frame, duration= dim//fps)
+    return animation
+
+
+def save_gif(real_cube, fake_cube, figsize=(4, 8), fps=5, output_file_name='test'):
+    '''
+    Given real and fake 3d sample, create animation with slices along all 3 dimensions, and save it as gif.
+    '''
+    animation = get_animation(real_cube, fake_cube, figsize, fps)
+    animation.write_gif(output_file_name + '.gif', fps=fps)

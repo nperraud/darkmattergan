@@ -42,8 +42,13 @@ def log_backward(x, shift=6, clip_max=2e6):
 def shifted_log_forward(X, shift=1.0):
     return np.log(np.sqrt(X) + np.e**shift) - shift
 
+<<<<<<< HEAD
 
 def shifted_log_backard(Xmap, clip_max=1e6, shift=1.0):
+=======
+  
+def shifted_log_backard(Xmap, clip_max=1e8, shift=1.0):
+>>>>>>> origin/master
     Xmap = np.clip(Xmap, 0, shifted_log_forward(clip_max))
     tmp = np.exp(Xmap + shift) - np.e**shift
     return np.round(tmp * tmp)
@@ -53,7 +58,8 @@ def nati_forward(X):
     return np.log(X**(1 / 2) + np.e) - 2
 
 
-def nati_backward(Xmap, clip_max=1e6):
+  
+def nati_backward(Xmap, clip_max=1e8):
     Xmap = np.clip(Xmap, -1.0, nati_forward(clip_max))
     tmp = np.exp((Xmap + 2)) - np.e
     return np.round(tmp * tmp)
@@ -126,7 +132,7 @@ def inv_pre_process(X, k=10., scale=1., real_max=1e8):
 def stat_forward_0(x, c=2e4):
     if not type(x).__module__ == np.__name__:
         x = np.array([x])
-    res = np.zeros(shape=x.shape)
+    res = np.zeros(shape=x.shape, dtype=np.float32)
     mask = x > c
     maski = mask == False
     res[maski] = np.log(x[maski] + 1)
@@ -138,7 +144,7 @@ def stat_forward_0(x, c=2e4):
 def stat_backward_0(x, c=2e4):
     if not type(x).__module__ == np.__name__:
         x = np.array([x])
-    res = np.zeros(shape=x.shape)
+    res = np.zeros(shape=x.shape, dtype=np.float32)
     mc = np.log(c + 1)
     x *= mc / 3
     mask = x > mc
@@ -158,4 +164,4 @@ def stat_backward(x, c=2e4, shift=3):
 
 
 forward = stat_forward
-backward = stat_forward
+backward = stat_backward

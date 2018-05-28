@@ -18,30 +18,32 @@ def current_time_str():
 
 
 if __name__ == "__main__":
-	ns = 128
+	ns = 16
 	try_resume = True
-	latent_dim = ns**3
+	downsampling = 4
+	latent_dim = (ns//downsampling)**3
 	Mpch = 350
 
 
-	time_str = 'upscaling_GAN_3d_gen_8_disc_6_128' 
+	time_str = 'upscaling_GAN_3d_gen_8_disc_6_16_new_trans' 
 	global_path = '../saved_result/'
-	name = 'upscaling_GAN_3d_{}'.format(ns)
+	name = 'downsampled_upscaling_GAN_3d_{}'.format(ns)
 
 	bn = False
 
 	params_discriminator = dict()
-	params_discriminator['stride'] = [2, 2, 2, 2, 2, 2]
-	params_discriminator['nfilter'] = [128, 128, 64, 32, 16, 8]
+	params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
+	params_discriminator['nfilter'] = [128, 128, 64, 32, 16, 16]
 	params_discriminator['shape'] = [[5, 5, 5], [5, 5, 5], [5, 5, 5], [3, 3, 3], [3, 3, 3], [3, 3, 3]]
 	params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
-	params_discriminator['full'] = [128, 64]
+	params_discriminator['full'] = [64]
 	params_discriminator['summary'] = True
 	params_discriminator['minibatch_reg'] = False
 
 	params_generator = dict()
-	params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
-	params_generator['y_layer'] = 0
+	params_generator['downsampling'] = downsampling
+	params_generator['stride'] = [2, 2, 1, 1, 1, 1, 1, 1]
+	params_generator['y_layer'] = 2
 	params_generator['latent_dim'] = latent_dim
 	params_generator['nfilter'] = [8, 32, 64, 128, 128, 64, 64, 1]
 	params_generator['shape'] = [[3, 3, 3], [3, 3, 3], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5]]
@@ -92,5 +94,5 @@ if __name__ == "__main__":
 	resume, params = utils.test_resume(try_resume, params)
 
 	wgan = CosmoGAN(params, upscale_WGAN_pixel_CNN, is_3d=True)
-	dataset = data.load.load_dataset(spix=ns, resolution=256,Mpch=Mpch, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
+	dataset = data.load.load_dataset_file(spix=ns, resolution=256,Mpch=Mpch, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
 	wgan.train(dataset, resume=resume)
