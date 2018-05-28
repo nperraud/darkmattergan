@@ -118,7 +118,7 @@ def inv_pre_process(X, k=10., scale=1., real_max=1e8):
 def stat_forward_0(x, c=2e4):
     if not type(x).__module__ == np.__name__:
         x = np.array([x])
-    res = np.zeros(shape=x.shape)
+    res = np.zeros(shape=x.shape, dtype=np.float32)
     mask = x>c
     maski = mask==False
     res[maski] = np.log(x[maski]+1)
@@ -129,7 +129,7 @@ def stat_forward_0(x, c=2e4):
 def stat_backward_0(x, c=2e4):
     if not type(x).__module__ == np.__name__:
         x = np.array([x])
-    res = np.zeros(shape=x.shape)
+    res = np.zeros(shape=x.shape, dtype=np.float32)
     mc = np.log(c+1)
     x = x*mc/3
     mask = x>mc

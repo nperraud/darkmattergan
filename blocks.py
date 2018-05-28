@@ -92,17 +92,28 @@ def down_sampler(x, s=2, is_3d=False):
         return tf.nn.conv2d(x, filt, strides=[1, s, s, 1], padding='SAME')
 
 
-def up_sampler(x, s=2):
-    filt = tf.constant(1, dtype=tf.float32, shape=[s, s, 1, 1])
+def up_sampler(x, s=2, is_3d=False):
     bs = tf.shape(x)[0]
-    shx2 = x.shape.as_list()[1:]
-    output_shape = [bs, shx2[0] * s, shx2[1] * s, shx2[2]]
-    return tf.nn.conv2d_transpose(
-        x,
-        filt,
-        output_shape=output_shape,
-        strides=[1, s, s, 1],
-        padding='SAME')
+    dims = x.shape.as_list()[1:]
+
+    if is_3d:
+        filt = tf.constant(1, dtype=tf.float32, shape=[s, s, s, 1, 1])
+        output_shape = [bs, dims[0] * s, dims[1] * s, dims[2] * s, dims[3]]
+        return tf.nn.conv3d_transpose(
+                        x,
+                        filt,
+                        output_shape=output_shape,
+                        strides=[1, s, s, s, 1],
+                        padding='SAME')
+    else:
+        filt = tf.constant(1, dtype=tf.float32, shape=[s, s, 1, 1])
+        output_shape = [bs, dims[0] * s, dims[1] * s, dims[2]]
+        return tf.nn.conv2d_transpose(
+                        x,
+                        filt,
+                        output_shape=output_shape,
+                        strides=[1, s, s, 1],
+                        padding='SAME')
 
 
 # # Testing up_sampler, down_sampler

@@ -171,24 +171,23 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
     if small is not None:
         # Dimension of the low res image
         lx, ly = small.shape[1:3]
+        if is_3d:
+            lz = small.shape[3]
 
         # Input dimension of the generator
-        sinx = soutx // obj.params['generator']['upsampling']
-        siny = souty // obj.params['generator']['upsampling']
+        sinx = soutx // obj.params['generator']['downsampling']
+        siny = souty // obj.params['generator']['downsampling']
+        if is_3d:
+            sinz = soutz // obj.params['generator']['downsampling']
 
         # Number of part to be generated
         nx = lx // sinx
         ny = ly // siny
-
-        # Input dimension of the generator
-        sinx = soutx // obj.params['generator']['upsampling']
-        siny = souty // obj.params['generator']['upsampling']
-
-        # Number of part to be generated
-        nx = lx // sinx
-        ny = ly // siny
+        if is_3d:
+            nz = lz // sinz
 
     else:
+        sinx = siny = sinz = None
         if resolution is None:
             raise ValueError("Both small and resolution cannot be None")
         else:
@@ -202,17 +201,19 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
         obj.load(sess=sess, checkpoint=checkpoint)
 
         if is_3d:
-            output_image = generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz)
+            output_image = generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz)
         else:
             output_image = generate_2d_output(sess, obj, N, nx, ny, soutx, souty, small, sinx, siny)
         
     return np.squeeze(output_image)
 
 
-def generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz):
+def generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz):
     output_image = np.zeros(
             shape=[N, soutz * nz, souty * ny, soutx * nx, 1], dtype=np.float32)
     output_image[:] = np.nan
+
+    print('Total number of patches = {}*{}*{} = {}'.format(nx, ny, nz, nx*ny*nz) )
 
     for k in range(nz): # height
         for j in range(ny): # rows
@@ -265,10 +266,19 @@ def generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz):
                                                         :]
 
 
-                # 2) Generate the image
+                # 2) Prepare low resolution
+                if small is not None:
+                    downsampled = small[:, k * sinx:(k + 1) * sinz, 
+                                           j * siny:(j + 1) * siny,
+                                           i * siny:(i + 1) * sinx,
+                                           :]
+                else:
+                    downsampled = None
+
+                # 3) Generate the image
                 print('Current patch: column={}, row={}, height={}'.format(i+1, j+1, k+1))
                 gen_sample, _ = obj.generate(
-                    N=N, border=border, y=None, sess=sess)
+                    N=N, border=border, downsampled=downsampled, sess=sess)
 
                 output_image[:, 
                                 k * soutz:(k + 1) * soutz,
@@ -307,15 +317,14 @@ def generate_2d_output(sess, obj, N, nx, ny, soutx, souty, small, sinx, siny):
 
             if small is not None:
                 # 2) Prepare low resolution
-                y = np.expand_dims(small[:N][:, i * sinx:(
-                    i + 1) * sinx, j * siny:(j + 1) * siny], 3)
+                downsampled = np.expand_dims(small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3)
             else:
-                y = None
+                downsampled = None
 
             # 3) Generate the image
             print('Current patch: column={}, row={}'.format(j+1, i+1))
             gen_sample, _ = obj.generate(
-                N=N, border=border, y=y, sess=sess)
+                N=N, border=border, downsampled=downsampled, sess=sess)
 
             output_image[:, 
                             i * soutx:(i + 1) * soutx, 
