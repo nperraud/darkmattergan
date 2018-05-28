@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
+from colorize import colorize
 import pickle
 import utils
 import metrics
@@ -122,8 +123,6 @@ class GAN(object):
                                  grads_and_vars_g, optimizer_E)
 
         # Summaries
-        self._build_image_summary()
-
         tf.summary.histogram('Prior/z', self._z, collections=['Images'])
 
         self.summary_op = tf.summary.merge(tf.get_collection("Training"))
@@ -131,7 +130,7 @@ class GAN(object):
 
         self._saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
 
-    def _build_image_summary(self):
+    def _build_image_summary(self, dataset):
         if self.is_3d:
             tile_shape = utils.get_tile_shape_from_3d_image(
                 self.params['image_size'])
@@ -165,25 +164,31 @@ class GAN(object):
                     max_outputs=4,
                     collections=['Images'])
         else:
+            data = dataset.get_all_data()
+            vmin = np.min(data)
+            vmax = np.max(data)
             tf.summary.image(
                 "training/Real_Image",
-                self._X,
+                colorize(self._X, vmin, vmax),
                 max_outputs=4,
                 collections=['Images'])
             tf.summary.image(
                 "training/Fake_Image",
-                self._G_fake,
+                colorize(self._G_fake, vmin, vmax),
                 max_outputs=4,
                 collections=['Images'])
             if self.normalized():
+                data = self._normalize(data)
+                vmin = np.min(data)
+                vmax = np.max(data)
                 tf.summary.image(
                     "training/Real_Image_normalized",
-                    self._normalize(self._X),
+                    colorize(self._normalize(self._X), vmin, vmax),
                     max_outputs=4,
                     collections=['Images'])
                 tf.summary.image(
                     "training/Fake_Image_normalized",
-                    self._normalize(self._G_fake),
+                    colorize(self._normalize(self._G_fake), vmin, vmax),
                     max_outputs=4,
                     collections=['Images'])
 
@@ -315,6 +320,7 @@ class GAN(object):
         return X
 
     def train(self, dataset, resume=False):
+        self._build_image_summary(dataset)
 
         n_data = dataset.N
         # Get an iterator
@@ -1144,16 +1150,19 @@ class TimeGAN(GAN):
 
         self.params = default_params_time(self.params)
 
-    def _build_image_summary(self):
+    def _build_image_summary(self, dataset):
+        data = dataset.get_all_data()
+        vmin = np.min(data)
+        vmax = np.max(data)
         for c in range(self.params["time"]["num_classes"]):
             tf.summary.image(
                 "training/Real_Image_c{}".format(c),
-                self._X[:, :, :, c:(c+1)],
+                colorize(self._X[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
                 collections=['Images'])
             tf.summary.image(
                 "training/Fake_Image_c{}".format(c),
-                self._G_fake[:, :, :, c:(c+1)],
+                colorize(self._G_fake[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
                 collections=['Images'])
 
