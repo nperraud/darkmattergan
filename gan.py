@@ -1152,8 +1152,8 @@ class TimeGAN(GAN):
 
     def _build_image_summary(self, dataset):
         data = dataset.get_all_data()
-        vmin = np.min(data)
-        vmax = np.max(data)
+        vmin = tf.constant_initializer(np.min(data))
+        vmax = tf.constant_initializer(np.max(data))
         for c in range(self.params["time"]["num_classes"]):
             tf.summary.image(
                 "training/Real_Image_c{}".format(c),
