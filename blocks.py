@@ -325,10 +325,12 @@ def tf_cdf(x, n_out):
 def tf_covmat(x, shape):
     nel = np.prod(shape)
     bs = tf.shape(x)[0]
-#     w = tf.get_variable("conv_kernel", dtype=tf.float32,  initializer=tf.constant(np.eye(nel).reshape(shape[0], shape[1], 1, nel).astype(np.float32)), trainable=False)
+
     sh = [shape[0], shape[1], 1, nel]
-    wi = tf.constant_initializer(0.0)
-    w = _tf_variable('covmat_var', sh, wi)
+    # wi = tf.constant_initializer(0.0)
+    # w = _tf_variable('covmat_var', sh, wi)
+    w = tf.constant(np.eye(nel).reshape(sh), dtype=tf.float32)
+
     conv = tf.nn.conv2d(x, w, strides=[1, 1, 1, 1], padding='VALID')
     nx = conv.shape[1]*conv.shape[2]
     conv_vec = tf.reshape(conv,shape=[bs, nx ,nel])
