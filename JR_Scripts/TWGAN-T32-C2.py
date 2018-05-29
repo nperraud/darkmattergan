@@ -40,7 +40,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '0r-2r_0911{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGAN{}|6-5_color'.format(ns)
+name = 'TWGAN{}|6-5_color2'.format(ns)
 
 bn = False
 
