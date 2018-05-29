@@ -92,17 +92,28 @@ def down_sampler(x, s=2, is_3d=False):
         return tf.nn.conv2d(x, filt, strides=[1, s, s, 1], padding='SAME')
 
 
-def up_sampler(x, s=2):
-    filt = tf.constant(1, dtype=tf.float32, shape=[s, s, 1, 1])
+def up_sampler(x, s=2, is_3d=False):
     bs = tf.shape(x)[0]
-    shx2 = x.shape.as_list()[1:]
-    output_shape = [bs, shx2[0] * s, shx2[1] * s, shx2[2]]
-    return tf.nn.conv2d_transpose(
-        x,
-        filt,
-        output_shape=output_shape,
-        strides=[1, s, s, 1],
-        padding='SAME')
+    dims = x.shape.as_list()[1:]
+
+    if is_3d:
+        filt = tf.constant(1, dtype=tf.float32, shape=[s, s, s, 1, 1])
+        output_shape = [bs, dims[0] * s, dims[1] * s, dims[2] * s, dims[3]]
+        return tf.nn.conv3d_transpose(
+                        x,
+                        filt,
+                        output_shape=output_shape,
+                        strides=[1, s, s, s, 1],
+                        padding='SAME')
+    else:
+        filt = tf.constant(1, dtype=tf.float32, shape=[s, s, 1, 1])
+        output_shape = [bs, dims[0] * s, dims[1] * s, dims[2]]
+        return tf.nn.conv2d_transpose(
+                        x,
+                        filt,
+                        output_shape=output_shape,
+                        strides=[1, s, s, 1],
+                        padding='SAME')
 
 
 # # Testing up_sampler, down_sampler
@@ -298,3 +309,33 @@ def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
     x = tf.concat([xin, minibatch_features], axis=1)
 
     return x
+
+
+def tf_cdf(x, n_out):
+    """Helping function to get correct histograms."""
+    weights_initializer = tf.contrib.layers.xavier_initializer()
+    w = _tf_variable(
+        'cdf_weight',
+        shape=[1, 1, n_out],
+        initializer=weights_initializer)
+    x = tf.expand_dims(reshape2d(x), axis=2)
+    return tf.reduce_mean(tf.sigmoid(10 * (w - x)), axis=1)
+
+
+def tf_covmat(x, shape):
+    nel = np.prod(shape)
+    bs = tf.shape(x)[0]
+
+    sh = [shape[0], shape[1], 1, nel]
+    # wi = tf.constant_initializer(0.0)
+    # w = _tf_variable('covmat_var', sh, wi)
+    w = tf.constant(np.eye(nel).reshape(sh), dtype=tf.float32)
+
+    conv = tf.nn.conv2d(x, w, strides=[1, 1, 1, 1], padding='VALID')
+    nx = conv.shape[1]*conv.shape[2]
+    conv_vec = tf.reshape(conv,shape=[bs, nx ,nel])
+    m = tf.reduce_mean(conv_vec, axis=[1,2])
+    conv_vec = tf.subtract(conv_vec,tf.expand_dims(tf.expand_dims(m,axis=1), axis=2))
+    c = 1/tf.cast(nx, tf.float32)*tf.matmul(tf.transpose(conv_vec,perm=[0,2,1]), conv_vec)
+    return c
+

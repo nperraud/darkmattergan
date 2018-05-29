@@ -54,6 +54,8 @@ def default_params(params=None):
     # print('Minibatch regularization set to False (Force)')
     d_param['discriminator']['non_lin'] =  None
     d_param['discriminator']['one_pixel_mapping'] = []
+    d_param['discriminator']['cdf'] = None
+    d_param['discriminator']['moment'] = None
 
     # Optimization parameters
     # -----------------------
