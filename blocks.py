@@ -326,7 +326,7 @@ def tf_covmat(x, shape):
     if x.shape[-1] > 1:
         lst = []
         for i in range(x.shape[-1]):
-            lst.append(tf_covmat(x[:,:,:,i-1:i], shape))
+            lst.append(tf_covmat(x[:,:,:,i:i+1], shape))
         return tf.stack(lst, axis=1)
     nel = np.prod(shape)
     bs = tf.shape(x)[0]
