@@ -40,7 +40,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '0r-2r_0911{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv3:{}|6-5_MOM+chCDF'.format(ns)
+name = 'TWGANv3:{}|6-5_uds_MOM+chCDF'.format(ns)
 
 bn = False
 
@@ -91,6 +91,7 @@ params_time['num_classes'] = 2
 params_time['classes'] = [2, 0]
 params_time['class_weights'] = [0.9, 1.1]
 params_time['model_idx'] = 2
+params_time['use_diff_stats'] = True
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
 
