@@ -1349,7 +1349,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             if params['channel_cdf']:
                 lst = []
                 for i in range(x.shape[-1]):
-                    lst.append(tf_cdf(x, params['channel_cdf']))
+                    lst.append(tf_cdf(x, params['channel_cdf'],
+                                      name="cdf_weight_channel_{}".format(i)))
                     rprint('        Channel Cdf layer: {}'.format(params['cdf']), reuse)
                 lst.append(cdf)
                 cdf = tf.stack(lst, axis=1)

@@ -311,11 +311,11 @@ def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
     return x
 
 
-def tf_cdf(x, n_out, diff_weight=10):
+def tf_cdf(x, n_out, name='cdf_weight', diff_weight=10):
     """Helping function to get correct histograms."""
     weights_initializer = tf.contrib.layers.xavier_initializer()
     w = _tf_variable(
-        'cdf_weight',
+        name,
         shape=[1, 1, n_out],
         initializer=weights_initializer)
     x = tf.expand_dims(reshape2d(x), axis=2)
