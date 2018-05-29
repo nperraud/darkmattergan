@@ -1353,7 +1353,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                                       name="cdf_weight_channel_{}".format(i)))
                     rprint('        Channel Cdf layer: {}'.format(params['cdf']), reuse)
                 lst.append(cdf)
-                cdf = tf.stack(lst, axis=1)
+                cdf = tf.concat(lst, axis=1)
                 rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
             cdf = linear(cdf, 2 * params['cdf'], 'cdf_full', summary=params['summary'])
             cdf = lrelu(cdf)
