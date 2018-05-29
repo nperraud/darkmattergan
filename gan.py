@@ -648,9 +648,9 @@ class GAN(object):
 
 class CosmoGAN(GAN):
     def __init__(self, params, model=None, is_3d=False):
-        super().__init__(params=params, model=model, is_3d=is_3d)
+        self.params = default_params_cosmology(params)
+        super().__init__(params=self.params, model=model, is_3d=is_3d)
 
-        self.params = default_params_cosmology(self.params)
         self._backward_map = params['cosmology']['backward_map']
         self._forward_map = params['cosmology']['forward_map']
 
@@ -1151,9 +1151,9 @@ class CosmoGAN(GAN):
 
 class TimeGAN(GAN):
     def __init__(self, params, model=None, is_3d=False):
-        super().__init__(params=params, model=model, is_3d=is_3d)
+        self.params = default_params_time(params)
+        super().__init__(params=self.params, model=model, is_3d=is_3d)
 
-        self.params = default_params_time(self.params)
 
     def _build_image_summary(self):
         vmin = tf.reduce_min(self._X)

@@ -130,11 +130,9 @@ resume, params = utils.test_resume(try_resume, params)
 model = None
 if params_time['model_idx'] == 2:
     model = TemporalGanModelv3
-elif params_time['model_idx'] == 3:
-    model = TemporalGanModelv4
 
 # Build the model
-twgan = TimeCosmoGAN(params, TemporalGanModelv3)
+twgan = TimeCosmoGAN(params, model)
 
 img_list = []
 
