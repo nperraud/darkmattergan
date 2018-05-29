@@ -109,4 +109,6 @@ def default_params_time(params=dict()):
     default_scaling = (np.arange(params['time']['num_classes']) + 1) / params['time']['num_classes']
     d_param['time']['class_weights'] = default_scaling
     # Default temporal weights for classes.
+    d_param['time']['use_diff_stats'] = False
+    # Whether to add channels containing the differences between channels
     return arg_helper(params or {}, d_param)

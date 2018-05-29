@@ -225,8 +225,10 @@ class TemporalGanModelv3(GanModel):
         self.G_c_fake = self.generator(zn, reuse=False)
         self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
 
-        self.D_real = self.discriminator(X, reuse=False)
-        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+        self.D_real = self.discriminator(X, reuse=False,
+                                         diff_stats=params['time']['use_diff_stats'])
+        self.D_fake = self.discriminator(self.G_fake, reuse=True,
+                                         diff_stats=params['time']['use_diff_stats'])
 
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
@@ -252,7 +254,10 @@ class TemporalGanModelv3(GanModel):
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
 
-    def discriminator(self, X, reuse):
+    def discriminator(self, X, reuse, diff_stats):
+        if diff_stats:
+            y = X[:, :, :, 1:] - X[:, :, :, :-1]
+            X = tf.concat([X,y], axis=3)
         return discriminator(X, self.params['discriminator'], reuse=reuse)
 
     @property
@@ -386,7 +391,7 @@ class TemporalGanModelv4(GanModel):
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
 
-    def discriminator(self, X, reuse):
+    def discriminator(self, X, reuse, dif_stats=False):
         y = X[:,:,:,1:] - X[:,:,:,:-1]
         return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
 
