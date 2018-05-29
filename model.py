@@ -1346,6 +1346,14 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             cdf = tf_cdf(x, params['cdf'])
             rprint('    Cdf layer: {}'.format(params['cdf']), reuse)
             rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+            if params['channel_cdf']:
+                lst = []
+                for i in range(x.shape[-1]):
+                    lst.append(tf_cdf(x, params['channel_cdf']))
+                    rprint('        Channel Cdf layer: {}'.format(params['cdf']), reuse)
+                lst.append(cdf)
+                cdf = tf.stack(lst, axis=1)
+                rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
             cdf = linear(cdf, 2 * params['cdf'], 'cdf_full', summary=params['summary'])
             cdf = lrelu(cdf)
             rprint('     CDF Full layer with {} outputs'.format(2*params['cdf']), reuse)
