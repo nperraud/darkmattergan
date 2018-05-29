@@ -33,6 +33,7 @@ def colorize(value, vmin=None, vmax=None, cmap=None):
     # normalize
     vmin = tf.reduce_min(value) if vmin is None else vmin
     vmax = tf.reduce_max(value) if vmax is None else vmax
+    value = tf.clip_by_value(value, vmin, vmax)
     value = (value - vmin) / (vmax - vmin) # vmin..vmax
 
     # squeeze last dim if it exists
