@@ -42,7 +42,7 @@ def colorize(value, vmin=None, vmax=None, cmap=None):
     indices = tf.to_int32(tf.round(value * 255))
 
     # gather
-    cm = matplotlib.cm.get_cmap(cmap if cmap is not None else 'winter')
+    cm = matplotlib.cm.get_cmap(cmap if cmap is not None else 'plasma')
     colors = cm(np.arange(256))[:, :3]
     colors = tf.constant(colors, dtype=tf.float32)
     value = tf.gather(colors, indices)
