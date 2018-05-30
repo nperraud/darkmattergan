@@ -37,10 +37,10 @@ bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-time_str = '0r{}'.format(Mpch)
+time_str = '0r-2r_0911{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv3:{}|6-5_MOM'.format(ns)
+name = 'TWGANv3:{}|6-5_chCDF'.format(ns)
 
 bn = False
 
@@ -50,9 +50,9 @@ params_discriminator['nfilter'] = [16, 128, 256, 128, 64]
 params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
-#params_discriminator['cdf'] = 256
-#params_discriminator['channel_cdf'] = 128
-params_discriminator['moment'] = [5,5]
+params_discriminator['cdf'] = 256
+params_discriminator['channel_cdf'] = 128
+#params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
@@ -87,9 +87,9 @@ params_cosmology['backward_map'] = backward
 params_cosmology['Nstats'] = 1000
 
 params_time = dict()
-params_time['num_classes'] = 1
-params_time['classes'] = [0]
-params_time['class_weights'] = [1]
+params_time['num_classes'] = 2
+params_time['classes'] = [2, 0]
+params_time['class_weights'] = [0.9, 1.1]
 params_time['model_idx'] = 2
 params_time['use_diff_stats'] = False
 
