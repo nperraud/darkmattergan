@@ -143,7 +143,7 @@ data = time_toy_generator.gen_dataset_continuous(images_per_time_step=512,
                                                  point_density_factor=3)
 
 data = np.array(data)
-data = np.transpose(data, [1, 2, 3, 0])
+data = data[params_time['classes']]
 print ("Images shape: {}".format(data.shape))
 dataset = Dataset.Dataset_time(data, spix=ns, shuffle=True)
 
