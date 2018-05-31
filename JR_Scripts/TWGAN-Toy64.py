@@ -137,8 +137,8 @@ if params_time['model_idx'] == 2:
 twgan = TimeCosmoGAN(params, model)
 
 
-data = time_toy_generator.gen_dataset_continuous(images_per_time_step=4000,
-                                                 width=params['image_size'][0],
+data = time_toy_generator.gen_dataset_continuous(images_per_time_step=512,
+                                                 width=512,
                                                  num_gaussians=42,
                                                  point_density_factor=3)
 
