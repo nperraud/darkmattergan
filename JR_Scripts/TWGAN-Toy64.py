@@ -46,7 +46,7 @@ name = 'TWGAN'.format(ns)
 bn = False
 
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 2, 1, 1]
+params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
 params_discriminator['nfilter'] = [16, 128, 256, 512, 128, 64]
 params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn] * len(params_discriminator['nfilter'])
