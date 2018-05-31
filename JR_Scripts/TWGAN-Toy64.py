@@ -89,7 +89,7 @@ params_cosmology['Nstats'] = 1000
 
 params_time = dict()
 params_time['num_classes'] = 4
-params_time['classes'] = [1, 3, 5, 7]
+params_time['classes'] = [2, 4, 6, 8]
 params_time['class_weights'] = [0.25, 0.5, 0.75, 1.0]
 params_time['model_idx'] = 2
 params_time['use_diff_stats'] = False
@@ -139,8 +139,8 @@ twgan = TimeCosmoGAN(params, model)
 
 data = time_toy_generator.gen_dataset_continuous(images_per_time_step=512,
                                                  width=512,
-                                                 num_gaussians=42,
-                                                 point_density_factor=3)
+                                                 num_gaussians=84,
+                                                 point_density_factor=6)
 
 data = np.array(data)
 data = data[params_time['classes']]
