@@ -38,7 +38,7 @@ bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-time_str = '0-2-6_{}'.format(Mpch)
+time_str = '2-2-8_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGAN'.format(ns)
@@ -136,11 +136,11 @@ if params_time['model_idx'] == 2:
 # Build the model
 twgan = TimeCosmoGAN(params, model)
 
-
-data = time_toy_generator.gen_dataset_continuous(images_per_time_step=512,
-                                                 width=512,
-                                                 num_gaussians=84,
-                                                 point_density_factor=6)
+mult = 512 // ns
+data = time_toy_generator.gen_dataset_continuous(images_per_time_step=512 * mult,
+                                                 width=ns,
+                                                 num_gaussians=42,
+                                                 point_density_factor=3)
 
 data = np.array(data)
 data = data[params_time['classes']]
