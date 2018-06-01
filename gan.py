@@ -611,11 +611,11 @@ class GAN(object):
                 feed_dict = self._get_dict(
                     z=z, X=X, index=slice(sind, sind + bs), **kwargs)
                 gi = self._sess.run(
-                    self._get_sample_args(), feed_dict=feed_dict)
+                    self._G_fake, feed_dict=feed_dict)
                 gen_images.append(gi)
                 sind = sind + bs
         feed_dict = self._get_dict(z=z, X=X, index=slice(sind, N), **kwargs)
-        gi = self._sess.run(self._get_sample_args(), feed_dict=feed_dict)
+        gi = self._sess.run(self._G_fake, feed_dict=feed_dict)
         gen_images.append(gi)
 
         return self._special_vstack(gen_images)

@@ -229,7 +229,7 @@ class TemporalGanModelv3(GanModel):
             self.disc = self.df_discriminator
         else:
             self.disc = self.discriminator
-        
+
         self.D_real = self.disc(X, reuse=False)
         self.D_fake = self.disc(self.G_fake, reuse=True)
 
@@ -244,7 +244,7 @@ class TemporalGanModelv3(GanModel):
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
-    def reshape_time_to_channels(self, X):
+    def reshape_time_to_channels_old(self, X):
         bs = self.params['optimization']['batch_size']
         nc = self.params['time']['num_classes']
         idx = np.arange(bs) * nc
@@ -253,6 +253,13 @@ class TemporalGanModelv3(GanModel):
         for i in range(1, nc):
             x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
         return x
+
+    def reshape_time_to_channels(self, X):
+        nc = self.params['time']['num_classes']
+        lst = []
+        for i in range(nc):
+            lst.append(X[i::nc])
+        return tf.concat(lst, axis=3)
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)

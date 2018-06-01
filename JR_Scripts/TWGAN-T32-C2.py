@@ -41,7 +41,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '0r-2r_0911_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv3:{}_6-5_'.format(ns)
+name = 'TWGANv3:v2{}_6-5_'.format(ns)
 
 bn = False
 
@@ -142,8 +142,8 @@ filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_All.h5'.format(Mpch)
 for box_idx in params['time']['classes']:
     images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')
     images = forward(images)
-    while images.shape[1] > ns:
-        images = skimage.measure.block_reduce(images, (1,2,2), np.sum)
+    #while images.shape[1] > ns:
+    #    images = skimage.measure.block_reduce(images, (1,2,2), np.sum)
     img_list.append(images)
 
 images = np.array(img_list)
