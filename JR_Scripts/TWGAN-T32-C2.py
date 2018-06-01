@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 import os
-import skimage.measure
+# import skimage.measure
 from model import TemporalGanModelv3, TemporalGanModelv4
 from gan import TimeCosmoGAN
 import utils
