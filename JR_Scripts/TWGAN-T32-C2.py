@@ -7,6 +7,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 import os
+import skimage.measure
 from model import TemporalGanModelv3, TemporalGanModelv4
 from gan import TimeCosmoGAN
 import utils
@@ -37,10 +38,10 @@ bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-time_str = '0r-2r_0911{}'.format(Mpch)
+time_str = '0r-2r_0911_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv3:{}|6-5_chCDF'.format(ns)
+name = 'TWGANv3:{}_6-5_'.format(ns)
 
 bn = False
 
@@ -50,8 +51,8 @@ params_discriminator['nfilter'] = [16, 128, 256, 128, 64]
 params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
-params_discriminator['cdf'] = 256
-params_discriminator['channel_cdf'] = 128
+#params_discriminator['cdf'] = 256
+#params_discriminator['channel_cdf'] = 128
 #params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
@@ -141,6 +142,8 @@ filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_All.h5'.format(Mpch)
 for box_idx in params['time']['classes']:
     images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')
     images = forward(images)
+    while images.shape[1] > ns:
+        images = skimage.measure.block_reduce(images, (1,2,2), np.sum)
     img_list.append(images)
 
 images = np.array(img_list)
