@@ -9,15 +9,26 @@ matplotlib.use('Agg')
 import os
 from model import TemporalGanModelv3, TemporalGanModelv4
 from gan import TimeCosmoGAN
-import utils, evaluation
+import utils
+import pickle
 from data import fmap, path, Dataset
 import tensorflow as tf
 import numpy as np
 import itertools
 
+
+def load_gan(pathgan, GANtype=TimeCosmoGAN):
+    """Load GAN object from path."""
+    with open(os.path.join(pathgan, 'params.pkl'), 'rb') as f:
+        params = pickle.load(f)
+    params['save_dir'] = pathgan
+    obj = GANtype(params)
+
+    return obj
+
 Mpc = 500
 
-gan = evaluation.load_gan(sys.argv[1], GANtype=TimeCosmoGAN)
+gan = load_gan(sys.argv[1], GANtype=TimeCosmoGAN)
 params = gan.params
 
 s_dir = params['summary_dir']
