@@ -78,6 +78,11 @@ for i in range(len(chkp_lst)):
         gan._stats['N'] = gan.params['cosmology']['Nstats']
         gan._sum_data_iterator = itertools.cycle(dataset.iter(gan._stats['N']))
 
+        gan._var.eval()
+        gan._mean.eval()
+        gan._summary_writer = tf.summary.FileWriter(
+            gan.params['summary_dir'], gan._sess.graph)
+
         sample_z = gan._sample_latent(gan.batch_size)
         X_real = next(gan._sum_data_iterator)
     gan._train_log(
