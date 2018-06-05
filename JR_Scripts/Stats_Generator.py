@@ -79,6 +79,6 @@ for i in range(len(chkp_lst)):
         gan._sum_data_iterator = itertools.cycle(dataset.iter(gan._stats['N']))
 
         sample_z = gan._sample_latent(gan.batch_size)
-        X_real = dataset.iter(gan.batch_size)
+        X_real = next(gan._sum_data_iterator)
     gan._train_log(
         gan._get_dict(sample_z, X_real))
