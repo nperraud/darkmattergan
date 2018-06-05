@@ -1274,14 +1274,28 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             non_lin_f = getattr(tf, params['non_lin'])
             x = non_lin_f(x)
             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+
         for i in range(nconv):
-            x = conv(x,
-                     nf_out=params['nfilter'][i],
-                     shape=params['shape'][i],
-                     stride=params['stride'][i],
-                     name='{}_conv'.format(i),
-                     summary=params['summary'])
-            rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+            if params['inception']:
+                x = inception_conv(in_tensor=x, 
+                                    n_filters=params['nfilter'][i], 
+                                    stride=params['stride'][i], 
+                                    summary=params['summary'], 
+                                    num=i,
+                                    is_3d=params['is_3d'], 
+                                    merge=(i == (nconv-1))
+                                    )
+                rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+            else:
+                x = conv(x,
+                         nf_out=params['nfilter'][i],
+                         shape=params['shape'][i],
+                         stride=params['stride'][i],
+                         name='{}_conv'.format(i),
+                         summary=params['summary'])
+                rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
             if params['batch_norm'][i]:
                 x = batch_norm(x, name='{}_bn'.format(i), train=True)
                 rprint('         Batch norm', reuse)
@@ -1312,8 +1326,6 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
     return x
-
-
 
 
 def generator(x, params, y=None, reuse=True, scope="generator"):
@@ -1440,7 +1452,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                 x = tf.concat([X, z], axis=4)
             else:
                 x = tf.concat([X, z], axis=3)
-            rprint('     Concat x and z to {}'.format(x.shape), reuse)
+            rprint('     Concat X and z to {}'.format(x.shape), reuse)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
@@ -1454,16 +1466,31 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                     x = tf.concat([x,y],axis=3)
                 rprint('     Concat x and y to {}'.format(x.shape), reuse) 
 
-            x = deconv(in_tensor=x, 
-                       bs=bs, 
-                       sx=sx,
-                       n_filters=params['nfilter'][i],
-                       shape=params['shape'][i],
-                       stride=params['stride'][i],
-                       summary=params['summary'],
-                       conv_num=i,
-                       is_3d=params['is_3d'])
-            rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+            if params['inception']:
+                x = inception_deconv(in_tensor=x, 
+                                    bs=bs, 
+                                    sx=sx, 
+                                    n_filters=params['nfilter'][i], 
+                                    stride=params['stride'][i], 
+                                    summary=params['summary'], 
+                                    num=i, 
+                                    is_3d=params['is_3d'], 
+                                    merge=(i == (nconv-1))
+                                    )
+                rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+            
+            else:        
+                x = deconv(in_tensor=x, 
+                           bs=bs, 
+                           sx=sx,
+                           n_filters=params['nfilter'][i],
+                           shape=params['shape'][i],
+                           stride=params['stride'][i],
+                           summary=params['summary'],
+                           conv_num=i,
+                           is_3d=params['is_3d']
+                           )
+                rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
 
             if i < nconv-1:
                 if params['batch_norm'][i]:
@@ -1471,6 +1498,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                     rprint('         Batch norm', reuse)
 
                 x = lrelu(x)
+
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if len(params['one_pixel_mapping']):

@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
-import utils
+import tensorflow as tf
+import utils, blocks
 from utils import compose2
 from data import path
 from data import transformation, fmap
@@ -38,6 +39,9 @@ class Dataset_file(object):
         self._Mpch = Mpch
         self._forward_map = forward_map
         self._scaling = scaling
+        if self._scaling>1:
+            self._scaling_sess = tf.Session()
+    
         self._shuffle = shuffle
 
         if slice_fn:
@@ -106,7 +110,7 @@ class Dataset_file(object):
 
         # 3) Apply downscaling if necessary
         if self._scaling>1:
-            images = blocks.downsample(images, self._scaling, is_3d=True)
+            images = blocks.downsample(images, self._scaling, is_3d=True, sess=self._scaling_sess)
 
         return images 
 
@@ -194,6 +198,9 @@ class Dataset_file(object):
                 perm_samples = np.arange(num_samples)
 
             nel = (num_samples // batch_size) * batch_size
+            if nel == 0:
+                raise ValueError('batch_size={} greater than num_samples={} loaded at once'.format(batch_size, num_samples))
+
             transformed_samples = transformed_samples[perm_samples[range(nel)]]
             for data in grouper(transformed_samples, batch_size):
                 yield np.array(data)

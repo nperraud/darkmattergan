@@ -41,6 +41,7 @@ def default_params(params=None):
     # print('Minibatch regularization set to False (Force)')
     d_param['discriminator']['non_lin'] =  None
     d_param['discriminator']['one_pixel_mapping'] = []
+    d_param['discriminator']['inception'] = False
 
     # Optimization parameters
     # -----------------------
@@ -58,6 +59,7 @@ def default_params(params=None):
     d_param['generator'] = dict()
     d_param['generator']['y_layer'] = None
     d_param['generator']['one_pixel_mapping'] = []
+    d_param['generator']['inception'] = False
 
     return arg_helper(params or {}, d_param)
 

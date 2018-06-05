@@ -80,7 +80,7 @@ class GAN(object):
 
         name = params['name']
         self._model = model(
-            params,
+            self.params,
             self._normalize(self._X),
             self._z,
             name=name if name else None,

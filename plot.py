@@ -294,7 +294,7 @@ def tile_and_plot_3d_image(axis, image, **kwargs):
     axis.imshow(tile, **kwargs)
 
 
-def get_animation(real_cube, fake_cube, figsize=(4, 8), fps=5):
+def get_animation(real_cube, fake_cube, figsize=(4, 8), fps=5, axis=0):
     '''
     Given real and fake 3d sample, create animation with slices along all 3 dimensions
     Return animation object
@@ -302,35 +302,37 @@ def get_animation(real_cube, fake_cube, figsize=(4, 8), fps=5):
     ind = [0] # has to be a list, as list are mutable
     fig = plt.figure(figsize=figsize)
     def make_frame(t):
-        ax_real = plt.subplot2grid((3, 2), (0, 0) )
 
         cmin = np.min([np.min(fake_cube[:, :, :]), np.min(real_cube[:, :, :])])
         cmax = np.max([np.max(fake_cube[:, :, :]), np.max(real_cube[:, :, :])])
 
-        ax_real.imshow(real_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        ax_real.set_title('real-index0')
+        if axis == 0:
+            ax_real = plt.subplot2grid((1, 2), (0, 0) )
+            ax_real.imshow(real_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+            ax_real.set_title('real-index0')
 
-        ax_fake = plt.subplot2grid((3, 2), (0, 1) )
-        ax_fake.imshow(fake_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        ax_fake.set_title('fake-index0')
-
-
-        ax_real = plt.subplot2grid((3, 2), (1, 0) )
-        ax_real.imshow(real_cube[:, ind[0], :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        ax_real.set_title('real-index1')
-
-        ax_fake = plt.subplot2grid((3, 2), (1, 1) )
-        ax_fake.imshow(fake_cube[:, ind[0], :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        ax_fake.set_title('fake-index1')
+            ax_fake = plt.subplot2grid((1, 2), (0, 1) )
+            ax_fake.imshow(fake_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+            ax_fake.set_title('fake-index0')
 
 
-        ax_real = plt.subplot2grid((3, 2), (2, 0) )
-        ax_real.imshow(real_cube[:,:,ind[0]], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        ax_real.set_title('real-index2')
+        elif axis == 1:
+            ax_real = plt.subplot2grid((1, 2), (1, 0) )
+            ax_real.imshow(real_cube[:, ind[0], :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+            ax_real.set_title('real-index1')
 
-        ax_fake = plt.subplot2grid((3, 2), (2, 1) )
-        ax_fake.imshow(fake_cube[:,:,ind[0]], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        ax_fake.set_title('fake-index2')
+            ax_fake = plt.subplot2grid((1, 2), (1, 1) )
+            ax_fake.imshow(fake_cube[:, ind[0], :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+            ax_fake.set_title('fake-index1')
+
+        else:
+            ax_real = plt.subplot2grid((1, 2), (2, 0) )
+            ax_real.imshow(real_cube[:, :, ind[0]], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+            ax_real.set_title('real-index2')
+
+            ax_fake = plt.subplot2grid((1, 2), (2, 1) )
+            ax_fake.imshow(fake_cube[:, : ,ind[0]], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+            ax_fake.set_title('fake-index2')
 
         ind[0] += 1
         return mplfig_to_npimage(fig)
