@@ -45,7 +45,7 @@ img_list = []
 filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_All.h5'.format(Mpc)
 for box_idx in params['time']['classes']:
     images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')
-    images = params['cosmo']['forward_map'](images)
+    images = params['cosmology']['forward_map'](images)
     img_list.append(images)
 
 images = np.array(img_list)
