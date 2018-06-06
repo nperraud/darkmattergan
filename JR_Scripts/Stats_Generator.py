@@ -91,7 +91,7 @@ for i in range(len(chkp_lst)):
 
         gan._stats_t = gen_real_t_stats(gan, params, dataset)
 
-        sample_z = gan._sample_latent(gan.batch_size)
-        X_real = dataset.get_samples(gan.batch_size)
+    sample_z = gan._sample_latent(gan.batch_size)
+    X_real = dataset.get_samples(gan.batch_size)
     gan._train_log(
         gan._get_dict(sample_z, X_real))
