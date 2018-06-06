@@ -271,6 +271,13 @@ def peak_count_hist(dat, bins=20, lim=None):
         peak = pool.map(peak_count, dat)
 
     print("pool.map(peak_count) return type: list of {}".format(type(peak[0])))
+    min_len = 1000000
+    max_len = -10
+    for v in peak:
+        x = v.shape[0]
+        min_len = np.minimum(x, min_len)
+        max_len = np.maximum(x, max_len)
+    print("Min_len-max_len: {}-{}".format(min_len, max_len))
     peak = np.array(peak)
     # peak = np.array(
     #     [peak_count(x, neighborhood_size=5, threshold=0) for x in dat])
