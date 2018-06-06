@@ -268,7 +268,10 @@ def peak_count_hist(dat, bins=20, lim=None):
     print("Data for peak hist shape: {}".format(dat.shape))
     num_workers = mp.cpu_count() - 1
     with mp.Pool(processes=num_workers) as pool:
-        peak = np.array(pool.map(peak_count, dat))
+        peak = pool.map(peak_count, dat)
+
+    print("pool.map(peak_count) return type: list of {}".format(type(peak[0])))
+    peak = np.array(peak)
     # peak = np.array(
     #     [peak_count(x, neighborhood_size=5, threshold=0) for x in dat])
     #peak = peak.clip(0)
