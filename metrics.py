@@ -270,7 +270,9 @@ def peak_count_hist(dat, bins=20, lim=None):
         peak = np.array(pool.map(peak_count, dat))
     # peak = np.array(
     #     [peak_count(x, neighborhood_size=5, threshold=0) for x in dat])
-    peak = np.log(np.hstack(peak)+np.e)
+    very_small_epsilon = 1e-8
+    peak = np.log(np.hstack(peak)+np.e+very_small_epsilon)
+    print("Peak shape: {}".format(peak.shape))
     if lim is None:
         lim = (np.min(peak), np.max(peak))
     y, x = np.histogram(peak, bins=bins, range=lim)
