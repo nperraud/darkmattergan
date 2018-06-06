@@ -76,7 +76,7 @@ for i in range(len(chkp_lst)):
         print("Initializing constant stats")
         gan._stats = gan.params['cosmology']['stats']
         gan._stats['N'] = gan.params['cosmology']['Nstats']
-        # gan._sum_data_iterator = itertools.cycle(dataset.iter(gan._stats['N']))
+        gan._sum_data_iterator = itertools.cycle(dataset.iter(gan._stats['N']))
 
         #gan._var.eval()
         #gan._mean.eval()
