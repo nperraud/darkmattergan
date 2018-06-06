@@ -273,8 +273,10 @@ def peak_count_hist(dat, bins=20, lim=None):
     very_small_epsilon = 1e-8
     peak = np.log(np.hstack(peak)+np.e+very_small_epsilon)
     print("Peak shape: {}".format(peak.shape))
+    print("Lim: {}".format(lim))
     if lim is None:
         lim = (np.min(peak), np.max(peak))
+    print("Lim: {}".format(lim))
     y, x = np.histogram(peak, bins=bins, range=lim)
     x = np.exp((x[1:] + x[:-1]) / 2)-np.e
     # Normalization
