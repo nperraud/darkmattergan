@@ -277,6 +277,7 @@ def peak_count_hist(dat, bins=20, lim=None):
     print("Peak shape: {}".format(peak.shape))
     peak = peak.clip(0)
     peak = np.log(peak+np.e)
+    print("Peak min-max: {}-{}".format(np.min(peak), np.max(peak)))
     if lim is None:
         lim = (np.min(peak), np.max(peak))
     y, x = np.histogram(peak, bins=bins, range=lim)
