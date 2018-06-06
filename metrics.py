@@ -265,18 +265,16 @@ def peak_count_hist(dat, bins=20, lim=None):
     bins : number of bins for the histogram (default 20)
     lim  : limit for the histogram, if None, then min(peak), max(peak)
     """
+    print("Data for peak hist shape: {}".format(dat.shape))
     num_workers = mp.cpu_count() - 1
     with mp.Pool(processes=num_workers) as pool:
         peak = np.array(pool.map(peak_count, dat))
     # peak = np.array(
     #     [peak_count(x, neighborhood_size=5, threshold=0) for x in dat])
-    very_small_epsilon = 1e-8
-    peak = np.log(np.hstack(peak)+np.e+very_small_epsilon)
-    print("Peak shape: {}".format(peak.shape))
-    print("Lim: {}".format(lim))
+    peak = peak.clip(0)
+    peak = np.log(np.hstack(peak)+np.e)
     if lim is None:
         lim = (np.min(peak), np.max(peak))
-    print("Lim: {}".format(lim))
     y, x = np.histogram(peak, bins=bins, range=lim)
     x = np.exp((x[1:] + x[:-1]) / 2)-np.e
     # Normalization
