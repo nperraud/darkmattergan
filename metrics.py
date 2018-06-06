@@ -266,7 +266,7 @@ def peak_count_hist(dat, bins=20, lim=None):
     lim  : limit for the histogram, if None, then min(peak), max(peak)
     """
     print("Data for peak hist shape: {}".format(dat.shape))
-    num_workers = mp.cpu_count() - 1
+    num_workers = 1#mp.cpu_count() - 1
     with mp.Pool(processes=num_workers) as pool:
         peak = pool.map(peak_count, dat)
 
