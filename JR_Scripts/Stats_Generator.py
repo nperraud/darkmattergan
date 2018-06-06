@@ -27,10 +27,10 @@ def load_gan(pathgan, GANtype=TimeCosmoGAN):
     return obj
 
 
-def gen_real_t_stats(gan, params):
-    real = gan._backward_map(dataset.get_all_data())
+def gen_real_t_stats(gan, params, dset):
+    real = gan._backward_map(dset.get_all_data())
     stats_t = []
-    for t in range(gan.params['time']['num_classes']):
+    for t in range(params['time']['num_classes']):
         stats_t.append(gan._compute_real_stats(real[:, :, :, t]))
     return stats_t
 
@@ -89,7 +89,7 @@ for i in range(len(chkp_lst)):
         gan._summary_writer = tf.summary.FileWriter(
             gan.params['summary_dir'], gan._sess.graph)
 
-        gan._stats_t = gen_real_t_stats(gan, params)
+        gan._stats_t = gen_real_t_stats(gan, params, dataset)
 
         sample_z = gan._sample_latent(gan.batch_size)
         X_real = dataset.get_samples(gan.batch_size)
