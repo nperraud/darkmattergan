@@ -76,7 +76,7 @@ for i in range(len(chkp_lst)):
         print("Initializing constant stats")
         gan._stats = gan.params['cosmology']['stats']
         gan._stats['N'] = gan.params['cosmology']['Nstats']
-        gan._sum_data_iterator = itertools.cycle(dataset.iter(gan._stats['N']))
+        # gan._sum_data_iterator = itertools.cycle(dataset.iter(gan._stats['N']))
 
         #gan._var.eval()
         #gan._mean.eval()
@@ -84,6 +84,6 @@ for i in range(len(chkp_lst)):
             gan.params['summary_dir'], gan._sess.graph)
 
         sample_z = gan._sample_latent(gan.batch_size)
-        X_real = next(gan._sum_data_iterator)
+        X_real = dataset.get_samples(gan.batch_size)
     gan._train_log(
         gan._get_dict(sample_z, X_real))
