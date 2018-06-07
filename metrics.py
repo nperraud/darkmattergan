@@ -291,10 +291,9 @@ def peak_count_hist(dat, bins=20, lim=None):
     print("Peak min-max: {}-{}".format(np.min(peak), np.max(peak)))
     if lim is None:
         lim = (np.min(peak), np.max(peak))
-    h5f = h5py.File("/scratch/snx3000/rosenthj/results/vec.h5", 'w')
-    h5f.create_dataset("data", data=peak, dtype='float32')
-    h5f.close()
     print("Lim: {}".format(lim))
+    print("Peak is a numpy array of type: {}".format(type(peak[0])))
+    print("Peak is a tuple of type: {}".format(type(lim[0])))
 
     y, x = np.histogram(peak, bins=bins, range=lim)
     x = np.exp((x[1:] + x[:-1]) / 2)-np.e
