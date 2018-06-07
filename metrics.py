@@ -8,6 +8,7 @@ import itertools
 import utils
 import functools
 import multiprocessing as mp
+import h5py
 
 
 def wrapper_func(x, bin_k=50, box_l=100 / 0.7):
@@ -266,7 +267,7 @@ def peak_count_hist(dat, bins=20, lim=None):
     lim  : limit for the histogram, if None, then min(peak), max(peak)
     """
     print("Data for peak hist shape: {}".format(dat.shape))
-    num_workers = 1#mp.cpu_count() - 1
+    num_workers = 1
     with mp.Pool(processes=num_workers) as pool:
         peak = pool.map(peak_count, dat)
 
@@ -290,6 +291,11 @@ def peak_count_hist(dat, bins=20, lim=None):
     print("Peak min-max: {}-{}".format(np.min(peak), np.max(peak)))
     if lim is None:
         lim = (np.min(peak), np.max(peak))
+    h5f = h5py.File("/scratch/snx3000/rosenthj/results/vec.h5", 'w')
+    h5f.create_dataset("data", data=peak, dtype='float32')
+    h5f.close()
+    print("Lim: {}".format(lim))
+
     y, x = np.histogram(peak, bins=bins, range=lim)
     x = np.exp((x[1:] + x[:-1]) / 2)-np.e
     # Normalization
