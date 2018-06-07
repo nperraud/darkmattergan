@@ -8,7 +8,6 @@ import itertools
 import utils
 import functools
 import multiprocessing as mp
-import h5py
 
 
 def wrapper_func(x, bin_k=50, box_l=100 / 0.7):
@@ -266,35 +265,14 @@ def peak_count_hist(dat, bins=20, lim=None):
     bins : number of bins for the histogram (default 20)
     lim  : limit for the histogram, if None, then min(peak), max(peak)
     """
-    print("Data for peak hist shape: {}".format(dat.shape))
-    num_workers = 1
+    num_workers = mp.cpu_count() - 1
     with mp.Pool(processes=num_workers) as pool:
-        peak = pool.map(peak_count, dat)
-
-    print("pool.map(peak_count) return type: list of {}".format(type(peak[0])))
-    min_len = 1000000
-    max_len = -10
-    for v in peak:
-        x = v.shape[0]
-        min_len = np.minimum(x, min_len)
-        max_len = np.maximum(x, max_len)
-    print("Min_len-max_len: {}-{}".format(min_len, max_len))
-    peak = np.array(peak)
-    # peak = np.array(
-    #     [peak_count(x, neighborhood_size=5, threshold=0) for x in dat])
-    #peak = peak.clip(0)
-    print("Peak shape: {}".format(peak.shape))
-    peak = np.hstack(peak)
-    print("Peak shape: {}".format(peak.shape))
-    peak = peak.clip(0)
-    peak = np.log(peak+np.e)
-    print("Peak min-max: {}-{}".format(np.min(peak), np.max(peak)))
+        peak = np.array(pool.map(peak_count, dat))
+    peak = np.log(np.hstack(peak)+np.e)
     if lim is None:
         lim = (np.min(peak), np.max(peak))
-    print("Lim: {}".format(lim))
-    print("Peak is a numpy array of type: {}".format(type(peak[0])))
-    print("Peak is a tuple of type: {}".format(type(lim[0])))
-
+    else:
+        lim = tuple(map(type(peak[0]), lim))
     y, x = np.histogram(peak, bins=bins, range=lim)
     x = np.exp((x[1:] + x[:-1]) / 2)-np.e
     # Normalization
