@@ -588,7 +588,7 @@ class GAN(object):
             z = self._sample_latent(N)
         return self._generate_sample_safe(z=z, X=X, **kwargs)
 
-    def _get_sample_args(self):
+    def _get_sample_args(self, **kwargs):
         return self._G_fake
 
     def _special_vstack(self, gi):
@@ -611,11 +611,11 @@ class GAN(object):
                 feed_dict = self._get_dict(
                     z=z, X=X, index=slice(sind, sind + bs), **kwargs)
                 gi = self._sess.run(
-                    self._G_fake, feed_dict=feed_dict)
+                    self._get_sample_args(**kwargs), feed_dict=feed_dict)
                 gen_images.append(gi)
                 sind = sind + bs
         feed_dict = self._get_dict(z=z, X=X, index=slice(sind, N), **kwargs)
-        gi = self._sess.run(self._G_fake, feed_dict=feed_dict)
+        gi = self._sess.run(self._get_sample_args(**kwargs), feed_dict=feed_dict)
         gen_images.append(gi)
 
         return self._special_vstack(gen_images)
@@ -1180,6 +1180,11 @@ class TimeGAN(GAN):
         if bs is None:
             bs = 1
         return super(TimeGAN, self)._sample_latent(bs)
+
+    def _get_sample_args(self, **kwargs):
+        if "single_channel" in kwargs.keys():
+            return self._model.G_c_fake
+        return self._G_fake
 
     @property
     def num_classes(self):
