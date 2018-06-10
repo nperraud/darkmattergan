@@ -674,6 +674,12 @@ class CosmoGAN(GAN):
 
     @staticmethod
     def _init_logs(collection, name_suffix=''):
+        """Initializes summary logs under the collection parameter name
+        Parameter name suffix is added to all summary names
+
+        :return dict with summary tensors
+        :return dict with summary plots
+        """
         md = dict()
 
         md['descriptives'] = tf.placeholder(
@@ -892,6 +898,7 @@ class CosmoGAN(GAN):
         super().train(dataset=dataset, resume=resume)
 
     def _process_stat_dict(self, real, fake, _stats=None, _plots=None):
+        """Calculates summary statistics based on given real and fake data"""
         if _stats is None:
             _stats = self._stats
 
