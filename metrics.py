@@ -14,6 +14,7 @@ def wrapper_func(x, bin_k=50, box_l=100 / 0.7):
     tmp = ps.dens2overdens(np.squeeze(x), np.mean(x))
     return ps.power_spectrum(field_x=tmp, box_l=box_l, bin_k=bin_k)[0]
 
+
 def wrapper_func_cross(a,
                        X2,
                        self_comp,
@@ -43,18 +44,19 @@ def wrapper_func_cross(a,
             _result.append(tmp)
     return _result
 
+
 def power_spectrum_batch_phys(X1,
                               X2=None,
                               bin_k=50,
                               box_l=100 / 0.7,
                               is_3d=False,
                               remove_nan=True):
-    '''
+    """
     Calculates the 1-D PSD of a batch of variable size
     :param batch:
     :param size_image:
-    :return:
-    '''
+    :return: result, k
+    """
     sx, sy = X1[0].shape[0], X1[0].shape[1]
     sz = None
     if is_3d:
@@ -148,13 +150,13 @@ def histogram(x, bins, probability=True):
 
 
 def peak_count(X, neighborhood_size=5, threshold=0):
-    '''
+    """
     :param X: numpy array shape [size_image,size_image] or as a vector
     :param neighborhood_size: size of the local neighborhood that should be filtered
     :param threshold: minimum distance betweent the minimum and the maximum to be considered a local maximum
                       Helps remove noise peaks
     :return: number of peaks found in the array (int)
-    '''
+    """
     if len(X.shape) == 1:
         n = int(X.shape[0]**0.5)
     else:
@@ -178,8 +180,7 @@ def peak_count(X, neighborhood_size=5, threshold=0):
 
 
 def describe(X):
-    # DESCRIPTIVE STATS
-
+    """Descriptive statistics"""
     if len(X.shape) > 1:
         X = X.reshape(-1)
 
@@ -202,15 +203,10 @@ def chi2_distance(peaksA, peaksB, eps=1e-10, **kwargs):
 
 def distance_chi2_peaks(im1, im2, bins=100, range=[0, 2e5], **kwargs):
     if len(im1.shape) > 2:
-        X = im1.reshape(-1)
+        im1 = im1.reshape(-1)
     distance = []
 
     num_workers = mp.cpu_count() - 1
-    # if num_workers == 23:
-    #     # Small hack for CSCS
-    #     num_workers = 2
-    #     print('CSCS: Pool reduced!')
-    # print('Pool with {} workers'.format(num_workers))
     with mp.Pool(processes=num_workers) as pool:
         for x in im1:
             # for y in im2:
