@@ -7,22 +7,21 @@ import matplotlib
 matplotlib.use('Agg')
 
 import os
-from model import TemporalGanModelv3, TemporalGanModelv4
 from gan import TimeCosmoGAN
 import utils
 import pickle
-from data import fmap, path, Dataset
+from data import Dataset
 import tensorflow as tf
 import numpy as np
 import itertools
 
 
-def load_gan(pathgan, GANtype=TimeCosmoGAN):
+def load_gan(pathgan, gan_type=TimeCosmoGAN):
     """Load GAN object from path."""
     with open(os.path.join(pathgan, 'params.pkl'), 'rb') as f:
         params = pickle.load(f)
     params['save_dir'] = pathgan
-    obj = GANtype(params)
+    obj = gan_type(params)
 
     return obj
 
@@ -36,14 +35,14 @@ def gen_real_t_stats(gan, params, dset):
 
 Mpc = 500
 
-gan = load_gan(sys.argv[1], GANtype=TimeCosmoGAN)
+gan = load_gan(sys.argv[1], gan_type=TimeCosmoGAN)
 params = gan.params
 
 s_dir = params['summary_dir']
 q = ""
 for i in range(5):
     q = q + s_dir.split('/')[i] + '/'
-q = q + 'summaries_32_C2_v2/' + s_dir.split('/')[6] + '/'
+q = q + 'summaries_32_C2_v3/' + s_dir.split('/')[6] + '/'
 params['summary_dir'] = q
 gan.params = params
 
