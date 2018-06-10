@@ -816,8 +816,10 @@ class CosmoGAN(GAN):
             tf.float32, name='l1_mass_hist' + name_suffix)
         md['log_l1_mass_hist'] = tf.placeholder(
             tf.float32, name='log_l1_mass_hist' + name_suffix)
-        md['total_stats_error'] = tf.placeholder(
-            tf.float32, name='total_stats_error' + name_suffix)
+        md['total_stats_error_l1'] = tf.placeholder(
+            tf.float32, name='total_stats_error_l1' + name_suffix)
+        md['total_stats_error_l2'] = tf.placeholder(
+            tf.float32, name='total_stats_error_l2' + name_suffix)
         tf.summary.scalar(
             "MASS_HIST/l2" + name_suffix, md['l2_mass_hist'], collections=[collection])
         tf.summary.scalar(
@@ -835,8 +837,12 @@ class CosmoGAN(GAN):
             md['wasserstein_mass_hist'],
             collections=[collection])
         tf.summary.scalar(
-            "total_stats_error" + name_suffix,
-            md['total_stats_error'],
+            "total_stats_error_l1" + name_suffix,
+            md['total_stats_error_l1'],
+            collections=[collection])
+        tf.summary.scalar(
+            "total_stats_error_l2" + name_suffix,
+            md['total_stats_error_l2'],
             collections=[collection])
 
         plots = dict()
@@ -871,7 +877,7 @@ class CosmoGAN(GAN):
 
         stats['best_psd'] = 1e10
         stats['best_log_psd'] = 10000
-        stats['total_stats_error'] = 10000
+        stats['total_stats_error_l2'] = 10000
         del real
         return stats
 
@@ -1022,7 +1028,8 @@ class CosmoGAN(GAN):
             np.mean(cross_rr)
         ]
 
-        stat_dict['total_stats_error'] = metrics.total_stats_error(stat_dict)
+        stat_dict['total_stats_error_l1'] = metrics.total_stats_error(stat_dict, params=[1,0])
+        stat_dict['total_stats_error_l2'] = metrics.total_stats_error(stat_dict, params=[0,1])
 
         return stat_dict
 
@@ -1070,12 +1077,12 @@ class CosmoGAN(GAN):
         print(' {} current PSD L2 {}, logL2 {}'.format(
             self._counter, stat_dict['l2_psd'], log_l2_psd))
 
-        total_stats_error = stat_dict['total_stats_error']
-        if total_stats_error < self._stats['total_stats_error']:
+        total_stats_error = stat_dict['total_stats_error_l2']
+        if total_stats_error < self._stats['total_stats_error_l2']:
             print(
-                ' [*] New stats Low achieved {:3f} (was {:3f})'.format(
-                    total_stats_error, self._stats['total_stats_error']))
-            self._stats['total_stats_error'] = total_stats_error
+                ' [*] New l2 stats Low achieved {:3f} (was {:3f})'.format(
+                    total_stats_error, self._stats['total_stats_error_l2']))
+            self._stats['total_stats_error_l2'] = total_stats_error
             self._save_current_step = True
         print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
             self._counter, l2_psd, log_l2_psd, total_stats_error))

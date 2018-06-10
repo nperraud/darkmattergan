@@ -22,7 +22,7 @@ def draw_images(images,
                 axes=None,
                 *args,
                 **kwargs):
-    r"""
+    """
     Draw multiple images. This function conveniently draw multiple images side
     by side.
 

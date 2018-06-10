@@ -334,13 +334,37 @@ def wasserstein_distance(x, y, w=None, safe=True):
 def total_stats_error(feed_dict, params=dict()):
     """Generate a weighted total loss based on the image PSD, Mass and Peak
     histograms"""
+    if isinstance(params, list):
+        if len(params) == 2:
+            params = dict(
+                w_l1_log_psd=params[0],
+                w_l2_log_psd=params[1],
+                w_l1_log_mass_hist=params[0],
+                w_l2_log_mass_hist=params[1],
+                w_l1_log_peak_hist=params[0],
+                w_l2_log_peak_hist=params[1]
+            )
+        elif len(params) == 7:
+            params = dict(
+                w_l1_log_psd = params[0],
+                w_l2_log_psd = params[1],
+                w_l1_log_mass_hist = params[2],
+                w_l2_log_mass_hist = params[3],
+                w_l1_log_peak_hist = params[4],
+                w_l2_log_peak_hist = params[5],
+                w_wasserstein_mass_hist = params[6]
+            )
+        else:
+            raise Exception(" [!] If total_stat_error params are specified as a list,"
+                            " length must be either 2 or 7")
+
     v = 0
-    v += params.get("w_l2_log_psd", 1) * feed_dict['log_l2_psd']
     v += params.get("w_l1_log_psd", 0) * feed_dict['log_l1_psd']
-    v += params.get("w_l2_log_mass_hist", 1) * feed_dict['log_l2_mass_hist']
+    v += params.get("w_l2_log_psd", 1) * feed_dict['log_l2_psd']
     v += params.get("w_l1_log_mass_hist", 0) * feed_dict['log_l1_mass_hist']
-    v += params.get("w_l2_log_peak_hist", 1) * feed_dict['log_l2_peak_hist']
+    v += params.get("w_l2_log_mass_hist", 1) * feed_dict['log_l2_mass_hist']
     v += params.get("w_l1_log_peak_hist", 0) * feed_dict['log_l1_peak_hist']
+    v += params.get("w_l2_log_peak_hist", 1) * feed_dict['log_l2_peak_hist']
     v += params.get("w_wasserstein_mass_hist", 0)\
          * np.log10(feed_dict['wasserstein_mass_hist'] + 1)
 
