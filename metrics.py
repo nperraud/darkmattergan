@@ -335,26 +335,17 @@ def wasserstein_distance(x, y, w=None, safe=True):
     return np.sum(weights * np.abs(cx - cy)) / (w[-1] - w[0])
 
 
-def total_stats_error(feed_dict, params=None):
-
-    if params is None:
-        w_l2_logpsd = 1
-        w_l1_logpsd = 0
-        w_l2_logmass = 1
-        w_l1_logmass = 0
-        w_l2_logpeak = 1
-        w_l1_logpeak = 0
-        w_wasserstein_mass = 0
-    else:
-        raise NotImplementedError('TODO')
-
+def total_stats_error(feed_dict, params=dict()):
+    """Generate a weighted total loss based on the image PSD, Mass and Peak
+    histograms"""
     v = 0
-    v += w_l2_logpsd * feed_dict['log_l2_psd']
-    v += w_l1_logpsd * feed_dict['log_l1_psd']
-    v += w_l2_logmass * feed_dict['log_l2_mass_hist']
-    v += w_l1_logmass * feed_dict['log_l1_mass_hist']
-    v += w_l2_logpeak * feed_dict['log_l2_peak_hist']
-    v += w_l1_logpeak * feed_dict['log_l1_peak_hist']
-    v += np.log10(w_wasserstein_mass+np.e) * feed_dict['wasserstein_mass_hist']
+    v += params.get("w_l2_log_psd", 1) * feed_dict['log_l2_psd']
+    v += params.get("w_l1_log_psd", 0) * feed_dict['log_l1_psd']
+    v += params.get("w_l2_log_mass_hist", 1) * feed_dict['log_l2_mass_hist']
+    v += params.get("w_l1_log_mass_hist", 0) * feed_dict['log_l1_mass_hist']
+    v += params.get("w_l2_log_peak_hist", 1) * feed_dict['log_l2_peak_hist']
+    v += params.get("w_l1_log_peak_hist", 0) * feed_dict['log_l1_peak_hist']
+    v += np.log10(params.get("w_wasserstein_mass_hist", 0)+1)\
+         * feed_dict['wasserstein_mass_hist']
 
     return v
