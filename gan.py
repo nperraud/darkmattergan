@@ -673,170 +673,170 @@ class CosmoGAN(GAN):
             tf.get_collection("Metrics"))
 
     @staticmethod
-    def _init_logs(collection):
+    def _init_logs(collection, name_suffix=''):
         md = dict()
 
         md['descriptives'] = tf.placeholder(
             tf.float64, shape=[2, 5], name="DescriptiveStatistics")
 
         tf.summary.scalar(
-            "descriptives/mean_Fake",
+            "descriptives/mean_Fake" + name_suffix,
             md['descriptives'][0, 0],
             collections=[collection])
         tf.summary.scalar(
-            "descriptives/var_Fake",
+            "descriptives/var_Fake" + name_suffix,
             md['descriptives'][0, 1],
             collections=[collection])
         tf.summary.scalar(
-            "descriptives/min_Fake",
+            "descriptives/min_Fake" + name_suffix,
             md['descriptives'][0, 2],
             collections=[collection])
         tf.summary.scalar(
-            "descriptives/max_Fake",
+            "descriptives/max_Fake" + name_suffix,
             md['descriptives'][0, 3],
             collections=[collection])
         tf.summary.scalar(
-            "descriptives/median_Fake",
+            "descriptives/median_Fake" + name_suffix,
             md['descriptives'][0, 4],
             collections=[collection])
 
         tf.summary.scalar(
-            "descriptives/mean_Real",
+            "descriptives/mean_Real" + name_suffix,
             md['descriptives'][1, 0],
             collections=[collection])
         tf.summary.scalar(
-            "descriptives/var_Real",
+            "descriptives/var_Real" + name_suffix,
             md['descriptives'][1, 1],
             collections=[collection])
         tf.summary.scalar(
-            "descriptives/min_Real",
+            "descriptives/min_Real" + name_suffix,
             md['descriptives'][1, 2],
             collections=[collection])
         tf.summary.scalar(
-            "descriptives/max_Real",
+            "descriptives/max_Real" + name_suffix,
             md['descriptives'][1, 3],
             collections=[collection])
         tf.summary.scalar(
-            "descriptives/median_Real",
+            "descriptives/median_Real" + name_suffix,
             md['descriptives'][1, 4],
             collections=[collection])
 
         md['peak_fake'] = tf.placeholder(
-            tf.float64, shape=[None], name="peak_fake")
+            tf.float64, shape=[None], name="peak_fake" + name_suffix)
         md['peak_real'] = tf.placeholder(
-            tf.float64, shape=[None], name="peak_real")
+            tf.float64, shape=[None], name="peak_real" + name_suffix)
         tf.summary.histogram(
-            "Peaks/Fake_log", md['peak_fake'], collections=[collection])
+            "Peaks/Fake_log" + name_suffix, md['peak_fake'], collections=[collection])
         tf.summary.histogram(
-            "Peaks/Real_log", md['peak_real'], collections=[collection])
+            "Peaks/Real_log" + name_suffix, md['peak_real'], collections=[collection])
 
         md['distance_peak_comp'] = tf.placeholder(
-            tf.float64, name='distance_peak_comp')
+            tf.float64, name='distance_peak_comp' + name_suffix)
         md['distance_peak_fake'] = tf.placeholder(
-            tf.float64, name='distance_peak_fake')
+            tf.float64, name='distance_peak_fake' + name_suffix)
         md['distance_peak_real'] = tf.placeholder(
-            tf.float64, name='distance_peak_real')
+            tf.float64, name='distance_peak_real' + name_suffix)
 
         tf.summary.scalar(
-            "Peaks/Ch2_Fake-Real",
+            "Peaks/Ch2_Fake-Real" + name_suffix,
             md['distance_peak_comp'],
             collections=[collection])
         tf.summary.scalar(
-            "Peaks/Ch2_Fake-Fake",
+            "Peaks/Ch2_Fake-Fake" + name_suffix,
             md['distance_peak_fake'],
             collections=[collection])
         tf.summary.scalar(
-            "Peaks/Ch2_Real-Real",
+            "Peaks/Ch2_Real-Real" + name_suffix,
             md['distance_peak_real'],
             collections=[collection])
 
         md['cross_ps'] = tf.placeholder(
-            tf.float64, shape=[3], name='cross_ps')
+            tf.float64, shape=[3], name='cross_ps' + name_suffix)
 
         tf.summary.scalar(
-            "PSD/Cross_Fake-Real",
+            "PSD/Cross_Fake-Real" + name_suffix,
             md['cross_ps'][0],
             collections=[collection])
         tf.summary.scalar(
-            "PSD/Cross_Fake-Fake",
+            "PSD/Cross_Fake-Fake" + name_suffix,
             md['cross_ps'][1],
             collections=[collection])
         tf.summary.scalar(
-            "PSD/Cross_Real-Real",
+            "PSD/Cross_Real-Real" + name_suffix,
             md['cross_ps'][2],
             collections=[collection])
 
-        md['l2_psd'] = tf.placeholder(tf.float32, name='l2_psd')
-        md['log_l2_psd'] = tf.placeholder(tf.float32, name='log_l2_psd')
-        md['l1_psd'] = tf.placeholder(tf.float32, name='l1_psd')
-        md['log_l1_psd'] = tf.placeholder(tf.float32, name='log_l1_psd')
+        md['l2_psd'] = tf.placeholder(tf.float32, name='l2_psd' + name_suffix)
+        md['log_l2_psd'] = tf.placeholder(tf.float32, name='log_l2_psd' + name_suffix)
+        md['l1_psd'] = tf.placeholder(tf.float32, name='l1_psd' + name_suffix)
+        md['log_l1_psd'] = tf.placeholder(tf.float32, name='log_l1_psd' + name_suffix)
         tf.summary.scalar(
-            "PSD/l2", md['l2_psd'], collections=[collection])
+            "PSD/l2" + name_suffix, md['l2_psd'], collections=[collection])
         tf.summary.scalar(
-            "PSD/log_l2", md['log_l2_psd'], collections=[collection])
+            "PSD/log_l2" + name_suffix, md['log_l2_psd'], collections=[collection])
         tf.summary.scalar(
-            "PSD/l1", md['l1_psd'], collections=[collection])
+            "PSD/l1" + name_suffix, md['l1_psd'], collections=[collection])
         tf.summary.scalar(
-            "PSD/log_l1", md['log_l1_psd'], collections=[collection])
+            "PSD/log_l1" + name_suffix, md['log_l1_psd'], collections=[collection])
 
         md['l2_peak_hist'] = tf.placeholder(
-            tf.float32, name='l2_peak_hist')
+            tf.float32, name='l2_peak_hist' + name_suffix)
         md['log_l2_peak_hist'] = tf.placeholder(
-            tf.float32, name='log_l2_peak_hist')
+            tf.float32, name='log_l2_peak_hist' + name_suffix)
         md['l1_peak_hist'] = tf.placeholder(
-            tf.float32, name='l1_peak_hist')
+            tf.float32, name='l1_peak_hist' + name_suffix)
         md['log_l1_peak_hist'] = tf.placeholder(
-            tf.float32, name='log_l1_peak_hist')
+            tf.float32, name='log_l1_peak_hist' + name_suffix)
         tf.summary.scalar(
-            "PEAK_HIST/l2", md['l2_peak_hist'], collections=[collection])
+            "PEAK_HIST/l2" + name_suffix, md['l2_peak_hist'], collections=[collection])
         tf.summary.scalar(
-            "PEAK_HIST/log_l2",
+            "PEAK_HIST/log_l2" + name_suffix,
             md['log_l2_peak_hist'],
             collections=[collection])
         tf.summary.scalar(
-            "PEAK_HIST/l1", md['l1_peak_hist'], collections=[collection])
+            "PEAK_HIST/l1" + name_suffix, md['l1_peak_hist'], collections=[collection])
         tf.summary.scalar(
-            "PEAK_HIST/log_l1",
+            "PEAK_HIST/log_l1" + name_suffix,
             md['log_l1_peak_hist'],
             collections=[collection])
 
         md['wasserstein_mass_hist'] = tf.placeholder(
-            tf.float32, name='wasserstein_mass_hist')
+            tf.float32, name='wasserstein_mass_hist' + name_suffix)
         md['l2_mass_hist'] = tf.placeholder(
-            tf.float32, name='l2_mass_hist')
+            tf.float32, name='l2_mass_hist' + name_suffix)
         md['log_l2_mass_hist'] = tf.placeholder(
-            tf.float32, name='log_l2_mass_hist')
+            tf.float32, name='log_l2_mass_hist' + name_suffix)
         md['l1_mass_hist'] = tf.placeholder(
-            tf.float32, name='l1_mass_hist')
+            tf.float32, name='l1_mass_hist' + name_suffix)
         md['log_l1_mass_hist'] = tf.placeholder(
-            tf.float32, name='log_l1_mass_hist')
+            tf.float32, name='log_l1_mass_hist' + name_suffix)
         md['total_stats_error'] = tf.placeholder(
-            tf.float32, name='total_stats_error')
+            tf.float32, name='total_stats_error' + name_suffix)
         tf.summary.scalar(
-            "MASS_HIST/l2", md['l2_mass_hist'], collections=[collection])
+            "MASS_HIST/l2" + name_suffix, md['l2_mass_hist'], collections=[collection])
         tf.summary.scalar(
-            "MASS_HIST/log_l2",
+            "MASS_HIST/log_l2" + name_suffix,
             md['log_l2_mass_hist'],
             collections=[collection])
         tf.summary.scalar(
-            "MASS_HIST/l1", md['l1_mass_hist'], collections=[collection])
+            "MASS_HIST/l1" + name_suffix, md['l1_mass_hist'], collections=[collection])
         tf.summary.scalar(
-            "MASS_HIST/log_l1",
+            "MASS_HIST/log_l1" + name_suffix,
             md['log_l1_mass_hist'],
             collections=[collection])
         tf.summary.scalar(
-            "MASS_HIST/wasserstein_mass_hist",
+            "MASS_HIST/wasserstein_mass_hist" + name_suffix,
             md['wasserstein_mass_hist'],
             collections=[collection])
         tf.summary.scalar(
-            "total_stats_error",
+            "total_stats_error" + name_suffix,
             md['total_stats_error'],
             collections=[collection])
 
         plots = dict()
-        plots['psd'] = PlotSummaryLog('Power_spectrum_density', 'PLOT')
-        plots['mass_hist'] = PlotSummaryLog('Mass_histogram', 'PLOT')
-        plots['peak_hist'] = PlotSummaryLog('Peak_histogram', 'PLOT')
+        plots['psd'] = PlotSummaryLog('Power_spectrum_density' + name_suffix, 'PLOT')
+        plots['mass_hist'] = PlotSummaryLog('Mass_histogram' + name_suffix, 'PLOT')
+        plots['peak_hist'] = PlotSummaryLog('Peak_histogram' + name_suffix, 'PLOT')
 
         return md, plots
 
@@ -1196,7 +1196,8 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         super().__init__(params=params, model=model, is_3d=is_3d)
         self._md_t = dict()
         for c in range(params['time']['num_classes']):
-            self._md_t[c], self._plots[c] = CosmoGAN._init_logs('Time Cosmo Metrics')
+            suff = '_t' + str(params['time']['classes'][c])
+            self._md_t[c], self._plots[c] = CosmoGAN._init_logs('Time Cosmo Metrics', name_suffix=suff)
         self.summary_op_metrics_t = tf.summary.merge(
             tf.get_collection("Time Cosmo Metrics"))
 
