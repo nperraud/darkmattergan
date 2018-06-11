@@ -144,7 +144,7 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
     return l2, logel2, l1, logel1
 
 
-def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint=None, is_3d=False):
+def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint=None, sess=None, is_3d=False):
     """Upscale image using the lappachsimple model, or upscale_WGAN_pixel_CNN model.
 
     For model upscale_WGAN_pixel_CNN, pass num_samples to generate and resolution of the final bigger histogram.
@@ -175,10 +175,10 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
             lz = small.shape[3]
 
         # Input dimension of the generator
-        sinx = soutx // obj.params['generator']['downsampling']
-        siny = souty // obj.params['generator']['downsampling']
+        sinx = soutx // obj.params['generator']['downsampling'] #32
+        siny = souty // obj.params['generator']['downsampling'] #32
         if is_3d:
-            sinz = soutz // obj.params['generator']['downsampling']
+            sinz = soutz // obj.params['generator']['downsampling'] #32
 
         # Number of part to be generated
         nx = lx // sinx
@@ -197,13 +197,15 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
 
 
     # Final output image
-    with tf.Session() as sess:
-        obj.load(sess=sess, checkpoint=checkpoint)
+    if sess is None:
+        sess = tf.Session()
 
-        if is_3d:
-            output_image = generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz)
-        else:
-            output_image = generate_2d_output(sess, obj, N, nx, ny, soutx, souty, small, sinx, siny)
+    obj.load(sess=sess, checkpoint=checkpoint)
+
+    if is_3d:
+        output_image = generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz)
+    else:
+        output_image = generate_2d_output(sess, obj, N, nx, ny, soutx, souty, small, sinx, siny)
         
     return np.squeeze(output_image)
 
@@ -268,10 +270,11 @@ def generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sin
 
                 # 2) Prepare low resolution
                 if small is not None:
-                    downsampled = small[:, k * sinx:(k + 1) * sinz, 
+                    downsampled = small[:, k * sinz:(k + 1) * sinz,
                                            j * siny:(j + 1) * siny,
-                                           i * siny:(i + 1) * sinx,
+                                           i * sinx:(i + 1) * sinx,
                                            :]
+                    print('downsampled: min={} max={}'.format( np.min(downsampled), np.max(downsampled) ))
                 else:
                     downsampled = None
 
@@ -279,6 +282,7 @@ def generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sin
                 print('Current patch: column={}, row={}, height={}'.format(i+1, j+1, k+1))
                 gen_sample, _ = obj.generate(
                     N=N, border=border, downsampled=downsampled, sess=sess)
+                print('gen_sample: min={} max={}\n\n'.format( np.min(gen_sample), np.max(gen_sample) ))
 
                 output_image[:, 
                                 k * soutz:(k + 1) * soutz,

@@ -900,7 +900,7 @@ class upscale_WGAN_pixel_CNN(GanModel):
         super().__init__(params=params, name=name, is_3d=is_3d)
 
         # A) Get downsampling factor
-        self.downsampling = params['generator'].get('downsampling', None)
+        self.downsampling = params['generator']['downsampling']
 
         if self.is_3d:
             self.__init_3d(params, X, z)
@@ -1408,8 +1408,13 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
 
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n'+''.join(['-']*50), reuse)
+        
         if X is not None:
             rprint('     The input X is of size {}'.format(X.shape), reuse)
+
+            if params['downsampling']:
+                X = up_sampler(X, s=params['downsampling'], is_3d=True)
+                rprint('     The input X is upsampled to size {}'.format(X.shape), reuse)
 
         rprint('     The input z is of size {}'.format(z.shape), reuse)
         if y is not None:

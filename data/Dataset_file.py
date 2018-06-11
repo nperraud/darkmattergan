@@ -199,7 +199,9 @@ class Dataset_file(object):
 
             nel = (num_samples // batch_size) * batch_size
             if nel == 0:
-                raise ValueError('batch_size={} greater than num_samples={} loaded at once'.format(batch_size, num_samples))
+                print('batch_size={} greater than num_samples={} loaded at once. Resisizing batch_size to {}.'.format(batch_size, num_samples, num_samples))
+                batch_size = num_samples
+                nel = num_samples
 
             transformed_samples = transformed_samples[perm_samples[range(nel)]]
             for data in grouper(transformed_samples, batch_size):
@@ -219,6 +221,26 @@ class Dataset_file(object):
     def num_hists(self):
         ''' Number of histograms in the dataset '''
         return self._num_hists
+
+    @property
+    def resolution(self):
+        ''' Resolution of the bigger histogram'''
+        return self._resolution
+
+    @property
+    def scaling(self):
+        ''' Scaling down factor of the bigger histogram'''
+        return self._scaling
+
+    def get_big_dataset(self):
+        _class = self.__class__ # get the appropriate derived class
+        return _class(resolution   =self._resolution, 
+                        Mpch       =self._Mpch,
+                        forward_map=self._forward_map, 
+                        scaling    =self._scaling,
+                        spix       =self._resolution // self._scaling, #The bigger cube should not be sliced into smaller cubes
+                        shuffle    =self._shuffle, 
+                        transform  =self._transform)
 
 
 class Dataset_file_3d(Dataset_file):

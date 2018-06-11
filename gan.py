@@ -6,7 +6,7 @@ import time
 import os
 import pickle
 import utils
-import metrics
+import metrics, evaluation, blocks
 import itertools
 
 from plot_summary import PlotSummaryLog
@@ -820,21 +820,28 @@ class CosmoGAN(GAN):
         self._mass_hist_plot = PlotSummaryLog('Mass_histogram', 'PLOT')
         self._peak_hist_plot = PlotSummaryLog('Peak_histogram', 'PLOT')
 
+        self._psd_big_plot = PlotSummaryLog('Power_spectrum_density_big', 'PLOT')
+        self._mass_hist_big_plot = PlotSummaryLog('Mass_histogram_big', 'PLOT')
+        self._peak_hist_big_plot = PlotSummaryLog('Peak_histogram_big', 'PLOT')
+
         self.summary_op_metrics = tf.summary.merge(
             tf.get_collection("Metrics"))
 
     def _compute_real_stats(self, dataset):
         """Compute the main statistics on the real data."""
         real = self._backward_map(dataset.get_all_data())
+        real_big = self._backward_map(self._big_dataset.get_all_data())
         self._stats = dict()
 
         # This line should be improved, probably going to mess with Jonathan code
         if self.is_3d:
             if len(real.shape) > 4:
                 real = real[:, :, :, :, 0]
+                real_big = real_big[:, :, :, :, 0]
         else:
             if len(real.shape) > 3:
                 real = real[:, :, :, 0]
+                real_big = real_big[:, :, :, 0]
 
         psd_real, psd_axis = metrics.power_spectrum_batch_phys(
             X1=real, is_3d=self.is_3d)
@@ -842,10 +849,23 @@ class CosmoGAN(GAN):
         self._stats['psd_axis'] = psd_axis
         del psd_real
 
+        psd_real_big, psd_axis_big = metrics.power_spectrum_batch_phys(
+            X1=real_big, is_3d=self.is_3d)
+        self._stats['psd_real_big'] = np.mean(psd_real_big, axis=0)
+        self._stats['psd_axis_big'] = psd_axis_big
+        del psd_real_big
+
         peak_hist_real, x_peak, lim_peak = metrics.peak_count_hist(dat=real)
         self._stats['peak_hist_real'] = peak_hist_real
         self._stats['x_peak'] = x_peak
         self._stats['lim_peak'] = lim_peak
+        del peak_hist_real, x_peak, lim_peak
+
+        peak_hist_real_big, x_peak_big, lim_peak_big = metrics.peak_count_hist(dat=real_big)
+        self._stats['peak_hist_real_big'] = peak_hist_real_big
+        self._stats['x_peak_big'] = x_peak_big
+        self._stats['lim_peak_big'] = lim_peak_big
+        del peak_hist_real_big, x_peak_big, lim_peak_big
 
         mass_hist_real, _, lim_mass = metrics.mass_hist(dat=real)
         lim_mass = list(lim_mass)
@@ -854,34 +874,109 @@ class CosmoGAN(GAN):
         self._stats['mass_hist_real'] = mass_hist_real
         self._stats['x_mass'] = x_mass
         self._stats['lim_mass'] = lim_mass
+        del mass_hist_real
+
+        mass_hist_real_big, _, lim_mass_big = metrics.mass_hist(dat=real_big)
+        lim_mass_big = list(lim_mass_big)
+        lim_mass_big[1] = lim_mass_big[1]+1
+        mass_hist_real_big, x_mass_big, lim_mass_big = metrics.mass_hist(dat=real_big, lim=lim_mass_big)
+        self._stats['mass_hist_real_big'] = mass_hist_real_big
+        self._stats['x_mass_big'] = x_mass_big
+        self._stats['lim_mass_big'] = lim_mass_big
+        del mass_hist_real_big
 
         self._stats['best_psd'] = 1e10
         self._stats['best_log_psd'] = 10000
         self._stats['total_stats_error'] = 10000
-        del real
 
-    def train(self, dataset, resume=False):        
+        del real, real_big
+
+    def train(self, dataset, resume=False):
+        
+        self._big_dataset = dataset.get_big_dataset()
+
         if resume:
             self._stats = self.params['cosmology']['stats']
         else:
             self._compute_real_stats(dataset)
             self.params['cosmology']['stats'] = self._stats
-        # Out of the _compute_real_stats function since we may want to change
-        # this parameter during training.
+
         self._stats['N'] = self.params['cosmology']['Nstats']
+        self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(self._stats['N']))
         self._sum_data_iterator = itertools.cycle(dataset.iter(self._stats['N']))
 
         super().train(dataset=dataset, resume=resume)
 
+    def compute_big_stats(self):
+        '''
+        Compute psd, peak and mass histograms
+        on the bigger images
+        '''
+            
+        if self.params['generator']['downsampling']:
+            Xsel_big = next(self._big_dataset_iter)
+
+            if self._is_3d:
+                Xsel_big = Xsel_big[:, :, :, :, :1]
+            else:
+                Xsel_big = Xsel_big[:, :, :, :1]
+
+            downsampled = blocks.down_sampler(Xsel_big, s=self.params['generator']['downsampling'], is_3d=self.is_3d)
+            downsampled = self._sess.run(downsampled)
+            fake_image_big = evaluation.upscale_image(self, small=downsampled, sess=self._sess, is_3d=self.is_3d)
+
+        else:
+            fake_image_big = evaluation.upscale_image(self, num_samples=5, resolution=(self._big_dataset.resolution // self._big_dataset.scaling), is_3d=self.is_3d)
+
+        fake_big = self._backward_map(fake_image_big)
+
+        psd_gen_big, _ = metrics.power_spectrum_batch_phys(
+            X1=fake_big, is_3d=self.is_3d)
+        psd_gen_big = np.mean(psd_gen_big, axis=0)
+
+        summary_str = self._psd_big_plot.produceSummaryToWrite(
+            self._sess,
+            self._stats['psd_axis_big'],
+            self._stats['psd_real_big'],
+            psd_gen_big)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        del psd_gen_big
+
+        peak_hist_fake_big, _, _ = metrics.peak_count_hist(
+            fake_big, lim=self._stats['lim_peak_big'])
+
+        summary_str = self._peak_hist_big_plot.produceSummaryToWrite(
+            self._sess,
+            self._stats['x_peak_big'],
+            self._stats['peak_hist_real_big'],
+            peak_hist_fake_big)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        del peak_hist_fake_big
+
+        mass_hist_fake_big, _, _ = metrics.mass_hist(
+            fake_big, lim=self._stats['lim_mass_big'])
+
+        summary_str = self._mass_hist_big_plot.produceSummaryToWrite(
+            self._sess,
+            self._stats['x_mass_big'],
+            self._stats['mass_hist_real_big'],
+            mass_hist_fake_big)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        del mass_hist_fake_big, fake_big, fake_image_big
+
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
 
-        if np.mod(self._counter, self.params['sum_every']) == 0:
-            z_sel = self._sample_latent(self._stats['N'])
-            Xsel = next(self._sum_data_iterator)
+        if np.mod(self._counter, self.params['big_every']) == 0:
+            self.compute_big_stats()
 
-            # reshape input according to 2d, 3d, or patch case
-            Xsel = self.add_input_channel(Xsel)
+        if np.mod(self._counter, self.params['sum_every']) == 0:
+            Xsel = next(self._sum_data_iterator)
+            Xsel = self.add_input_channel(Xsel) # reshape input according to 2d, 3d, or patch case
+            z_sel = self._sample_latent(Xsel.shape[0]) #sample only as many as Xs
 
             fake_image = self._generate_sample_safe(z_sel, Xsel)
 

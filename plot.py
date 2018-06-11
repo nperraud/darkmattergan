@@ -342,9 +342,12 @@ def get_animation(real_cube, fake_cube, figsize=(4, 8), fps=5, axis=0):
     return animation
 
 
-def save_gif(real_cube, fake_cube, figsize=(4, 8), fps=5, output_file_name='test'):
+def save_animation(real_cube, fake_cube, figsize=(4, 8), fps=5, format='gif', output_file_name='test'):
     '''
     Given real and fake 3d sample, create animation with slices along all 3 dimensions, and save it as gif.
     '''
     animation = get_animation(real_cube, fake_cube, figsize, fps)
-    animation.write_gif(output_file_name + '.gif', fps=fps)
+    if format == 'gif':
+        animation.write_gif(output_file_name + '.gif', fps=fps)
+    else:
+        animation.write_videofile(output_file_name, fps=fps)
