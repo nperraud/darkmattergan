@@ -38,7 +38,7 @@ bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-time_str = '0r-2r_0911_{}'.format(Mpch)
+time_str = '0r-6r_0811_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGANv3:v2{}_6-5_'.format(ns)
@@ -88,9 +88,9 @@ params_cosmology['backward_map'] = backward
 params_cosmology['Nstats'] = 1000
 
 params_time = dict()
-params_time['num_classes'] = 2
-params_time['classes'] = [2, 0]
-params_time['class_weights'] = [0.9, 1.1]
+params_time['num_classes'] = 4
+params_time['classes'] = [6, 4, 2, 0]
+params_time['class_weights'] = [0.8, 0.9, 1.0, 1.1]
 params_time['model_idx'] = 2
 params_time['use_diff_stats'] = False
 
@@ -110,7 +110,7 @@ params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
 params['name'] = name
-params['summary_dir'] = global_path + 'summaries_32_C2/' + params['name'] + '_' + time_str +'_summary/'
+params['summary_dir'] = global_path + 'summaries_32_C2_v3/' + params['name'] + '_' + time_str +'_summary/'
 params['save_dir'] = global_path + 'models_32_C2/' + params['name'] + '_' + time_str + '_checkpoints/'
 
 print("All params")
