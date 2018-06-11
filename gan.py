@@ -8,6 +8,7 @@ import pickle
 import utils
 import metrics
 import itertools
+import math
 from colorize import colorize
 
 from plot_summary import PlotSummaryLog
@@ -874,10 +875,7 @@ class CosmoGAN(GAN):
         stats['mass_hist_real'] = mass_hist_real
         stats['x_mass'] = x_mass
         stats['lim_mass'] = lim_mass
-
-        stats['best_psd'] = 1e10
-        stats['best_log_psd'] = 10000
-        stats['total_stats_error_l2'] = 10000
+        
         del real
         return stats
 
@@ -1061,27 +1059,27 @@ class CosmoGAN(GAN):
                 stat_dict['cross_ps'][2]))
         # Save a summary if a new minimum of PSD is achieved
         l2_psd = stat_dict['l2_psd']
-        if l2_psd < self._stats['best_psd']:
+        if l2_psd < self._stats.get('best_psd',math.inf):
             print(' [*] New PSD Low achieved {:3f} (was {:3f})'.format(
-                l2_psd, self._stats['best_psd']))
+                l2_psd, self._stats.get('best_psd', math.inf)))
             self._stats['best_psd'] = l2_psd
             self._save_current_step = True
 
         log_l2_psd = stat_dict['log_l2_psd']
-        if log_l2_psd < self._stats['best_log_psd']:
+        if log_l2_psd < self._stats.get('best_log_psd', math.inf):
             print(
                 ' [*] New Log PSD Low achieved {:3f} (was {:3f})'.format(
-                    log_l2_psd, self._stats['best_log_psd']))
+                    log_l2_psd, self._stats.get('best_log_psd', math.inf)))
             self._stats['best_log_psd'] = log_l2_psd
             self._save_current_step = True
         print(' {} current PSD L2 {}, logL2 {}'.format(
             self._counter, stat_dict['l2_psd'], log_l2_psd))
 
         total_stats_error = stat_dict['total_stats_error_l2']
-        if total_stats_error < self._stats['total_stats_error_l2']:
+        if total_stats_error < self._stats.get('total_stats_error_l2', math.inf):
             print(
                 ' [*] New l2 stats Low achieved {:3f} (was {:3f})'.format(
-                    total_stats_error, self._stats['total_stats_error_l2']))
+                    total_stats_error, self._stats.get('total_stats_error_l2', math.inf)))
             self._stats['total_stats_error_l2'] = total_stats_error
             self._save_current_step = True
         print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
