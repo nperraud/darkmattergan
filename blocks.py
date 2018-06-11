@@ -311,18 +311,23 @@ def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
     return x
 
 
-def tf_cdf(x, n_out):
+def tf_cdf(x, n_out, name='cdf_weight', diff_weight=10):
     """Helping function to get correct histograms."""
     weights_initializer = tf.contrib.layers.xavier_initializer()
     w = _tf_variable(
-        'cdf_weight',
+        name,
         shape=[1, 1, n_out],
         initializer=weights_initializer)
     x = tf.expand_dims(reshape2d(x), axis=2)
-    return tf.reduce_mean(tf.sigmoid(10 * (w - x)), axis=1)
+    return tf.reduce_mean(tf.sigmoid(diff_weight * (w - x)), axis=1)
 
 
 def tf_covmat(x, shape):
+    if x.shape[-1] > 1:
+        lst = []
+        for i in range(x.shape[-1]):
+            lst.append(tf_covmat(x[:,:,:,i:i+1], shape))
+        return tf.stack(lst, axis=1)
     nel = np.prod(shape)
     bs = tf.shape(x)[0]
 
