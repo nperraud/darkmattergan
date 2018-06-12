@@ -42,7 +42,7 @@ s_dir = params['summary_dir']
 q = ""
 for i in range(5):
     q = q + s_dir.split('/')[i] + '/'
-q = q + 'summaries_32_C2_v3/' + s_dir.split('/')[6] + '/'
+q = q + 'summaries_32_C2_v4/' + s_dir.split('/')[6] + '/'
 params['summary_dir'] = q
 gan.params = params
 
