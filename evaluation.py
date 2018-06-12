@@ -8,19 +8,23 @@ import pickle
 import numpy as np
 import metrics
 import plot
+import matplotlib
+import socket
+if 'nid' in socket.gethostname() or 'lo-' in socket.gethostname():
+    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from model import *
-from gan import *
+#from model import *
+#from gan import *
 
 
-def load_gan(pathgan, GANtype=CosmoGAN):
-    """Load GAN object from path."""
-    with open(pathgan + 'params.pkl', 'rb') as f:
-        params = pickle.load(f)
-    params['save_dir'] = pathgan
-    obj = GANtype(params)
+# def load_gan(pathgan, GANtype=CosmoGAN):
+#     """Load GAN object from path."""
+#     with open(pathgan + 'params.pkl', 'rb') as f:
+#         params = pickle.load(f)
+#     params['save_dir'] = pathgan
+#     obj = GANtype(params)
 
-    return obj
+#     return obj
 
 
 def generate_samples(obj, N=None, checkpoint=None, **kwards):
@@ -196,11 +200,12 @@ def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint
             nz = resolution // soutz
 
 
-    # Final output image
+    # If no session passed, create a new one and load a checkpoint.
     if sess is None:
         sess = tf.Session()
-
-    obj.load(sess=sess, checkpoint=checkpoint)
+        res = obj.load(sess=sess, checkpoint=checkpoint)
+        if res:
+            print('Checkpoint successfully loaded!')
 
     if is_3d:
         output_image = generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz)
