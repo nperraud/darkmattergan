@@ -875,7 +875,7 @@ class CosmoGAN(GAN):
         stats['mass_hist_real'] = mass_hist_real
         stats['x_mass'] = x_mass
         stats['lim_mass'] = lim_mass
-        
+
         del real
         return stats
 
@@ -1085,7 +1085,6 @@ class CosmoGAN(GAN):
         print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
             self._counter, l2_psd, log_l2_psd, total_stats_error))
 
-
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
 
@@ -1165,7 +1164,6 @@ class TimeGAN(GAN):
     def __init__(self, params, model=None, is_3d=False):
         self.params = default_params_time(params)
         super().__init__(params=self.params, model=model, is_3d=is_3d)
-
 
     def _build_image_summary(self):
         vmin = tf.reduce_min(self._X)

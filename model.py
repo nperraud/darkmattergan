@@ -86,6 +86,7 @@ class WNGanModel(GanModel):
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
 
+
 class CondWGanModel(GanModel):
     def __init__(self, params, X, z, name='CondWGan', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
@@ -536,7 +537,6 @@ class LapGanModelTanh(GanModel):
 
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
-
 
 
 class Gan12Model(GanModel):
@@ -1218,8 +1218,6 @@ class LapPatchWGANDirect(GanModel):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
 
 
-
-
 # class GanUpSampler(object):
 #     def __init__(self, name='gan_upsampler'):
 #         self.name = name
@@ -1245,6 +1243,7 @@ def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r):
     tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
     tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
 
+
 def fisher_gan_regularization(D_real, D_fake, rho=1):
     with tf.variable_scope("discriminator", reuse=False):
         phi = tf.get_variable('lambda', shape=[],
@@ -1262,6 +1261,7 @@ def fisher_gan_regularization(D_real, D_fake, rho=1):
     tf.summary.scalar("Disc/constraint", reg_term, collections=["Training"])
     tf.summary.scalar("Disc/reg_term", reg_term, collections=["Training"])
     return reg_term
+
 
 def wgan_regularization(gamma, discriminator, list_fake, list_real):
     if not gamma:
@@ -1293,12 +1293,14 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
     return D_gp
 
+
 def get_conv(is_3d=False):
     if is_3d:
         conv = conv3d
     else:
         conv = conv2d
     return conv
+
 
 def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d=False):
     if is_3d:
@@ -1320,6 +1322,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d
 
     return out_tensor
 
+
 def apply_non_lin(non_lin, x, reuse):
     if non_lin:
         if type(non_lin)==str:
@@ -1331,6 +1334,7 @@ def apply_non_lin(non_lin, x, reuse):
             rprint('    Costum non linearity: {}'.format(non_lin), reuse)
 
     return x
+
 
 def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     conv = get_conv(params['is_3d'])
@@ -1426,8 +1430,6 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
     return x
-
-
 
 
 def generator(x, params, y=None, reuse=True, scope="generator"):

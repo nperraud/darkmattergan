@@ -82,7 +82,6 @@ def downsample(imgs, s, is_3d=False):
         return np.squeeze(np.concatenate(img_d, axis=3))
 
 
-
 def down_sampler(x, s=2, is_3d=False):
     if is_3d:
         filt = tf.constant(1 / (s * s * s), dtype=tf.float32, shape=[s, s, s, 1, 1])
