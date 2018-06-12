@@ -56,45 +56,71 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
 
 
 def downsample(imgs, s, is_3d=False, sess=None):
-    # To be rewritten in numpy
-
+    '''
+    Makes sure that multiple nodes are not created for the same downsampling op
+    '''
     if sess is None:
         sess = tf.Session()
 
+    down_sampler_out_name = 'down_sampler_out_' + ('3d_' if is_3d else '2d_') + str(s) + ':0'
+
+    # Don't create a node for the op if one already exists
+    try:
+        down_sampler_op = tf.get_default_graph().get_tensor_by_name(down_sampler_out_name)
+
+    except KeyError as e:
+        print('Tensor {} not found, hence creating the Op.'.format(down_sampler_out_name))
+        down_sampler_op = down_sampler(x=None, s=s, is_3d=True)
+
+
+    placeholder_name = 'down_sampler_in_' + ('3d_' if is_3d else '2d_') + str(s) + ':0'
+    placeholder = tf.get_default_graph().get_tensor_by_name(placeholder_name)
+
+
     if is_3d:
         # 1 extra dim for channels
-        imgs = np.expand_dims(imgs, axis=4)
+        if len(imgs.shape) < 5:
+            imgs = np.expand_dims(imgs, axis=4)
 
-        x = tf.placeholder(tf.float32, shape=imgs.shape, name='x')
-        xd = down_sampler(x, s=s, is_3d=True)
-
-        img_d = sess.run(xd, feed_dict={x: imgs})
-
+        img_d = sess.run(down_sampler_op, feed_dict={placeholder : imgs})
         return np.squeeze(img_d)
 
     else:
         if len(imgs.shape) < 4:
             imgs = np.expand_dims(imgs, axis=3)
-       
-        x = tf.placeholder(tf.float32, shape=[*imgs.shape[:3], 1], name='x')
-        xd = down_sampler(x, s=s, is_3d=False)
         
         img_d = []
         for i in range(imgs.shape[3]):
             curr_img = np.expand_dims(imgs[:, :, :, i], axis=3)
-            img_d.append(sess.run(xd, feed_dict={x: curr_img}))
+            img_d.append(sess.run(down_sampler_op, feed_dict={placeholder: curr_img}))
 
         return np.squeeze(np.concatenate(img_d, axis=3))
 
 
 
-def down_sampler(x, s=2, is_3d=False):
+def down_sampler(x=None, s=2, is_3d=False):
+    '''
+    Op to downsample 2D or 3D images by factor 's'.
+    This method works for both inputs: tensor or placeholder
+    '''
+
+    if x is None:
+        placeholder_name = 'down_sampler_in_' + ('3d_' if is_3d else '2d_') + str(s)
+        down_sampler_x = tf.placeholder(dtype=tf.float32, name=placeholder_name)
+        op_name = 'down_sampler_out_' + ('3d_' if is_3d else '2d_') + str(s)
+    
+    else:
+        down_sampler_x = x
+        op_name = None
+
+
     if is_3d:
         filt = tf.constant(1 / (s * s * s), dtype=tf.float32, shape=[s, s, s, 1, 1])
-        return tf.nn.conv3d(x, filt, strides=[1, s, s, s, 1], padding='SAME')
+        return tf.nn.conv3d(down_sampler_x, filt, strides=[1, s, s, s, 1], padding='SAME', name=op_name)
+
     else:
         filt = tf.constant(1 / (s * s), dtype=tf.float32, shape=[s, s, 1, 1])
-        return tf.nn.conv2d(x, filt, strides=[1, s, s, 1], padding='SAME')
+        return tf.nn.conv2d(down_sampler_x, filt, strides=[1, s, s, 1], padding='SAME', name=op_name)
 
 
 def up_sampler(x, s=2, is_3d=False):

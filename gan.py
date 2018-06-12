@@ -32,8 +32,8 @@ class GAN(object):
         Please refer to the module `model` for details about
         the requirements of the class model.
         """
+        
         tf.reset_default_graph()
-
         self.params = default_params(params)
         self._is_3d = is_3d
         if model is None:
@@ -500,6 +500,16 @@ class GAN(object):
         self._save_obj()
         print('Model saved!')
 
+    def graph_node(self):
+        '''
+        Get the nodes in the current computation graph
+        '''
+
+        self.nodes = [n.name for n in tf.get_default_graph().as_graph_def().node]
+        print('Nodes in Computation Graph are:\n')
+        for node in self.nodes:
+            print(node)
+
     def _save_obj(self):
         # Saving the objects:
         if not os.path.exists(self.params['save_dir']):
@@ -921,12 +931,12 @@ class CosmoGAN(GAN):
             else:
                 Xsel_big = Xsel_big[:, :, :, :1]
 
-            downsampled = blocks.down_sampler(Xsel_big, s=self.params['generator']['downsampling'], is_3d=self.is_3d)
-            downsampled = self._sess.run(downsampled)
+            downsampled = blocks.downsample(Xsel_big, s=self.params['generator']['downsampling'], is_3d=self.is_3d, sess=self._sess)
+            downsampled = np.expand_dims(downsampled, axis=4)
             fake_image_big = evaluation.upscale_image(self, small=downsampled, sess=self._sess, is_3d=self.is_3d)
 
         else:
-            fake_image_big = evaluation.upscale_image(self, num_samples=5, resolution=(self._big_dataset.resolution // self._big_dataset.scaling), is_3d=self.is_3d)
+            fake_image_big = evaluation.upscale_image(self, num_samples=5, sess=self._sess, resolution=(self._big_dataset.resolution // self._big_dataset.scaling), is_3d=self.is_3d)
 
         fake_big = self._backward_map(fake_image_big)
 
