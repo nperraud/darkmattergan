@@ -286,7 +286,6 @@ class TemporalGanModelv4(GanModel):
         super().__init__(params=params, name=name, is_3d=is_3d)
         assert 'time' in params.keys()
 
-        og_z_shape = tf.shape(z)
         z0 = z[:, 0::2]
         z1 = z[:, 1::2]
         zn = tf.nn.l2_normalize(z1, 1) * np.sqrt(params['generator']['latent_dim'] / 2)
@@ -298,10 +297,10 @@ class TemporalGanModelv4(GanModel):
         self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
         t = self.y[:z_shape[0]]
         zn = tf.multiply(zn, t)
-        zn = tf.reshape(zn, [z_shape[0], z_shape[1], 1])
-        z0 = tf.reshape(z0, [z_shape[0], z_shape[1], 1])
+        zn = tf.reshape(zn, [None, params['generator']['latent_dim'] // 2, 1])
+        z0 = tf.reshape(z0, [None, params['generator']['latent_dim'] // 2, 1])
         zn = tf.concat([z0, zn], axis=2)
-        zn = tf.reshape(zn, [og_z_shape[0], og_z_shape[1]])
+        zn = tf.reshape(zn, [None, params['generator']['latent_dim']])
 
         self.G_c_fake = self.generator(zn, reuse=False)
         self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
