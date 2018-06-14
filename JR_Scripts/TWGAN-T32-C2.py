@@ -110,7 +110,7 @@ params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
 params['name'] = name
-params['summary_dir'] = global_path + 'summaries_32_C2_v3/' + params['name'] + '_' + time_str +'_summary/'
+params['summary_dir'] = global_path + 'summaries_32_C2_v5/' + params['name'] + '_' + time_str +'_summary/'
 params['save_dir'] = global_path + 'models_32_C2/' + params['name'] + '_' + time_str + '_checkpoints/'
 
 print("All params")
