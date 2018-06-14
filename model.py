@@ -300,8 +300,6 @@ class TemporalGanModelv4(GanModel):
         zn = tf.expand_dims(zn, -1)
         z0 = tf.expand_dims(z0, -1)
         zn = tf.concat([z0, zn], axis=2)
-        shape = tf.shape(zn)
-        zn = tf.reshape(zn, tf.TensorShape([shape[0], shape[1] * shape[2]]))
 
         self.G_c_fake = self.generator(zn, reuse=False)
         self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
