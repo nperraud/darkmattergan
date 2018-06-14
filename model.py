@@ -297,10 +297,8 @@ class TemporalGanModelv4(GanModel):
         self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
         t = self.y[:z_shape[0]]
         zn = tf.multiply(zn, t)
-        shape = tf.shape(zn)
-        zn = tf.reshape(zn, tf.TensorShape([shape[0], shape[1], 1]))
-        shape = tf.shape(z0)
-        z0 = tf.reshape(z0, tf.TensorShape([shape[0], shape[1], 1]))
+        zn = tf.expand_dims(zn, -1)
+        z0 = tf.expand_dims(z0, -1)
         zn = tf.concat([z0, zn], axis=2)
         shape = tf.shape(zn)
         zn = tf.reshape(zn, tf.TensorShape([shape[0], shape[1] * shape[2]]))
