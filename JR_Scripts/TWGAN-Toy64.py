@@ -7,8 +7,8 @@ import matplotlib
 matplotlib.use('Agg')
 
 import os
-# import skimage.measure
-from model import TemporalGanModelv3, TemporalGanModelv4
+from model import TemporalGanModelv3
+from JR_Scripts import time_toy_generator
 from gan import TimeCosmoGAN
 import utils
 from data import fmap, path, Dataset
@@ -29,7 +29,7 @@ def save_dict(params):
 
 
 # Parameters
-ns = 32
+ns = 64
 try_resume = False
 Mpch = 500
 
@@ -38,30 +38,30 @@ bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-time_str = '0r-24-6r_0811_chCDF_{}'.format(Mpch)
+time_str = '2-2-8_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv3:v2{}_6-5_'.format(ns)
+name = 'TWGAN'.format(ns)
 
 bn = False
 
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [16, 128, 256, 128, 64]
-params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3]]
+params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
+params_discriminator['nfilter'] = [16, 128, 256, 512, 128, 64]
+params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
 params_discriminator['cdf'] = 256
-params_discriminator['channel_cdf'] = 128
+#params_discriminator['channel_cdf'] = 128
 #params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
 params_generator = dict()
-params_generator['stride'] = [2, 2, 2, 1, 1, 1]
-params_generator['nfilter'] = [64, 256, 256, 128, 64, 1]
+params_generator['stride'] = [2, 2, 2, 2, 1, 1, 1]
+params_generator['nfilter'] = [64, 256, 512, 256, 128, 64, 1]
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
-params_generator['shape'] = [[3, 3], [3, 3], [3, 3], [5, 5], [5, 5], [5, 5]]
+params_generator['shape'] = [[3, 3], [3, 3], [3, 3], [3, 3], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn] * (len(params_generator['nfilter']) - 1)
 params_generator['full'] = []
 params_generator['summary'] = True
@@ -89,8 +89,8 @@ params_cosmology['Nstats'] = 1000
 
 params_time = dict()
 params_time['num_classes'] = 4
-params_time['classes'] = [6, 4, 2, 0]
-params_time['class_weights'] = [0.8, 0.9, 1.0, 1.1]
+params_time['classes'] = [2, 4, 6, 8]
+params_time['class_weights'] = [0.25, 0.5, 0.75, 1.0]
 params_time['model_idx'] = 2
 params_time['use_diff_stats'] = False
 
@@ -110,8 +110,8 @@ params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
 params['name'] = name
-params['summary_dir'] = global_path + 'summaries_32_C2_v3/' + params['name'] + '_' + time_str +'_summary/'
-params['save_dir'] = global_path + 'models_32_C2/' + params['name'] + '_' + time_str + '_checkpoints/'
+params['summary_dir'] = global_path + 'summaries_Toy_C4/' + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + 'models_Toy_C4/' + params['name'] + '_' + time_str + '_checkpoints/'
 
 print("All params")
 print(params)
@@ -136,19 +136,16 @@ if params_time['model_idx'] == 2:
 # Build the model
 twgan = TimeCosmoGAN(params, model)
 
-img_list = []
+mult = 512 // ns
+data = time_toy_generator.gen_dataset_continuous(images_per_time_step=512 * mult,
+                                                 width=ns,
+                                                 num_gaussians=42,
+                                                 point_density_factor=3)
 
-filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_All.h5'.format(Mpch)
-for box_idx in params['time']['classes']:
-    images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')
-    images = forward(images)
-    #while images.shape[1] > ns:
-    #    images = skimage.measure.block_reduce(images, (1,2,2), np.sum)
-    img_list.append(images)
-
-images = np.array(img_list)
-print ("Images shape: {}".format(images.shape))
-dataset = Dataset.Dataset_time(images, spix=ns, shuffle=True)
+data = np.array(data)
+data = data[params_time['classes']]
+print ("Images shape: {}".format(data.shape))
+dataset = Dataset.Dataset_time(data, spix=ns, shuffle=True)
 
 save_dict(params)
 
