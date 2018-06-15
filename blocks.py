@@ -311,15 +311,43 @@ def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
     return x
 
 
-def tf_cdf(x, n_out):
+def tf_cdf(x, n_out, use_first_channel=True):
     """Helping function to get correct histograms."""
+    # limit = 4.
+    # wi = tf.range(0.0, limit, delta=limit/n_out, dtype=tf.float32, name='range')
+
+    # wl = tf.Variable(
+    #     tf.reshape(wi, shape=[1, 1, n_out]),
+    #     name='cdf_weight_left',
+    #     dtype=tf.float32)
+    # wr = tf.Variable(
+    #     tf.reshape(wi, shape=[1, 1, n_out]),
+    #     name='cdf_weight_right',
+    #     dtype=tf.float32)
     weights_initializer = tf.contrib.layers.xavier_initializer()
-    w = _tf_variable(
-        'cdf_weight',
+    wr = _tf_variable(
+        'cdf_weight_right',
         shape=[1, 1, n_out],
         initializer=weights_initializer)
+    wl = _tf_variable(
+        'cdf_weight_left',
+        shape=[1, 1, n_out],
+        initializer=weights_initializer)
+    if use_first_channel:
+        nc = len(x.shape)
+        if nc == 4:
+            x = x[:, :, :, 0]
+        elif nc == 5:
+            x = x[:, :, :, :, 0]
+        else:
+            raise ValueError('Wrong size')
     x = tf.expand_dims(reshape2d(x), axis=2)
-    return tf.reduce_mean(tf.sigmoid(10 * (w - x)), axis=1)
+    xl = tf.reduce_mean(tf.sigmoid(10 * (wl - x)), axis=1)
+    xr = tf.reduce_mean(tf.sigmoid(10 * (x - wr)), axis=1)
+    tf.summary.histogram("cdf_weight_right", wr, collections=["metrics"])
+    tf.summary.histogram("cdf_weight_left", wl, collections=["metrics"])
+
+    return tf.concat([xl, xr], axis=1)
 
 
 def tf_covmat(x, shape):

@@ -322,8 +322,6 @@ class GAN(object):
     def train(self, dataset, resume=False):
 
         n_data = dataset.N
-        # Get an iterator
-        data_iterator = dataset.iter(self.batch_size)
 
         self._counter = 1
         self._n_epoch = self.params['optimization']['epoch']
@@ -382,7 +380,6 @@ class GAN(object):
 
                         # reshape input according to 2d, 3d, or patch case
                         X_real = self.add_input_channel(batch_real)
-                        
                         for _ in range(self.params['optimization']['n_critic']):
                             sample_z = self._sample_latent(self.batch_size)
                             _, loss_d = self._sess.run(
@@ -429,7 +426,6 @@ class GAN(object):
                             self._save(self._savedir, self._counter)
                             self._save_current_step = False
                         self._counter += 1
-                        idx += 1
                     epoch += 1
             except KeyboardInterrupt:
                 pass
@@ -514,8 +510,9 @@ class GAN(object):
         By default, load the latest model saved.
         '''
         if checkpoint:
-            file_name = self._savedir + self._model_name + '-' + str(
-                checkpoint)
+            file_name = os.path.join(
+                self._savedir,
+                self._model_name + '-' + str(checkpoint))
         else:
             file_name = None
 
@@ -559,11 +556,6 @@ class GAN(object):
         * checkpoint : number of the checkpoint (Default None)
         * kwargs : keywords arguments that are defined in the model
         """
-        if checkpoint:
-            file_name = os.path.join(self._savedir, self._model_name + '-' + str(
-                checkpoint))
-        else:
-            file_name = None
 
         if N and z:
             ValueError('Please choose between N and z')
