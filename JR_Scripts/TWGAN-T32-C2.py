@@ -41,7 +41,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '0r-24-6r_0811_{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv4:v2{}_6-5_'.format(ns)
+name = 'TWGANv5:v2{}_6-5_'.format(ns)
 
 bn = False
 
@@ -135,7 +135,7 @@ if params_time['model_idx'] == 2:
 if params_time['model_idx'] == 3:
     model = TemporalGanModelv4
 if params_time['model_idx'] == 4:
-    model = TemporalGanModelv4
+    model = TemporalGanModelv5
 
 # Build the model
 twgan = TimeCosmoGAN(params, model)
