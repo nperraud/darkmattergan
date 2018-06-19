@@ -8,7 +8,7 @@ matplotlib.use('Agg')
 
 import os
 # import skimage.measure
-from model import TemporalGanModelv3, TemporalGanModelv4
+from model import TemporalGanModelv3, TemporalGanModelv4, TemporalGanModelv5
 from gan import TimeCosmoGAN
 import utils
 from data import fmap, path, Dataset
@@ -91,7 +91,7 @@ params_time = dict()
 params_time['num_classes'] = 4
 params_time['classes'] = [6, 4, 2, 0]
 params_time['class_weights'] = [0.8, 0.9, 1.0, 1.1]
-params_time['model_idx'] = 3
+params_time['model_idx'] = 4
 params_time['use_diff_stats'] = False
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
@@ -133,6 +133,8 @@ model = None
 if params_time['model_idx'] == 2:
     model = TemporalGanModelv3
 if params_time['model_idx'] == 3:
+    model = TemporalGanModelv4
+if params_time['model_idx'] == 4:
     model = TemporalGanModelv4
 
 # Build the model
