@@ -85,7 +85,7 @@ if __name__ == "__main__":
 	params['sum_every'] = 200
 	params['viz_every'] = 200
 	params['print_every'] = 100
-	params['big_every'] = 5000
+	params['big_every'] = 500
 	params['save_every'] = 1000
 	params['name'] = name
 	params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'

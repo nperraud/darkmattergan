@@ -20,14 +20,14 @@ def current_time_str():
 if __name__ == "__main__":
 	ns = 32
 	try_resume = True
-	downsampling = 4
-	latent_dim = (ns//downsampling)**3
+	downsampling = 2
+	latent_dim = ns**3
 	Mpch = 350
 
 
 	time_str = 'upscaling_GAN_3d_gen_8_disc_6_32_new_trans' 
 	global_path = '../saved_result/'
-	name = 'inception_downsampled_upscaling_GAN_3d_{}'.format(ns)
+	name = 'inception_64_to_128_upsampled_upscaling_GAN_3d_{}'.format(ns)
 
 	bn = False
 
@@ -42,8 +42,8 @@ if __name__ == "__main__":
 
 	params_generator = dict()
 	params_generator['downsampling'] = downsampling
-	params_generator['stride'] = [2, 2, 1, 1, 1, 1, 1, 1]
-	params_generator['y_layer'] = 2
+	params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
+	params_generator['y_layer'] = 0
 	params_generator['latent_dim'] = latent_dim
 	params_generator['nfilter'] = [32, 32, 64, 64, 64, 32, 32, 1]
 	params_generator['inception'] = True
@@ -71,7 +71,7 @@ if __name__ == "__main__":
 	params_cosmology['sigma_smooth'] = 1
 	params_cosmology['forward_map'] = data.fmap.forward
 	params_cosmology['backward_map'] = data.fmap.backward
-	params_cosmology['Nstats'] = 2000
+	params_cosmology['Nstats'] = 300
 	
 	params = dict()
 	params['generator'] = params_generator
@@ -94,5 +94,5 @@ if __name__ == "__main__":
 	resume, params = utils.test_resume(try_resume, params)
 
 	wgan = CosmoGAN(params, upscale_WGAN_pixel_CNN, is_3d=True)
-	dataset = data.load.load_dataset_file(spix=ns, resolution=256,Mpch=Mpch, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
+	dataset = data.load.load_dataset_file(spix=ns, resolution=256, Mpch=Mpch, scaling=2, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
 	wgan.train(dataset, resume=resume)

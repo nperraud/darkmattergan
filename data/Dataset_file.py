@@ -48,6 +48,7 @@ class Dataset_file(object):
             self._slice_fn = slice_fn
         else:
             self._slice_fn = do_nothing
+
         if transform:
             self._transform = transform
         else:
@@ -55,7 +56,6 @@ class Dataset_file(object):
 
         self._hist_paths = self._get_hist_paths()
         self._num_hists = len(self._hist_paths)
-        self._data_process = compose2(self._transform, self._slice_fn)
         self._N = None
         self._get_total_num_samples()
 
@@ -107,10 +107,6 @@ class Dataset_file(object):
         # 2) Apply forward map if necessary
         if self._forward_map:
             images = self._forward_map(images)
-
-        # 3) Apply downscaling if necessary
-        if self._scaling>1:
-            images = blocks.downsample(images, self._scaling, is_3d=True, sess=self._scaling_sess)
 
         return images 
 
@@ -206,6 +202,18 @@ class Dataset_file(object):
             transformed_samples = transformed_samples[perm_samples[range(nel)]]
             for data in grouper(transformed_samples, batch_size):
                 yield np.array(data)
+
+    def _data_process(self, hists):
+        samples = self._transform(hists)
+        
+        # Apply downscaling if necessary
+        if self._scaling>1:
+            samples = blocks.downsample(samples, self._scaling, is_3d=True, sess=self._scaling_sess)
+
+        samples = self._slice_fn(samples)
+
+        return samples
+
 
     @property
     def shuffle(self):
