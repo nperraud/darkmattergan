@@ -364,15 +364,27 @@ class TemporalGanModelv5(GanModel):
         super().__init__(params=params, name=name, is_3d=is_3d)
         assert 'time' in params.keys()
 
+        ld_width = params['image_size'][0]
+        for stride in params['generator']['stride']:
+            ld_width = ld_width // stride
+
+        assert ld_width*ld_width < params['generator']['latent_dim']
+
         z_shape = tf.shape(z)
+        z = tf.reshape(z, [z_shape[0], ld_width, ld_width, z_shape[1] // (ld_width*ld_width)])
         scaling = np.asarray(params['time']['class_weights'])
         gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
         scaling = np.resize(scaling, (gen_bs, 1))
         default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
         self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
         t = self.y[:z_shape[0]]
+        t = tf.expand_dims(t, axis=-1)
+        t = tf.expand_dims(tf.tile(t, [1, ld_width, ld_width]), axis=-1)
+        z = z[:, :, :, :-1]
+        z = tf.concat([z, t], axis=3)
+        z = tf.reshape(z, z_shape)
 
-        self.G_c_fake = self.generator(zn, reuse=False)
+        self.G_c_fake = self.generator(z, reuse=False)
         self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
 
         if params['time']['use_diff_stats']:
