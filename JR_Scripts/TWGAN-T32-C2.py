@@ -38,7 +38,7 @@ bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
-time_str = '0r-24-6r_0811_chCDF{}'.format(Mpch)
+time_str = '0r-24-6r_0811_chCDF-Mom{}'.format(Mpch)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'TWGANv4:v2{}_6-5_'.format(ns)
@@ -53,7 +53,7 @@ params_discriminator['batch_norm'] = [bn] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
 params_discriminator['cdf'] = 256
 params_discriminator['channel_cdf'] = 128
-#params_discriminator['moment'] = [5,5]
+params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
