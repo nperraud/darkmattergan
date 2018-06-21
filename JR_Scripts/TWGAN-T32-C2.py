@@ -89,7 +89,7 @@ params_cosmology['backward_map'] = backward
 params_cosmology['Nstats'] = 1000
 
 params_time = dict()
-params_time['num_classes'] = 4
+params_time['num_classes'] = 1
 params_time['classes'] = [2]
 params_time['class_weights'] = [1.0]
 params_time['model_idx'] = 2
