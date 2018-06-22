@@ -8,26 +8,21 @@ import numpy as np
 import tensorflow as tf
 import os
 import data, utils
-from model import upscale_WGAN_pixel_CNN
+from model import WGanModel
 from gan import CosmoGAN
-
-def current_time_str():
-    import time, datetime
-    d = datetime.datetime.fromtimestamp(time.time())
-    return str(d.year)+ '_' + str(d.month)+ '_' + str(d.day)+ '_' + str(d.hour)+ '_' + str(d.minute)
 
 
 if __name__ == "__main__":
 	ns = 32
+	nsamples = 1000
 	try_resume = True
-	downsampling = 4
-	latent_dim = ns**3
+	latent_dim = 100
 	Mpch = 350
 
 
-	time_str = 'upscaling_GAN_3d_gen_8_disc_6_32_new_trans' 
+	time_str = '32_32_32_gen_8_disc_6_new_trans' 
 	global_path = '../saved_result/'
-	name = 'inception_upsampled_upscaling_GAN_3d_{}'.format(ns)
+	name = 'WGAN{}'.format(ns)
 
 	bn = False
 
@@ -41,17 +36,15 @@ if __name__ == "__main__":
 	params_discriminator['minibatch_reg'] = False
 
 	params_generator = dict()
-	params_generator['downsampling'] = downsampling
-	params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
-	params_generator['y_layer'] = 0
+	params_generator['stride'] = [2, 2, 2, 2, 1, 1, 1, 1]
 	params_generator['latent_dim'] = latent_dim
 	params_generator['nfilter'] = [32, 32, 64, 64, 64, 32, 32, 1]
 	params_generator['inception'] = True
 	params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn]
-	params_generator['full'] = []
+	params_generator['full'] = [2*2*2*8]
 	params_generator['summary'] = True
-	params_generator['non_lin'] = None
-	
+	params_generator['non_lin'] = tf.nn.relu
+
 	params_optimization = dict()
 	params_optimization['n_critic'] = 10
 	params_optimization['gamma_gp'] = 5
@@ -64,7 +57,7 @@ if __name__ == "__main__":
 	params_optimization['beta2'] = 0.999
 	params_optimization['epsilon'] = 1e-8
 	params_optimization['epoch'] = 2000
-	
+
 	params_cosmology = dict()
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
@@ -80,7 +73,7 @@ if __name__ == "__main__":
 	params['cosmology'] = params_cosmology
 	
 	params['normalize'] = False
-	params['image_size'] = [ns, ns, ns, 8]
+	params['image_size'] = [ns, ns, ns]
 	params['prior_distribution'] = 'gaussian'
 	params['sum_every'] = 200
 	params['viz_every'] = 200
@@ -93,6 +86,6 @@ if __name__ == "__main__":
 
 	resume, params = utils.test_resume(try_resume, params)
 
-	wgan = CosmoGAN(params, upscale_WGAN_pixel_CNN, is_3d=True)
-	dataset = data.load.load_dataset_file(spix=ns, resolution=256,Mpch=Mpch, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
+	wgan = CosmoGAN(params, WGanModel, is_3d=True)
+	dataset = data.load.load_dataset_file(spix=ns, resolution=256,Mpch=Mpch, scaling=8, forward_map=params_cosmology['forward_map'], patch=False, is_3d=True)
 	wgan.train(dataset, resume=resume)

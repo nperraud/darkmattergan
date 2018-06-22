@@ -23,7 +23,7 @@ def default_params(params=None):
     # Compute the numerical summaries every 'sum_every' iterations
     d_param['viz_every'] = 200
     # Build the visual summaries every 'viz_every' iterations
-    d_param['big_every'] = 1000
+    d_param['big_every'] = None
     # Build the visual summaries of the bigger samples every 'big_every' iterations
     d_param['normalize'] = False
     # Apply a normalization step to the data
@@ -63,6 +63,7 @@ def default_params(params=None):
     d_param['generator']['one_pixel_mapping'] = []
     d_param['generator']['downsampling'] = None
     d_param['generator']['inception'] = False
+    d_param['generator']['residual'] = False
 
     return arg_helper(params or {}, d_param)
 

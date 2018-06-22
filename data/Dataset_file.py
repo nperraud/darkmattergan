@@ -122,9 +122,11 @@ class Dataset_file(object):
 
         raw_images = []
         for file_path in self._hist_paths[indices]:
-            raw_images.append(
-                utils.load_hdf5(
-                    filename=file_path, dataset_name='data', mode='r'))
+            raw_image = utils.load_hdf5(filename=file_path, dataset_name='data', mode='r')
+            #mean = np.mean(raw_image)
+            #var = np.var(raw_image)
+            #raw_image = (raw_image-mean)/var # normalize
+            raw_images.append(raw_image)
             if type(raw_images[-1]) is not np.ndarray:
                 raise ValueError(
                     "Data stored in file {} is not of type np.ndarray".format(

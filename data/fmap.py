@@ -38,8 +38,15 @@ def log_backward(x, shift=6, clip_max=1e6):
 def log(x):
     return np.log(x + 1)
 
-def inv_log(y):
-    return np.e**y - 1
+def inv_log(y, clip_max=1e8):
+    y = np.clip(y, 0, log(clip_max))
+    return np.round(np.e**y - 1)
+
+def normalize(x):
+    return x
+
+def un_normalize(y):
+    return np.round(189156.69*y + 64.0)
 
 def shifted_log_forward(X, shift=1.0):
     return np.log(np.sqrt(X) + np.e**shift) - shift

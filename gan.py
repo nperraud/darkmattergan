@@ -980,7 +980,7 @@ class CosmoGAN(GAN):
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
 
-        if np.mod(self._counter, self.params['big_every']) == 0:
+        if self.params['big_every'] and np.mod(self._counter, self.params['big_every']) == 0:
             self.compute_big_stats()
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
