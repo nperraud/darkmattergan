@@ -44,6 +44,9 @@ class WGanModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
+        print("shapes")
+        print(self.G_fake.shape)
+        print(X.shape)
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
@@ -1199,11 +1202,13 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
         assert(len(list_fake) == len(list_real))
         bs = tf.shape(list_fake[0])[0]
         eps = tf.random_uniform(shape=[bs], minval=0, maxval=1)
+        print(eps.shape)
 
         x_hat = []
         for fake, real in zip(list_fake, list_real):
             singledim = [1]* (len(fake.shape.as_list())-1)
             eps = tf.reshape(eps, shape=[bs,*singledim])
+            print(eps.shape)
             x_hat.append(eps * real + (1.0 - eps) * fake)
 
         D_x_hat = discriminator(*x_hat, reuse=True)

@@ -33,6 +33,8 @@ def default_params(params=None):
     # Prior distribution to sample from ('Gaussian','Uniform',...)
     d_param['image_size'] = [32, 32, 1]
     # size of input image
+    d_param['num_hists_at_once'] = 5
+    # Number of histograms to be loaded at once in memory
 
     # Discriminator parameters
     # ------------------------

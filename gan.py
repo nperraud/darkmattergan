@@ -323,9 +323,6 @@ class GAN(object):
     def train(self, dataset, resume=False):
 
         n_data = dataset.N
-        # Get an iterator
-        data_iterator = dataset.iter(self.batch_size)
-
         self._counter = 1
         self._n_epoch = self.params['optimization']['epoch']
         self._total_iter = self._n_epoch * (n_data // self.batch_size) - 1
@@ -362,7 +359,8 @@ class GAN(object):
 
                 while epoch < self._n_epoch:
                     for idx, batch_real in enumerate(
-                            dataset.iter(self.batch_size)):
+                            dataset.iter(batch_size=self.batch_size,
+                                         num_hists_at_once=self.params['num_hists_at_once'])):
 
                         # print("batch_real shape:")
                         # print(tf.shape(batch_real)[0])
@@ -912,8 +910,10 @@ class CosmoGAN(GAN):
             self.params['cosmology']['stats'] = self._stats
 
         self._stats['N'] = self.params['cosmology']['Nstats']
-        self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(self._stats['N']))
-        self._sum_data_iterator = itertools.cycle(dataset.iter(self._stats['N']))
+        self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(batch_size=self._stats['N'],
+                                                                        num_hists_at_once=self.params['num_hists_at_once']))
+        self._sum_data_iterator = itertools.cycle(dataset.iter(batch_size=self._stats['N'],
+                                                               num_hists_at_once=self.params['num_hists_at_once']))
 
         super().train(dataset=dataset, resume=resume)
 
