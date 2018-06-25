@@ -29,9 +29,12 @@ def save_dict(params):
 
 
 # Parameters
-ns = 32
+ns = 64
+model_idx = 2
+divisor = 3
 try_resume = False
-Mpch = 500
+Mpc_orig = 500
+Mpc = Mpc_orig // (512 // ns)
 cl = int(sys.argv[1])
 
 shift = 3
@@ -40,17 +43,17 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}r_CDF{}'.format(cl, Mpch)
+time_str = '{}r_CDF{}'.format(cl, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv5:v2{}_6-5_'.format(ns)
+name = 'TWGANv{}:{}d{}_6-5_'.format(model_idx, Mpc, divisor)
 
 bn = False
 
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [16, 128, 256, 128, 64]
-params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3]]
+params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
+params_discriminator['nfilter'] = [16, 128, 256, 256, 128, 64]
+params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bn] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
 params_discriminator['cdf'] = 16
@@ -60,10 +63,10 @@ params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
 params_generator = dict()
-params_generator['stride'] = [2, 2, 2, 1, 1, 1]
-params_generator['nfilter'] = [64, 256, 256, 128, 64, 1]
+params_generator['stride'] = [2, 2, 2, 2, 1, 1, 1]
+params_generator['nfilter'] = [64, 256, 512, 256, 128, 64, 1]
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
-params_generator['shape'] = [[3, 3], [3, 3], [3, 3], [5, 5], [5, 5], [5, 5]]
+params_generator['shape'] = [[3, 3], [3, 3], [3, 3],[5,5], [5, 5], [5, 5], [5, 5]]
 params_generator['batch_norm'] = [bn] * (len(params_generator['nfilter']) - 1)
 params_generator['full'] = []
 params_generator['summary'] = True
@@ -93,7 +96,7 @@ params_time = dict()
 params_time['num_classes'] = 1
 params_time['classes'] = [cl]
 params_time['class_weights'] = [1.0]
-params_time['model_idx'] = 2
+params_time['model_idx'] = model_idx
 params_time['use_diff_stats'] = False
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
@@ -112,8 +115,8 @@ params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
 params['name'] = name
-params['summary_dir'] = global_path + 'summaries_32_C2_v5/' + params['name'] + '_' + time_str +'_summary/'
-params['save_dir'] = global_path + 'models_32_C2/' + params['name'] + '_' + time_str + '_checkpoints/'
+params['summary_dir'] = global_path + 'summaries_{}x{}/'.format(ns,ns) + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + 'models_{}x{}/'.format(ns,ns) + params['name'] + '_' + time_str + '_checkpoints/'
 
 print("All params")
 print(params)
@@ -144,10 +147,10 @@ twgan = TimeCosmoGAN(params, model)
 
 img_list = []
 
-filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_All.h5'.format(Mpch)
+filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_All.h5'.format(Mpc_orig)
 for box_idx in params['time']['classes']:
     images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')
-    images = forward(images)
+    images = forward(images / divisor)
     #while images.shape[1] > ns:
     #    images = skimage.measure.block_reduce(images, (1,2,2), np.sum)
     img_list.append(images)
