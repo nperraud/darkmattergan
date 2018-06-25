@@ -255,19 +255,14 @@ class GAN(object):
     def _buid_opt_summaries(self, optimizer_D, grads_and_vars_d, optimizer_G,
                             grads_and_vars_g, optimizer_E):
 
-        grad_norms_d = [
-            tf.sqrt(tf.nn.l2_loss(g[0]) * 2) for g in grads_and_vars_d
-        ]
+        grad_norms_d = [tf.nn.l2_loss(g[0])*2 for g in grads_and_vars_d]
         grad_norm_d = [tf.reduce_sum(grads) for grads in grad_norms_d]
-        final_grad_d = tf.reduce_sum(grad_norm_d)
-        tf.summary.scalar(
-            "Disc/Gradient_Norm", final_grad_d, collections=["Training"])
+        final_grad_d = tf.sqrt(tf.reduce_sum(grad_norm_d))
+        tf.summary.scalar("Disc/Gradient_Norm", final_grad_d, collections=["Training"])
 
-        grad_norms_g = [
-            tf.sqrt(tf.nn.l2_loss(g[0]) * 2) for g in grads_and_vars_g
-        ]
+        grad_norms_g = [tf.nn.l2_loss(g[0])*2 for g in grads_and_vars_g]
         grad_norm_g = [tf.reduce_sum(grads) for grads in grad_norms_g]
-        final_grad_g = tf.reduce_sum(grad_norm_g)
+        final_grad_g = tf.sqrt(tf.reduce_sum(grad_norm_g))
         tf.summary.scalar(
             "Gen/Gradient_Norm", final_grad_g, collections=["Training"])
 

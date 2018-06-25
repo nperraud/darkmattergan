@@ -1288,9 +1288,10 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
 
         # gradient penalty
         gradients = tf.gradients(D_x_hat, x_hat)
-
-        D_gp = gamma * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
+        norm_gradient_pen = tf.norm(gradients[0], ord=2)
+        D_gp = gamma * tf.square(norm_gradient_pen - 1.0)
         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
+        tf.summary.scalar("Disc/NormGradientPen", norm_gradient_pen, collections=["Training"])
     return D_gp
 
 def get_conv(is_3d=False):
