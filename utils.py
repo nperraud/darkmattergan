@@ -298,3 +298,23 @@ def compose2(first,second):
 
 def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
+
+
+def print_params_to_py_style_output_helper(name, params):
+    print("\n# {} Params".format(name.title()))
+    d_name = "params_{}".format(name)
+    print("{} = dict()".format(d_name))
+    for key, value in params.items():
+        print("{}['{}'] = {}".format(d_name, key, value))
+    print("params['{}'] = {}".format(name, d_name))
+
+
+def print_params_to_py_style_output(params):
+    print("# General Params")
+    print("params = dict()")
+    for key, value in params.items():
+        if not isinstance(value, dict):
+            print("params['{}'] = {}".format(key, value))
+    for key, value in params.items():
+        if isinstance(value, dict):
+            print_params_to_py_style_output_helper(key, value)
