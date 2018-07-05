@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 import data
-from model import TemporalGanModelv5
+from model import TemporalGanModelv3, TemporalGanModelv4, TemporalGanModelv5
 from gan import TimeCosmoGAN
 import utils
 from data import fmap, Dataset
@@ -113,8 +113,16 @@ params['time'] = params_time
 
 resume, params = utils.test_resume(try_resume, params)
 
+model = None
+if params_time['model_idx'] == 2:
+    model = TemporalGanModelv3
+if params_time['model_idx'] == 3:
+    model = TemporalGanModelv4
+if params_time['model_idx'] == 4:
+    model = TemporalGanModelv5
+
 # Build the model
-twgan = TimeCosmoGAN(params)
+twgan = TimeCosmoGAN(params, model)
 
 img_list = []
 
