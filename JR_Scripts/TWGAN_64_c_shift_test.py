@@ -34,8 +34,8 @@ params['sum_every'] = 500
 params['viz_every'] = 500
 params['save_every'] = 5000
 params['name'] = "TWGANv5:v232_6-5_"
-params['summary_dir'] = "/scratch/snx3000/rosenthj/results/summaries_TCosmo_64/TWGANv5:v264_6-5__0-6r_cs_16x8chCDF-Mom500_summary/"
-params['save_dir'] = "/scratch/snx3000/rosenthj/results/models_TCosmo_64/TWGANv5:v264_6-5__0-6r_cs_16x8chCDF-_checkpoints/"
+params['summary_dir'] = "/scratch/snx3000/rosenthj/results/summaries_TCosmo_64/TWGANv5:v264_6-5__0-6r_cs_16x8chCDF-_summary/"
+params['save_dir'] = "/scratch/snx3000/rosenthj/results/models_TCosmo_64/TWGANv5:v264_6-5__0-6r_cs_16x8chCDF2-_checkpoints/"
 params['print_every'] = 100
 params['resume'] = False
 params['has_enc'] = False
@@ -98,7 +98,7 @@ params_cosmology['clip_max_real'] = True
 params_cosmology['log_clip'] = 0.1
 params_cosmology['sigma_smooth'] = 1
 params_cosmology['forward_map'] = functools.partial(fmap.stat_forward, shift=shift, c=c)
-params_cosmology['backward_map'] = functools.partial(fmap.stat_forward, shift=shift, c=c)
+params_cosmology['backward_map'] = functools.partial(fmap.stat_backward, shift=shift, c=c)
 params_cosmology['Nstats'] = 1000
 params['cosmology'] = params_cosmology
 
