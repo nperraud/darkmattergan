@@ -31,6 +31,7 @@ try_resume = True
 Mpc_orig = 500
 Mpc = Mpc_orig // (512 // ns)
 params = load_gan_params(sys.argv[1])
+utils.print_params_to_py_style_output(params)
 
 print("All params")
 print(params)
