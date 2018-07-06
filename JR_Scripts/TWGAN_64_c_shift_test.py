@@ -22,7 +22,7 @@ model_idx = 2
 try_resume = False
 Mpc_orig = 500
 Mpc = Mpc_orig // (512 // ns)
-shift = 16
+shift = 9
 c = 5000
 
 # General Params
@@ -34,8 +34,8 @@ params['sum_every'] = 500
 params['viz_every'] = 500
 params['save_every'] = 5000
 params['name'] = "TWGANv5:v232_6-5_"
-params['summary_dir'] = "/scratch/snx3000/rosenthj/results/summaries_TCosmo_64/TWGANv5:v264_6-5__0-6r_c5e3s16_16x8chCDF-_summary/"
-params['save_dir'] = "/scratch/snx3000/rosenthj/results/models_TCosmo_64/TWGANv5:v264_6-5__0-6r_c5e3s16_16x8chCDF2-_checkpoints/"
+params['summary_dir'] = "/scratch/snx3000/rosenthj/results/summaries_TCosmo_64/TWGANv5:v264_6-5__0-6r_c5e3s9_16x8chCDF-_summary/"
+params['save_dir'] = "/scratch/snx3000/rosenthj/results/models_TCosmo_64/TWGANv5:v264_6-5__0-6r_c5e3s9_16x8chCDF2-_checkpoints/"
 params['print_every'] = 100
 params['resume'] = False
 params['has_enc'] = False
