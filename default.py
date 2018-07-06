@@ -1,4 +1,5 @@
 import data.fmap as fmap
+import blocks
 import numpy as np
 import warnings
 
@@ -48,6 +49,7 @@ def default_params(params=None):
     # Discriminator parameters
     # ------------------------
     d_param['discriminator'] = dict()
+    d_param['discriminator']['activation'] = blocks.lrelu
     d_param['discriminator']['minibatch_reg'] = False
     # Minibatch regularization
     # d_param['discriminator']['minibatch_reg'] = False
@@ -71,6 +73,7 @@ def default_params(params=None):
     # Generator parameters
     # --------------------
     d_param['generator'] = dict()
+    d_param['generator']['activation'] = blocks.lrelu
     d_param['generator']['y_layer'] = None
     d_param['generator']['one_pixel_mapping'] = []
 

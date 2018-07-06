@@ -1531,7 +1531,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                 cdf = tf.concat(lst, axis=1)
                 rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
             cdf = linear(cdf, 2 * params['cdf'], 'cdf_full', summary=params['summary'])
-            cdf = lrelu(cdf)
+            cdf = params['activation'](cdf)
             rprint('     CDF Full layer with {} outputs'.format(2*params['cdf']), reuse)
             rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
         if params['moment']:
@@ -1542,7 +1542,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             rprint('        Reshape output {} shape'.format(cov.shape), reuse)
             nel = np.prod(params['moment'])**2
             cov = linear(cov, nel, 'cov_full', summary=params['summary'])
-            cov = lrelu(cov)
+            cov = params['activation'](cov)
             rprint('     Covariance Full layer with {} outputs'.format(nel), reuse)
             rprint('         Size of the CDF variables: {}'.format(cov.shape), reuse)
             
@@ -1559,7 +1559,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                 rprint('         Batch norm', reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
-            x = lrelu(x)
+            x = params['activation'](x)
 
         x = reshape2d(x, name='img2vec')
         rprint('     Reshape to {}'.format(x.shape), reuse)
@@ -1579,7 +1579,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                        params['full'][i],
                        '{}_full'.format(i+nconv),
                        summary=params['summary'])
-            x = lrelu(x)
+            x = params['activation'](x)
             rprint('     {} Full layer with {} outputs'.format(nconv+i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
         if params['minibatch_reg']:
@@ -1608,7 +1608,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                        params['full'][i],
                        '{}_full'.format(i),
                        summary=params['summary'])
-            x = lrelu(x)
+            x = params['activation'](x)
             rprint('     {} Full layer with {} outputs'.format(i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
@@ -1641,7 +1641,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
-                x = lrelu(x)
+                x = params['activation'](x)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
         if len(params['one_pixel_mapping']):
             x = one_pixel_mapping(x,

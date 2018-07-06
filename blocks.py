@@ -41,6 +41,10 @@ def lrelu(x, leak=0.2, name="lrelu"):
     return tf.maximum(x, leak * x, name=name)
 
 
+def selu(x, name="selu"):
+    return tf.nn.selu(x, name=name)
+
+
 def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
     with tf.variable_scope(name):
         bn = tf.contrib.layers.batch_norm(

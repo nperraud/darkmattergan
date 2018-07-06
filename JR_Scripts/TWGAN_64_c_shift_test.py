@@ -10,6 +10,7 @@ from gan import TimeCosmoGAN
 import utils
 from data import fmap, Dataset
 import tensorflow as tf
+import blocks
 import functools
 import os
 import numpy as np
@@ -34,14 +35,15 @@ params['sum_every'] = 500
 params['viz_every'] = 500
 params['save_every'] = 5000
 params['name'] = "TWGANv5:v232_6-5_"
-params['summary_dir'] = "/scratch/snx3000/rosenthj/results/summaries_TCosmo_64/TWGANv5:v264_6-5__0-6r_c5e3s0_16x8chCDF-_summary/"
-params['save_dir'] = "/scratch/snx3000/rosenthj/results/models_TCosmo_64/TWGANv5:v264_6-5__0-6r_c5e3s0_16x8chCDF2-_checkpoints/"
+params['summary_dir'] = "/scratch/snx3000/rosenthj/results/summaries_TCosmo_64/TWGANv5:v264_6-5sel__0-6r_c5e3s0_16x8chCDF-_summary/"
+params['save_dir'] = "/scratch/snx3000/rosenthj/results/models_TCosmo_64/TWGANv5:v264_6-5sel__0-6r_c5e3s0_16x8chCDF2-_checkpoints/"
 params['print_every'] = 100
 params['resume'] = False
 params['has_enc'] = False
 
 # Generator Params
 params_generator = dict()
+params_generator['activation'] = blocks.selu
 params_generator['stride'] = [2, 2, 2, 2, 1, 1, 1]
 params_generator['nfilter'] = [64, 256, 512, 256, 128, 64, 1]
 params_generator['latent_dim'] = 1024
@@ -57,6 +59,7 @@ params['generator'] = params_generator
 
 # Discriminator Params
 params_discriminator = dict()
+params_discriminator['activation'] = blocks.selu
 params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
 params_discriminator['nfilter'] = [16, 128, 256, 256, 128, 64]
 params_discriminator['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5], [3, 3], [3, 3]]
