@@ -43,7 +43,7 @@ params['has_enc'] = False
 
 # Generator Params
 params_generator = dict()
-params_generator['activation'] = blocks.selu
+params_generator['activation'] = blocks.lrelu
 params_generator['stride'] = [2, 2, 2, 2, 1, 1, 1]
 params_generator['nfilter'] = [64, 256, 512, 256, 128, 64, 1]
 params_generator['latent_dim'] = 1024
@@ -81,8 +81,8 @@ params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 8
 params_optimization['gen_optimizer'] = 'adam'
 params_optimization['disc_optimizer'] = 'adam'
-params_optimization['disc_learning_rate'] = 1e-05
-params_optimization['gen_learning_rate'] = 1e-05
+params_optimization['disc_learning_rate'] = 3e-05
+params_optimization['gen_learning_rate'] = 3e-05
 params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-08
