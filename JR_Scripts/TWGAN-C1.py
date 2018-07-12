@@ -46,7 +46,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '{}r_CDF{}'.format(cl, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv{}:{}d{}_6-5_'.format(model_idx, Mpc, divisor)
+name = 'TWGANv{}:{}d{}_sn6-5_'.format(model_idx, Mpc, divisor)
 
 bn = False
 
