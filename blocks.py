@@ -144,6 +144,37 @@ def up_sampler(x, s=2, is_3d=False):
 # print(np.linalg.norm(img_dud-img_d,ord='fro'))
 # print(np.linalg.norm(img_dudu-img_du,ord='fro'))
 
+def l2_norm(v, eps=1e-12):
+    return v / (tf.reduce_sum(v ** 2) ** 0.5 + eps)
+
+
+def spectral_norm(w, iteration=1):
+    w_shape = w.shape.as_list()
+    w = tf.reshape(w, [-1, w_shape[-1]])
+
+    u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.truncated_normal_initializer(), trainable=False)
+
+    u_hat = u
+    v_hat = None
+    for i in range(iteration):
+        """
+        power iteration
+        Usually iteration = 1 will be enough
+        """
+        v_ = tf.matmul(u_hat, tf.transpose(w))
+        v_hat = l2_norm(v_)
+
+        u_ = tf.matmul(v_hat, w)
+        u_hat = l2_norm(u_)
+
+    sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))
+    w_norm = w / sigma
+
+    with tf.control_dependencies([u.assign(u_hat)]):
+        w_norm = tf.reshape(w_norm, w_shape)
+
+    return w_norm
+
 
 def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
     '''Convolutional layer for square images'''
@@ -157,7 +188,7 @@ def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
                   imgs.get_shape()[-1], nf_out],
             initializer=weights_initializer)
         conv = tf.nn.conv2d(
-            imgs, w, strides=[1, stride, stride, 1], padding='SAME')
+            imgs, spectral_norm(w), strides=[1, stride, stride, 1], padding='SAME')
 
         biases = _tf_variable('biases', [nf_out], initializer=const)
         conv = tf.nn.bias_add(conv, biases)
