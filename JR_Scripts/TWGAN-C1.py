@@ -46,7 +46,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '{}r_CDF{}'.format(cl, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv{}:{}d{}_bn-sn6-5_'.format(model_idx, Mpc, divisor)
+name = 'TWGANv{}:{}d{}_sn6-5_2_'.format(model_idx, Mpc, divisor)
 
 bnd = False
 
@@ -56,13 +56,13 @@ params_discriminator['nfilter'] = [16, 128, 256, 256, 128, 64]
 params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bnd] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
-params_discriminator['cdf'] = 16
+#params_discriminator['cdf'] = 16
 #params_discriminator['channel_cdf'] = 8
 #params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
-bng = True
+bng = False
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 2, 1, 1, 1]
@@ -79,8 +79,8 @@ params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 1e-5
-params_optimization['gen_learning_rate'] = 1e-5
+params_optimization['disc_learning_rate'] = 5e-6
+params_optimization['gen_learning_rate'] = 5e-6
 params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
