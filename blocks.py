@@ -250,7 +250,8 @@ def deconv2d(imgs,
         #          imgs.get_shape()[-1]],
         #    initializer=weights_initializer)
         w = tf.get_variable('w', initializer=tf.random_normal([shape[0], shape[1], output_shape[-1],
-                imgs.get_shape().as_list()[-1]], stddev=1))
+                imgs.get_shape().as_list()[-1]], stddev=np.sqrt(1 / (np.ceil(shape[0]/stride)
+                                                                     * np.ceil(shape[1]/stride)))))
 
         deconv = tf.nn.conv2d_transpose(
             imgs,
