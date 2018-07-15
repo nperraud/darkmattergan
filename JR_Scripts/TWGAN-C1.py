@@ -8,7 +8,7 @@ matplotlib.use('Agg')
 
 import os
 # import skimage.measure
-from model import TemporalGanModelv3, TemporalGanModelv4, TemporalGanModelv5
+from model import TemporalGanModelv3, TemporalGanModelv4, TemporalGanModelv5, TemporalRWGanModelv3GP
 from gan import TimeCosmoGAN
 import utils, blocks
 from data import fmap, path, Dataset
@@ -30,7 +30,7 @@ def save_dict(params):
 
 # Parameters
 ns = 64
-model_idx = 2
+model_idx = 5
 divisor = 3
 try_resume = False
 Mpc_orig = 500
@@ -46,7 +46,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '{}r_CDF{}'.format(cl, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv{}:{}d{}_wi2-selu-sn6-5_4Mom'.format(model_idx, Mpc, divisor)
+name = 'TRWGANv{}:{}d{}_selu-sn6-5_4Mom'.format(model_idx, Mpc, divisor)
 
 bnd = False
 
@@ -86,6 +86,7 @@ params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
+params_optimization['n_critic'] = 1
 
 params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
@@ -114,9 +115,9 @@ params['time'] = params_time
 params['normalize'] = False
 params['image_size'] = [ns, ns]
 params['prior_distribution'] = 'gaussian'
-params['sum_every'] = 200
-params['viz_every'] = 200
-params['save_every'] = 5000
+params['sum_every'] = 400
+params['viz_every'] = 400
+params['save_every'] = 10000
 params['name'] = name
 params['summary_dir'] = global_path + 'summaries_{}x{}/'.format(ns,ns) + params['name'] + '_' + time_str +'_summary/'
 params['save_dir'] = global_path + 'models_{}x{}/'.format(ns,ns) + params['name'] + '_' + time_str + '_checkpoints/'
@@ -144,6 +145,8 @@ if params_time['model_idx'] == 3:
     model = TemporalGanModelv4
 if params_time['model_idx'] == 4:
     model = TemporalGanModelv5
+if params_time['model_idx'] == 5:
+    model = TemporalRWGanModelv3GP
 
 # Build the model
 twgan = TimeCosmoGAN(params, model)

@@ -245,13 +245,10 @@ def deconv2d(imgs,
 
     with tf.variable_scope(name):
         # filter : [height, width, output_channels, in_channels]
-        #w = _tf_variable(
-        #    'w', [shape[0], shape[1], output_shape[-1],
-        #          imgs.get_shape()[-1]],
-        #    initializer=weights_initializer)
-        w = tf.get_variable('w', initializer=tf.random_normal([shape[0], shape[1], output_shape[-1],
-                imgs.get_shape().as_list()[-1]], stddev=np.sqrt(1 / (np.ceil(shape[0]/stride)
-                                                                     * np.ceil(shape[1]/stride)))))
+        w = _tf_variable(
+            'w', [shape[0], shape[1], output_shape[-1],
+                  imgs.get_shape()[-1]],
+            initializer=weights_initializer)
 
         deconv = tf.nn.conv2d_transpose(
             imgs,

@@ -281,6 +281,80 @@ class TemporalGanModelv3(GanModel):
         return self._G_loss
 
 
+class TemporalRWGanModelv3GP(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        assert 'time' in params.keys()
+
+        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
+        z_shape = tf.shape(zn)
+        scaling = np.asarray(params['time']['class_weights'])
+        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+        scaling = np.resize(scaling, (gen_bs, 1))
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        zn = tf.multiply(zn, t)
+
+        self.G_c_fake = self.generator(zn, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
+
+        if params['time']['use_diff_stats']:
+            self.disc = self.df_discriminator
+        else:
+            self.disc = self.discriminator
+
+        self.D_real = self.disc(X, reuse=False)
+        self.D_fake = self.disc(self.G_fake, reuse=True)
+
+        D_loss_f = tf.reduce_mean(self.D_fake - self.D_real)
+        D_loss_r = tf.reduce_mean(self.D_real - self.D_fake)
+
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -D_loss_r + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def reshape_time_to_channels_old(self, X):
+        bs = self.params['optimization']['batch_size']
+        nc = self.params['time']['num_classes']
+        idx = np.arange(bs) * nc
+        x = tf.gather(X, idx)
+        #for i in (np.arange(nc - 1) + 1):
+        for i in range(1, nc):
+            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
+        return x
+
+    def reshape_time_to_channels(self, X):
+        nc = self.params['time']['num_classes']
+        lst = []
+        for i in range(nc):
+            lst.append(X[i::nc])
+        return tf.concat(lst, axis=3)
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+    def df_discriminator(self, X, reuse):
+        y = X[:, :, :, 1:] - X[:, :, :, :-1]
+        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
+
+
 class TemporalGanModelv4(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
