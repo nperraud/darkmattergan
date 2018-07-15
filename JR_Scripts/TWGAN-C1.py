@@ -10,7 +10,7 @@ import os
 # import skimage.measure
 from model import TemporalGanModelv3, TemporalGanModelv4, TemporalGanModelv5
 from gan import TimeCosmoGAN
-import utils
+import utils, blocks
 from data import fmap, path, Dataset
 import tensorflow as tf
 import numpy as np
@@ -46,7 +46,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '{}r_CDF{}'.format(cl, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv{}:{}d{}_sn6-5_4Mom'.format(model_idx, Mpc, divisor)
+name = 'TWGANv{}:{}d{}_selu-sn6-5_4Mom'.format(model_idx, Mpc, divisor)
 
 bnd = False
 
@@ -56,7 +56,7 @@ params_discriminator['nfilter'] = [16, 128, 256, 256, 128, 64]
 params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bnd] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
-params_discriminator['cdf'] = 16
+params_discriminator['cdf'] = 32
 #params_discriminator['channel_cdf'] = 8
 params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
@@ -73,6 +73,7 @@ params_generator['batch_norm'] = [bng] * (len(params_generator['nfilter']) - 1)
 params_generator['full'] = []
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
+params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
