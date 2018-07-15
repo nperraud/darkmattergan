@@ -249,8 +249,8 @@ def deconv2d(imgs,
         #    'w', [shape[0], shape[1], output_shape[-1],
         #          imgs.get_shape()[-1]],
         #    initializer=weights_initializer)
-        w = tf.Variable(tf.random_normal([shape[0], shape[1], output_shape[-1],
-                imgs.get_shape()[-1]], stddev=np.sqrt(1 / (shape[0] * shape[1]))))
+        w = tf.get_variable('w', initializer=tf.random_normal(tf.convert_to_tensor([shape[0], shape[1], output_shape[-1],
+                imgs.get_shape()[-1]]), stddev=np.sqrt(1 / (shape[0] * shape[1]))))
 
         deconv = tf.nn.conv2d_transpose(
             imgs,
