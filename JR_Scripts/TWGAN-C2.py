@@ -42,7 +42,7 @@ def get_model_name(params):
     r = 'R' if params['time']['model']['relative'] else ''
     sel = '_selu' if params['generator']['activation'] == blocks.selu else ''
     sn = '_sn' if params['discriminator']['spectral_norm'] else ''
-    return 'T{}WGAN:{}d{}{}{}{}-{}'.format(r, Mpc, divisor,sel, sn, len(params['generator']['nfilter']),
+    return 'T{}WGAN_sf:{}d{}{}{}{}-{}'.format(r, Mpc, divisor,sel, sn, len(params['generator']['nfilter']),
                                                len(params['discriminator']['nfilter']))
 
 shift = 3
@@ -111,7 +111,7 @@ assert len(params_time['classes']) == len(params_time['class_weights'])
 params_time['use_diff_stats'] = False
 
 params_time['model'] = dict()
-params_time['model']['time_encoding'] = 'channel_encoding'
+params_time['model']['time_encoding'] = 'scale_full'
 params_time['model']['relative'] = False
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
