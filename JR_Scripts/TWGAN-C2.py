@@ -37,16 +37,22 @@ Mpc_orig = 500
 Mpc = Mpc_orig // (512 // ns)
 cl = [int(sys.argv[1]), int(sys.argv[2])]
 
+
+def get_model_name(params):
+    r = 'R' if params['time']['model']['relative'] else ''
+    sel = '_selu' if params['generator']['activation'] == blocks.selu else ''
+    sn = '_sn' if params['discriminator']['spectral_norm'] else ''
+    return 'T{}WGAN:{}d{}{}{}{}-{}'.format(r, Mpc, divisor,sel, sn, len(params['generator']['nfilter']),
+                                               len(params['discriminator']['nfilter']))
+
 shift = 3
 bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}r_CDF{}'.format(cl, Mpc)
+time_str = '{}{}r_C+M{}'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
-
-name = 'TRWGANv{}:{}d{}_selu-sn6-5_4Mom'.format(model_idx, Mpc, divisor)
 
 bnd = False
 
@@ -55,6 +61,7 @@ params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
 params_discriminator['nfilter'] = [16, 128, 256, 256, 128, 64]
 params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bnd] * len(params_discriminator['nfilter'])
+params_discriminator['spectral_norm'] = True
 params_discriminator['full'] = [64]
 params_discriminator['cdf'] = 32
 #params_discriminator['channel_cdf'] = 8
@@ -97,11 +104,15 @@ params_cosmology['backward_map'] = backward
 params_cosmology['Nstats'] = 1000
 
 params_time = dict()
-params_time['num_classes'] = 1
 params_time['classes'] = cl
+params_time['num_classes'] = len(cl)
 params_time['class_weights'] = [(1.3 - (0.08*cl[0])), (1.3 - (0.08*cl[1]))]
-params_time['model_idx'] = model_idx
+assert len(params_time['classes']) == len(params_time['class_weights'])
 params_time['use_diff_stats'] = False
+
+params_time['model'] = dict()
+params_time['model']['time_encoding'] = 'channel_encoding'
+params_time['model']['relative'] = False
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
 
@@ -112,6 +123,8 @@ params['optimization'] = params_optimization
 params['cosmology'] = params_cosmology
 params['time'] = params_time
 
+name = get_model_name(params)
+
 params['normalize'] = False
 params['image_size'] = [ns, ns]
 params['prior_distribution'] = 'laplacian'
@@ -119,8 +132,8 @@ params['sum_every'] = 400
 params['viz_every'] = 400
 params['save_every'] = 10000
 params['name'] = name
-params['summary_dir'] = global_path + 'summaries_{}x{}/'.format(ns,ns) + params['name'] + '_' + time_str +'_summary/'
-params['save_dir'] = global_path + 'models_{}x{}/'.format(ns,ns) + params['name'] + '_' + time_str + '_checkpoints/'
+params['summary_dir'] = global_path + 'summaries_{}x{}_C2/'.format(ns,ns) + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + 'models_{}x{}_C2/'.format(ns,ns) + params['name'] + '_' + time_str + '_checkpoints/'
 
 print("All params")
 print(params)
