@@ -135,19 +135,7 @@ params['name'] = name
 params['summary_dir'] = global_path + 'summaries_{}x{}_C2/'.format(ns,ns) + params['name'] + '_' + time_str +'_summary/'
 params['save_dir'] = global_path + 'models_{}x{}_C2/'.format(ns,ns) + params['name'] + '_' + time_str + '_checkpoints/'
 
-print("All params")
-print(params)
-print("\nDiscriminator Params")
-print(params['discriminator'])
-print("\nGenerator Params")
-print(params['generator'])
-print("\nOptimization Params")
-print(params['optimization'])
-print("\nCosmo Params")
-print(params['cosmology'])
-print("\nTime Params")
-print(params['time'])
-print()
+utils.print_param_dict(params)
 
 resume, params = utils.test_resume(try_resume, params)
 
