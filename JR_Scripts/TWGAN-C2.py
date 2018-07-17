@@ -51,7 +51,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_C+M{}'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_C+M{}_gapri'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -127,7 +127,7 @@ name = get_model_name(params)
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
-params['prior_distribution'] = 'laplacian'
+params['prior_distribution'] = 'gaussian'
 params['sum_every'] = 400
 params['viz_every'] = 400
 params['save_every'] = 10000
