@@ -360,7 +360,8 @@ class GAN(object):
                 while epoch < self._n_epoch:
                     for idx, batch_real in enumerate(
                             dataset.iter(batch_size=self.batch_size,
-                                         num_hists_at_once=self.params['num_hists_at_once'])):
+                                         num_hists_at_once=self.params['num_hists_at_once'],
+                                         name='training')):
 
                         # print("batch_real shape:")
                         # print(tf.shape(batch_real)[0])
@@ -574,7 +575,9 @@ class GAN(object):
                 N=N, z=z, X=X, **kwargs)
 
         with tf.Session() as self._sess:
-            self.load(checkpoint=checkpoint)
+            res = self.load(checkpoint=checkpoint)
+            if res:
+                print("Checkpoint succesfully loaded!")
 
             return self._generate_sample(
                 N=N, z=z, X=X, **kwargs)
@@ -911,9 +914,11 @@ class CosmoGAN(GAN):
 
         self._stats['N'] = self.params['cosmology']['Nstats']
         self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(batch_size=self._stats['N'],
-                                                                        num_hists_at_once=self.params['num_hists_at_once']))
+                                                                        num_hists_at_once=self.params['num_hists_at_once'],
+                                                                        name='_big_dataset_iter'))
         self._sum_data_iterator = itertools.cycle(dataset.iter(batch_size=self._stats['N'],
-                                                               num_hists_at_once=self.params['num_hists_at_once']))
+                                                               num_hists_at_once=self.params['num_hists_at_once'],
+                                                               name='_sum_data_iterator'))
 
         super().train(dataset=dataset, resume=resume)
 

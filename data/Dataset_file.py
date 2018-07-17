@@ -56,6 +56,7 @@ class Dataset_file(object):
 
         self._hist_paths = self._get_hist_paths()
         self._num_hists = len(self._hist_paths)
+        self._hists = None
         self._N = None
         self._get_total_num_samples()
 
@@ -65,7 +66,7 @@ class Dataset_file(object):
         '''
         if self.N is None:
             total_num_samples = 0
-            for batch_real in self.iter():
+            for batch_real in self.iter(name='_get_total_num_samples'):
                 total_num_samples += 1
 
             self._N = total_num_samples
@@ -159,7 +160,7 @@ class Dataset_file(object):
         ''' Get the first 'N' shuffled samples '''
         return get_all_data()[:N]
 
-    def iter(self, batch_size=1, num_hists_at_once=5):
+    def iter(self, batch_size=1, num_hists_at_once=5, name=None):
         '''
         Iterate through dataset
         batch_size: number of samples to return at once
@@ -172,9 +173,9 @@ class Dataset_file(object):
         if num_hists_at_once > self.num_hists:
             num_hists_at_once = self.num_hists
 
-        return self.__iter__(batch_size, num_hists_at_once)
+        return self.__iter__(batch_size, num_hists_at_once, name)
 
-    def __iter__(self, batch_size, num_hists_at_once):
+    def __iter__(self, batch_size, num_hists_at_once, name):
 
         # Reshuffle the data
         if self.shuffle:
@@ -186,8 +187,19 @@ class Dataset_file(object):
         for i in range(0, self.num_hists, num_hists_at_once):
             curr_inds = range(i, i+num_hists_at_once)
             curr_inds = perm_hists[curr_inds]
-            hists = self._load_hists(num_hists_at_once=1, indices=curr_inds)
-            transformed_samples = self._data_process(hists)
+
+            if num_hists_at_once == self.num_hists:
+                if self._hists is None: # Load all histograms only once in the beginning
+                    self._hists = self._load_hists(num_hists_at_once=None, indices=curr_inds)
+                    print("Loaded all {} histograms only once in the beginning!".format(num_hists_at_once))
+                
+                transformed_samples = self._data_process(self._hists)
+
+            else:
+                hists = self._load_hists(num_hists_at_once=None, indices=curr_inds)
+                transformed_samples = self._data_process(hists)
+                print("Loaded {} histograms for iterator {}!".format(num_hists_at_once, name))
+                
             num_samples = len(transformed_samples)
 
             if self.shuffle:
@@ -211,6 +223,9 @@ class Dataset_file(object):
         # Apply downscaling if necessary
         if self._scaling>1:
             samples = blocks.downsample(samples, self._scaling, is_3d=True, sess=self._scaling_sess)
+
+        # if self._forward_map:
+        #     samples = self._forward_map(samples)
 
         samples = self._slice_fn(samples)
 

@@ -6,6 +6,30 @@ import numpy as np
 import scipy
 import functools
 
+def log_norm_forward(x, c=2000, shift=10):
+    if not type(x).__module__ == np.__name__:
+        x = np.array([x])
+    res = np.zeros(shape=x.shape, dtype=np.float32)
+
+    mask = x > c
+    maski = mask == False
+
+    res[maski] = np.log(x[maski] + 1) - np.log(c + 1)
+    res[mask] = (x[mask] / (c + 1) - 1)
+    return res + shift
+
+def log_norm_backward(x, c=2000, shift=10):
+    if not type(x).__module__ == np.__name__:
+        x = np.array([x])
+    res = np.zeros(shape=x.shape, dtype=np.float32)
+
+    mask = x > shift
+    maski = mask == False
+
+    res[maski] = np.exp(x[maski] - shift + np.log(c + 1)) - 1
+    res[mask] = (x[mask] - shift + 1) * (c + 1)
+    return np.round(res)
+
 def gauss_forward(x, shift=0, a = 1):
     y = x + 1 + shift
     cp = (y-1)/y
@@ -42,11 +66,11 @@ def inv_log(y, clip_max=1e8):
     y = np.clip(y, 0, log(clip_max))
     return np.round(np.e**y - 1)
 
-def normalize(x, scale=1.0):
-    return scale*((x-64.0)/189156.69)
+def normalize(x, scale=1.0, shift=0):
+    return scale*((x-64.0)/189156.69) + shift
 
-def un_normalize(y, scale=1.0):
-    return np.round(189156.69*(y/scale) + 64.0)
+def un_normalize(y, scale=1.0, shift=0):
+    return np.round(189156.69*((y-shift)/scale) + 64.0)
 
 def shifted_log_forward(X, shift=1.0):
     return np.log(np.sqrt(X) + np.e**shift) - shift

@@ -70,7 +70,7 @@ def downsample(imgs, s, is_3d=False, sess=None):
 
     except KeyError as e:
         print('Tensor {} not found, hence creating the Op.'.format(down_sampler_out_name))
-        down_sampler_op = down_sampler(x=None, s=s, is_3d=True)
+        down_sampler_op = down_sampler(x=None, s=s, is_3d=is_3d)
 
 
     placeholder_name = 'down_sampler_in_' + ('3d_' if is_3d else '2d_') + str(s) + ':0'
