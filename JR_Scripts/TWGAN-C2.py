@@ -93,7 +93,7 @@ params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
-params_optimization['n_critic'] = 1
+params_optimization['n_critic'] = 5
 
 params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
@@ -127,7 +127,7 @@ name = get_model_name(params)
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
-params['prior_distribution'] = 'gaussian'
+params['prior_distribution'] = 'laplacian'
 params['sum_every'] = 400
 params['viz_every'] = 400
 params['save_every'] = 10000
