@@ -8,7 +8,7 @@ matplotlib.use('Agg')
 
 import os
 # import skimage.measure
-from model import TemporalGanModelv3, TemporalGanModelv4, TemporalGanModelv5, TemporalRWGanModelv3GP
+from model import TemporalGenericGanModel
 from gan import TimeCosmoGAN
 import utils, blocks
 from data import fmap, path, Dataset
@@ -30,12 +30,12 @@ def save_dict(params):
 
 # Parameters
 ns = 64
-model_idx = 2
+model_idx = 5
 divisor = 3
 try_resume = False
 Mpc_orig = 500
 Mpc = Mpc_orig // (512 // ns)
-cl = int(sys.argv[1])
+cl = [int(sys.argv[1]), int(sys.argv[2])]
 
 shift = 3
 bandwidth = 20000
@@ -46,7 +46,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 time_str = '{}r_CDF{}'.format(cl, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv{}:{}d{}_lap_selu-sn6-5_4Mom'.format(model_idx, Mpc, divisor)
+name = 'TRWGANv{}:{}d{}_selu-sn6-5_4Mom'.format(model_idx, Mpc, divisor)
 
 bnd = False
 
@@ -57,7 +57,6 @@ params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bnd] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
 params_discriminator['cdf'] = 32
-params_discriminator['spectral_norm'] = True
 #params_discriminator['channel_cdf'] = 8
 params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
@@ -99,8 +98,8 @@ params_cosmology['Nstats'] = 1000
 
 params_time = dict()
 params_time['num_classes'] = 1
-params_time['classes'] = [cl]
-params_time['class_weights'] = [1.0]
+params_time['classes'] = cl
+params_time['class_weights'] = [(1.3 - (0.08*cl[0])), (1.3 - (0.08*cl[1]))]
 params_time['model_idx'] = model_idx
 params_time['use_diff_stats'] = False
 
@@ -139,18 +138,8 @@ print()
 
 resume, params = utils.test_resume(try_resume, params)
 
-model = None
-if params_time['model_idx'] == 2:
-    model = TemporalGanModelv3
-if params_time['model_idx'] == 3:
-    model = TemporalGanModelv4
-if params_time['model_idx'] == 4:
-    model = TemporalGanModelv5
-if params_time['model_idx'] == 5:
-    model = TemporalRWGanModelv3GP
-
 # Build the model
-twgan = TimeCosmoGAN(params, model)
+twgan = TimeCosmoGAN(params, TemporalGenericGanModel)
 
 img_list = []
 
