@@ -51,7 +51,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_cC{}_lapri'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_cC{}gp100_lapri'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -83,12 +83,12 @@ params_generator['non_lin'] = tf.nn.relu
 params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
-params_optimization['gamma_gp'] = 10
+params_optimization['gamma_gp'] = 100
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 1e-6
-params_optimization['gen_learning_rate'] = 1e-6
+params_optimization['disc_learning_rate'] = 5e-6
+params_optimization['gen_learning_rate'] = 5e-6
 params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
