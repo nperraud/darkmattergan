@@ -37,12 +37,23 @@ Mpc_orig = 500
 Mpc = Mpc_orig // (512 // ns)
 cl = [int(sys.argv[1]), int(sys.argv[2])]
 
+te = ''
+ten = ''
+
+if te == 'channel_encoding':
+    ten = 'ce'
+elif te == 'scale_full':
+    ten = 'sf'
+elif te == 'scale_half':
+    ten = 'sh'
+
+
 
 def get_model_name(params):
     r = 'R' if params['time']['model']['relative'] else ''
     sel = '_selu' if params['generator']['activation'] == blocks.selu else ''
     sn = '_sn' if params['discriminator']['spectral_norm'] else ''
-    return 'T{}WGAN_sf:{}d{}{}{}{}-{}'.format(r, Mpc, divisor,sel, sn, len(params['generator']['nfilter']),
+    return 'T{}WGAN{}:{}d{}{}{}{}-{}'.format(r, ten, Mpc, divisor,sel, sn, len(params['generator']['nfilter']),
                                                len(params['discriminator']['nfilter']))
 
 shift = 3
@@ -51,7 +62,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_cC+M{}gp10_lapri'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_cC+M{}gp10_lrd'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -87,7 +98,7 @@ params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 5e-6
+params_optimization['disc_learning_rate'] = 1e-5
 params_optimization['gen_learning_rate'] = 5e-6
 params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
