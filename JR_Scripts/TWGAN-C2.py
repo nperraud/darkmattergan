@@ -51,7 +51,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_cC{}gp100_lapri'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_cC+M{}gp10_lapri'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -65,7 +65,7 @@ params_discriminator['spectral_norm'] = True
 params_discriminator['full'] = [64]
 params_discriminator['cdf'] = 32
 params_discriminator['channel_cdf'] = 16
-#params_discriminator['moment'] = [5,5]
+params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
@@ -83,7 +83,7 @@ params_generator['non_lin'] = tf.nn.relu
 params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
-params_optimization['gamma_gp'] = 100
+params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
@@ -107,11 +107,12 @@ params_time = dict()
 params_time['classes'] = cl
 params_time['num_classes'] = len(cl)
 params_time['class_weights'] = [(1.3 - (0.08*cl[0])), (1.3 - (0.08*cl[1]))]
+params_time['class_weights'] = [0.8, 1.2]
 assert len(params_time['classes']) == len(params_time['class_weights'])
 params_time['use_diff_stats'] = False
 
 params_time['model'] = dict()
-params_time['model']['time_encoding'] = 'scale_full'
+params_time['model']['time_encoding'] = 'channel_encoding'
 params_time['model']['relative'] = False
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
@@ -135,12 +136,13 @@ params['name'] = name
 params['summary_dir'] = global_path + 'summaries_{}x{}_C2/'.format(ns,ns) + params['name'] + '_' + time_str +'_summary/'
 params['save_dir'] = global_path + 'models_{}x{}_C2/'.format(ns,ns) + params['name'] + '_' + time_str + '_checkpoints/'
 
-utils.print_param_dict(params)
 
 resume, params = utils.test_resume(try_resume, params)
 
 # Build the model
 twgan = TimeCosmoGAN(params, TemporalGenericGanModel)
+
+utils.print_param_dict(twgan.params)
 
 img_list = []
 

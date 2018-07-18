@@ -1581,6 +1581,7 @@ def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r):
     tf.summary.scalar("Disc/Neg_Critic", D_loss_f - D_loss_r, collections=["Training"])
     tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
     tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
+    tf.summary.scalar("Disc/Loss_r-Loss_f", D_loss_r - D_loss_f, collections=["Training"])
     tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
 
 
