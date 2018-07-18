@@ -492,10 +492,10 @@ class TemporalGenericGanModel(GanModel):
             return tf.reshape(z, z_shape)
 
         if params['time_encoding'] == 'scale_full':
-            zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
+            zn = tf.nn.l2_normalize(z, 1) * np.sqrt(self.params['generator']['latent_dim'])
             z_shape = tf.shape(zn)
-            scaling = np.asarray(params['time']['class_weights'])
-            gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+            scaling = np.asarray(self.params['time']['class_weights'])
+            gen_bs = self.params['optimization']['batch_size'] * self.params['time']['num_classes']
             scaling = np.resize(scaling, (gen_bs, 1))
             default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
             self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
@@ -505,10 +505,10 @@ class TemporalGenericGanModel(GanModel):
         if params['time_encoding'] == 'scale_half':
             z0 = z[:, 0::2]
             z1 = z[:, 1::2]
-            zn = tf.nn.l2_normalize(z1, 1) * np.sqrt(params['generator']['latent_dim'] / 2)
+            zn = tf.nn.l2_normalize(z1, 1) * np.sqrt(self.params['generator']['latent_dim'] / 2)
             z_shape = tf.shape(zn)
-            scaling = np.asarray(params['time']['class_weights'])
-            gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+            scaling = np.asarray(self.params['time']['class_weights'])
+            gen_bs = self.params['optimization']['batch_size'] * self.params['time']['num_classes']
             scaling = np.resize(scaling, (gen_bs, 1))
             default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
             self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
