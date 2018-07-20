@@ -6,7 +6,7 @@ sys.path.insert(0, '../')
 
 import numpy as np
 import tensorflow as tf
-import os, functools
+import os
 import data, utils
 from model import upscale_WGAN_pixel_CNN
 from gan import CosmoGAN
@@ -24,13 +24,10 @@ if __name__ == "__main__":
 	latent_dim = ns**3
 	Mpch = 350
 
-	forward = functools.partial(data.fmap.log_norm_forward, c=1000.0, shift=6.908755)
-	backward = functools.partial(data.fmap.log_norm_backward, c=1000.0, shift=6.908755)
 
-
-	time_str = 'log_norm_c_1k' 
+	time_str = 'log_norm' 
 	global_path = '../saved_result/'
-	name = 'inception_32_to_64'
+	name = 'inception_128_to_256'
 
 	bn = False
 
@@ -53,7 +50,7 @@ if __name__ == "__main__":
 	params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn]
 	params_generator['full'] = []
 	params_generator['summary'] = True
-	params_generator['non_lin'] = tf.nn.relu
+	params_generator['non_lin'] = None
 	
 	params_optimization = dict()
 	params_optimization['n_critic'] = 10
@@ -66,15 +63,15 @@ if __name__ == "__main__":
 	params_optimization['beta1'] = 0.9
 	params_optimization['beta2'] = 0.999
 	params_optimization['epsilon'] = 1e-8
-	params_optimization['epoch'] = 10000
+	params_optimization['epoch'] = 2000
 	
 	params_cosmology = dict()
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = forward
-	params_cosmology['backward_map'] = backward
-	params_cosmology['Nstats'] = 40
+	params_cosmology['forward_map'] = data.fmap.log_norm_forward
+	params_cosmology['backward_map'] = data.fmap.log_norm_backward
+	params_cosmology['Nstats'] = 300
 	
 	params = dict()
 	params['generator'] = params_generator
@@ -88,18 +85,14 @@ if __name__ == "__main__":
 	params['sum_every'] = 200
 	params['viz_every'] = 200
 	params['print_every'] = 100
-	params['big_every'] = 500
 	params['save_every'] = 1000
-	params['num_hists_at_once'] = 30
 	params['name'] = name
 	params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
 	params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
 
 
 	resume, params = utils.test_resume(try_resume, params)
-	params['big_every'] = 500
-	params['num_hists_at_once'] = 30
 
 	wgan = CosmoGAN(params, upscale_WGAN_pixel_CNN, is_3d=True)
-	dataset = data.load.load_dataset_file(spix=ns, resolution=256, Mpch=Mpch, scaling=4, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
+	dataset = data.load.load_dataset_file(spix=ns, resolution=256, Mpch=Mpch, scaling=1, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
 	wgan.train(dataset, resume=resume)

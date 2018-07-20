@@ -19,11 +19,7 @@ if __name__ == "__main__":
 	latent_dim = 100
 	Mpch = 350
 
-	forward = functools.partial(data.fmap.log_norm_forward, c=32000.0, shift=10.373523)
-	backward = functools.partial(data.fmap.log_norm_backward, c=32000.0, shift=10.373523)
-
-
-	time_str = '32_32_32_log_norm_c_32k' 
+	time_str = '32_32_32_log_norm' 
 	global_path = '../saved_result/'
 	name = 'WGAN'
 
@@ -65,8 +61,8 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = forward
-	params_cosmology['backward_map'] = backward
+	params_cosmology['forward_map'] = data.fmap.log_norm_forward
+	params_cosmology['backward_map'] = data.fmap.log_norm_backward
 	params_cosmology['Nstats'] = 2000
 	
 	params = dict()

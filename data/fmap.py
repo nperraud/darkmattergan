@@ -6,29 +6,46 @@ import numpy as np
 import scipy
 import functools
 
-def log_norm_forward(x, c=2000, shift=10):
+def log_norm_forward_0(x, c=8000.0):
     if not type(x).__module__ == np.__name__:
         x = np.array([x])
     res = np.zeros(shape=x.shape, dtype=np.float32)
 
-    mask = x > c
-    maski = mask == False
+    mask = (x > c)
+    maski = (mask == False)
 
     res[maski] = np.log(x[maski] + 1) - np.log(c + 1)
-    res[mask] = (x[mask] / (c + 1) - 1)
-    return res + shift
+    res[mask] = ((x[mask] + 1) / (c + 1) - 1)
+    return res
 
-def log_norm_backward(x, c=2000, shift=10):
-    if not type(x).__module__ == np.__name__:
-        x = np.array([x])
-    res = np.zeros(shape=x.shape, dtype=np.float32)
+def log_norm_forward(x, c=8000.0, scale=6.0):
+    shift = log_norm_forward_0(0.0, c)
+    #print("shift=", shift)
+    y = log_norm_forward_0(x, c)
+    #print("log_norm_forward_0 = ", y)
+    #print("ret = ", (y - shift) / scale)
+    return ((y - shift) / scale)
 
-    mask = x > shift
-    maski = mask == False
 
-    res[maski] = np.exp(x[maski] - shift + np.log(c + 1)) - 1
-    res[mask] = (x[mask] - shift + 1) * (c + 1)
+def log_norm_backward_0(y, c=8000.0):
+    if not type(y).__module__ == np.__name__:
+        y = np.array([y])
+    res = np.zeros(shape=y.shape, dtype=np.float32)
+
+    mask = (y > 0)
+    maski = (mask == False)
+
+    res[maski] = np.exp(y[maski] + np.log(c + 1)) - 1
+    res[mask] = ((y[mask] + 1) * (c + 1)) - 1
     return np.round(res)
+
+def log_norm_backward(y, c=8000.0, scale=6.0):
+    shift = log_norm_forward_0(0.0, c)
+    #print("shift = ", shift)
+    y = (y * scale) + shift
+    #print("y=", y)
+    return log_norm_backward_0(y, c)
+
 
 def gauss_forward(x, shift=0, a = 1):
     y = x + 1 + shift

@@ -20,14 +20,14 @@ def current_time_str():
 if __name__ == "__main__":
 	ns = 32
 	try_resume = True
-	downsampling = 4
+	downsampling = 2
 	latent_dim = ns**3
 	Mpch = 350
 
 
-	time_str = 'upscaling_GAN_3d_gen_8_disc_6_32_log' 
+	time_str = 'new_trans' 
 	global_path = '../saved_result/'
-	name = 'resnet_inception_upsampled_upscaling_GAN_3d_{}'.format(ns)
+	name = 'inception_128_to_256'
 
 	bn = False
 
@@ -45,13 +45,12 @@ if __name__ == "__main__":
 	params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
 	params_generator['y_layer'] = 0
 	params_generator['latent_dim'] = latent_dim
-	params_generator['nfilter'] = [32, 32, 32, 32, 32, 32, 32, 1]
+	params_generator['nfilter'] = [32, 32, 64, 64, 64, 32, 32, 1]
 	params_generator['inception'] = True
-	params_generator['residual'] = True
 	params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn]
 	params_generator['full'] = []
 	params_generator['summary'] = True
-	params_generator['non_lin'] = tf.nn.relu
+	params_generator['non_lin'] = None
 	
 	params_optimization = dict()
 	params_optimization['n_critic'] = 10
@@ -70,9 +69,9 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = data.fmap.log
-	params_cosmology['backward_map'] = data.fmap.inv_log
-	params_cosmology['Nstats'] = 1000
+	params_cosmology['forward_map'] = data.fmap.forward
+	params_cosmology['backward_map'] = data.fmap.backward
+	params_cosmology['Nstats'] = 300
 	
 	params = dict()
 	params['generator'] = params_generator
@@ -86,7 +85,6 @@ if __name__ == "__main__":
 	params['sum_every'] = 200
 	params['viz_every'] = 200
 	params['print_every'] = 100
-	params['big_every'] = 500
 	params['save_every'] = 1000
 	params['name'] = name
 	params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
@@ -96,5 +94,5 @@ if __name__ == "__main__":
 	resume, params = utils.test_resume(try_resume, params)
 
 	wgan = CosmoGAN(params, upscale_WGAN_pixel_CNN, is_3d=True)
-	dataset = data.load.load_dataset_file(spix=ns, resolution=256,Mpch=Mpch, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
+	dataset = data.load.load_dataset_file(spix=ns, resolution=256, Mpch=Mpch, scaling=1, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
 	wgan.train(dataset, resume=resume)

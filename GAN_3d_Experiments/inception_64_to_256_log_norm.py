@@ -24,13 +24,9 @@ if __name__ == "__main__":
 	latent_dim = ns**3
 	Mpch = 350
 
-	forward = functools.partial(data.fmap.log_norm_forward, c=2000.0, shift=7.6014023)
-	backward = functools.partial(data.fmap.log_norm_backward, c=2000.0, shift=7.6014023)
-
-
-	time_str = 'log_norm_c_2k' 
+	time_str = 'log_norm'
 	global_path = '../saved_result/'
-	name = 'resnet_inception'
+	name = 'inception_64_to_256'
 
 	bn = False
 
@@ -48,9 +44,8 @@ if __name__ == "__main__":
 	params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
 	params_generator['y_layer'] = 0
 	params_generator['latent_dim'] = latent_dim
-	params_generator['nfilter'] = [32, 32, 32, 32, 32, 32, 32, 1]
+	params_generator['nfilter'] = [32, 32, 64, 64, 64, 32, 32, 1]
 	params_generator['inception'] = True
-	params_generator['residual'] = True
 	params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn]
 	params_generator['full'] = []
 	params_generator['summary'] = True
@@ -73,8 +68,8 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = forward
-	params_cosmology['backward_map'] = backward
+	params_cosmology['forward_map'] = data.fmap.log_norm_forward
+	params_cosmology['backward_map'] = data.fmap.log_norm_backward
 	params_cosmology['Nstats'] = 1000
 	
 	params = dict()

@@ -167,8 +167,8 @@ class Dataset_file(object):
         num_hists_at_once: number of histograms to be loaded at once in memory
         '''
 
-        if num_hists_at_once > 10:
-            raise ValueError('Load less than 10 histograms at a time due to memory concerns!')
+        #if num_hists_at_once > 10:
+            #raise ValueError('Load less than 10 histograms at a time due to memory concerns!')
 
         if num_hists_at_once > self.num_hists:
             num_hists_at_once = self.num_hists

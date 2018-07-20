@@ -1379,7 +1379,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
             sx = sx * params['stride'][i]
 
             if params['inception']:
-                conv_out = inception_deconv(in_tensor=x, 
+                x = inception_deconv(in_tensor=x, 
                                     bs=bs, 
                                     sx=sx, 
                                     n_filters=params['nfilter'][i], 
@@ -1392,7 +1392,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                 rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
        
             else:       
-                conv_out = deconv(in_tensor=x, 
+                x = deconv(in_tensor=x, 
                            bs=bs, 
                            sx=sx,
                            n_filters=params['nfilter'][i],
@@ -1406,19 +1406,13 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
 
             if i < nconv-1:
                 if params['batch_norm'][i]:
-                    conv_out = batch_norm(conv_out, name='{}_bn'.format(i), train=True)
+                    x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
 
-                conv_out = lrelu(conv_out)
-
-            # residual connections
-            if params['residual'] and 0<i<(nconv-1):
-                x = x + conv_out
-                rprint('         Residual connection', reuse)
-            else:
-                x = conv_out
+                x = lrelu(x)
 
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
+
         if len(params['one_pixel_mapping']):
             x = one_pixel_mapping(x,
                                   params['one_pixel_mapping'],
@@ -1499,6 +1493,8 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                 x = tf.concat([X, z], axis=3)
             rprint('     Concat X and z to {}'.format(x.shape), reuse)
 
+        conv_over_deconv = np.all(params['stride'] == 1) # If true use conv, else deconv
+
         for i in range(nconv):
             sx = sx * params['stride'][i]
 
@@ -1524,31 +1520,33 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
 
                 # x = lrelu(x)
 
-            if (i%2 != 0) and (i < nconv-2): # save odd layer inputs for residual connections
+            if params['residual'] and (i%2 != 0) and (i < nconv-2): # save odd layer inputs for residual connections
                 residue = x
 
             if params['inception']:
-                # x = inception_deconv(in_tensor=x, 
-                #                     bs=bs, 
-                #                     sx=sx, 
-                #                     n_filters=params['nfilter'][i], 
-                #                     stride=params['stride'][i], 
-                #                     summary=params['summary'], 
-                #                     num=i, 
-                #                     is_3d=params['is_3d'], 
-                #                     merge=(i == (nconv-1))
-                #                     )
-                # rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
-
-                x = inception_conv(in_tensor=x, 
+                if conv_over_deconv:
+                    x = inception_conv(in_tensor=x, 
                                     n_filters=params['nfilter'][i], 
                                     stride=params['stride'][i], 
                                     summary=params['summary'], 
                                     num=i,
                                     is_3d=params['is_3d'], 
-                                    merge=(i == (nconv-1))
+                                    merge= (True if params['residual'] else (i == (nconv-1)) )
                                     )
-                rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+                    rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+                else:
+                    x = inception_deconv(in_tensor=x, 
+                                        bs=bs, 
+                                        sx=sx, 
+                                        n_filters=params['nfilter'][i], 
+                                        stride=params['stride'][i], 
+                                        summary=params['summary'], 
+                                        num=i, 
+                                        is_3d=params['is_3d'], 
+                                        merge= (True if params['residual'] else (i == (nconv-1)) )
+                                        )
+                    rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
             
             else:        
                 x = deconv(in_tensor=x, 

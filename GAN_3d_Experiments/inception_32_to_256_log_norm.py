@@ -6,7 +6,7 @@ sys.path.insert(0, '../')
 
 import numpy as np
 import tensorflow as tf
-import os, functools
+import os
 import data, utils
 from model import upscale_WGAN_pixel_CNN
 from gan import CosmoGAN
@@ -20,17 +20,14 @@ def current_time_str():
 if __name__ == "__main__":
 	ns = 32
 	try_resume = True
-	downsampling = 4
+	downsampling = 8
 	latent_dim = ns**3
 	Mpch = 350
 
-	forward = functools.partial(data.fmap.log_norm_forward, c=1000.0, shift=6.908755)
-	backward = functools.partial(data.fmap.log_norm_backward, c=1000.0, shift=6.908755)
 
-
-	time_str = 'log_norm_c_1k' 
+	time_str = 'log_norm' 
 	global_path = '../saved_result/'
-	name = 'resnet_inception'
+	name = 'inception_32_to_256'
 
 	bn = False
 
@@ -48,13 +45,12 @@ if __name__ == "__main__":
 	params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
 	params_generator['y_layer'] = 0
 	params_generator['latent_dim'] = latent_dim
-	params_generator['nfilter'] = [32, 32, 32, 32, 32, 32, 32, 1]
+	params_generator['nfilter'] = [32, 32, 64, 64, 64, 32, 32, 1]
 	params_generator['inception'] = True
-	params_generator['residual'] = True
 	params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn]
 	params_generator['full'] = []
 	params_generator['summary'] = True
-	params_generator['non_lin'] = tf.nn.relu
+	params_generator['non_lin'] = None
 	
 	params_optimization = dict()
 	params_optimization['n_critic'] = 10
@@ -73,9 +69,9 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = forward
-	params_cosmology['backward_map'] = backward
-	params_cosmology['Nstats'] = 1000
+	params_cosmology['forward_map'] = data.fmap.log_norm_forward
+	params_cosmology['backward_map'] = data.fmap.log_norm_backward
+	params_cosmology['Nstats'] = 300
 	
 	params = dict()
 	params['generator'] = params_generator
@@ -89,7 +85,6 @@ if __name__ == "__main__":
 	params['sum_every'] = 200
 	params['viz_every'] = 200
 	params['print_every'] = 100
-	params['big_every'] = 500
 	params['save_every'] = 1000
 	params['name'] = name
 	params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
@@ -99,5 +94,5 @@ if __name__ == "__main__":
 	resume, params = utils.test_resume(try_resume, params)
 
 	wgan = CosmoGAN(params, upscale_WGAN_pixel_CNN, is_3d=True)
-	dataset = data.load.load_dataset_file(spix=ns, resolution=256,Mpch=Mpch, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
+	dataset = data.load.load_dataset_file(spix=ns, resolution=256, Mpch=Mpch, scaling=1, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
 	wgan.train(dataset, resume=resume)

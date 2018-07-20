@@ -24,11 +24,7 @@ if __name__ == "__main__":
 	latent_dim = ns**3
 	Mpch = 350
 
-	forward = functools.partial(data.fmap.log_norm_forward, c=4000.0, shift=8.2943)
-	backward = functools.partial(data.fmap.log_norm_backward, c=4000.0, shift=8.2943)
-
-
-	time_str = 'log_norm_c_4000'
+	time_str = 'log_norm'
 	global_path = '../saved_result/'
 	name = 'bigstat_64_to_256'
 
@@ -72,8 +68,8 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = forward
-	params_cosmology['backward_map'] = backward
+	params_cosmology['forward_map'] = data.fmap.log_norm_forward
+	params_cosmology['backward_map'] = data.fmap.log_norm_backward
 	params_cosmology['Nstats'] = 1000
 	
 	params = dict()

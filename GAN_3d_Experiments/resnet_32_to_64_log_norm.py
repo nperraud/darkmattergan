@@ -20,23 +20,19 @@ def current_time_str():
 if __name__ == "__main__":
 	ns = 32
 	try_resume = True
-	downsampling = 4
+	downsampling = 2
 	latent_dim = ns**3
 	Mpch = 350
 
-	forward = functools.partial(data.fmap.log_norm_forward, c=32000.0, shift=10.373523)
-	backward = functools.partial(data.fmap.log_norm_backward, c=32000.0, shift=10.373523)
-
-
-	time_str = 'log_norm_c_32k' 
+	time_str = 'log_norm' 
 	global_path = '../saved_result/'
-	name = 'resnet_inception'
+	name = 'resnet_inception_32_to_64'
 
 	bn = False
 
 	params_discriminator = dict()
 	params_discriminator['stride'] = [2, 2, 2, 1, 1, 1]
-	params_discriminator['nfilter'] = [64, 64, 32, 16, 8, 2]
+	params_discriminator['nfilter'] = [64, 64, 64, 64, 32, 2]
 	params_discriminator['inception'] = True
 	params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
 	params_discriminator['full'] = [64, 16]
@@ -48,7 +44,7 @@ if __name__ == "__main__":
 	params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
 	params_generator['y_layer'] = 0
 	params_generator['latent_dim'] = latent_dim
-	params_generator['nfilter'] = [32, 32, 32, 32, 32, 32, 32, 1]
+	params_generator['nfilter'] = [64, 64, 64, 64, 64, 64, 64, 1]
 	params_generator['inception'] = True
 	params_generator['residual'] = True
 	params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn]
@@ -73,8 +69,8 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = forward
-	params_cosmology['backward_map'] = backward
+	params_cosmology['forward_map'] = data.fmap.log_norm_forward
+	params_cosmology['backward_map'] = data.fmap.log_norm_backward
 	params_cosmology['Nstats'] = 1000
 	
 	params = dict()
@@ -91,6 +87,7 @@ if __name__ == "__main__":
 	params['print_every'] = 100
 	params['big_every'] = 500
 	params['save_every'] = 1000
+	params['num_hists_at_once'] = 30
 	params['name'] = name
 	params['summary_dir'] = global_path + params['name'] + '_' + time_str +'summary/'
 	params['save_dir'] = global_path + params['name'] + '_' + time_str + 'checkpoints/'
@@ -99,5 +96,5 @@ if __name__ == "__main__":
 	resume, params = utils.test_resume(try_resume, params)
 
 	wgan = CosmoGAN(params, upscale_WGAN_pixel_CNN, is_3d=True)
-	dataset = data.load.load_dataset_file(spix=ns, resolution=256,Mpch=Mpch, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
+	dataset = data.load.load_dataset_file(spix=ns, resolution=256, Mpch=Mpch, scaling=4, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
 	wgan.train(dataset, resume=resume)

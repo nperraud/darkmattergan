@@ -344,7 +344,7 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, is_3d=F
 
     out_tensor = tf.concat([tensor_1, tensor_3, tensor_5], axis=concat_axis)
 
-    if True:
+    if merge:
         # do 1x1 convolution to reduce the number of output channels from (3 x n_filters) to n_filters
         out_tensor = deconv(out_tensor,
                           output_shape=output_shape,
@@ -388,7 +388,7 @@ def inception_conv(in_tensor, n_filters, stride, summary, num, is_3d=False, merg
 
     out_tensor = tf.concat([tensor_1, tensor_3, tensor_5], axis=concat_axis)
 
-    if True:
+    if merge:
         # do 1x1 convolution to reduce the number of output channels from (3 x n_filters) to n_filters
         out_tensor = conv(out_tensor,
                         nf_out=n_filters,
