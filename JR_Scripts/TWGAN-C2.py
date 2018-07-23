@@ -62,7 +62,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_cC+M{}gp10_lrd2'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_cC2+M{}'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -74,11 +74,15 @@ params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bnd] * len(params_discriminator['nfilter'])
 params_discriminator['spectral_norm'] = True
 params_discriminator['full'] = [64]
-params_discriminator['cdf'] = 32
-params_discriminator['channel_cdf'] = 16
+#params_discriminator['cdf'] = 32
+#params_discriminator['channel_cdf'] = 16
 params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
+params_cdf = dict()
+params_cdf['cdf_in'] = 32
+params_cdf['channel_cdf'] = 16
+params_discriminator['cdf_block'] = params_cdf
 
 bng = False
 
@@ -98,8 +102,8 @@ params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 4e-6
-params_optimization['gen_learning_rate'] = 2e-6
+params_optimization['disc_learning_rate'] = 1e-6
+params_optimization['gen_learning_rate'] = 1e-6
 params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
@@ -118,7 +122,7 @@ params_time = dict()
 params_time['classes'] = cl
 params_time['num_classes'] = len(cl)
 params_time['class_weights'] = [(1.3 - (0.08*cl[0])), (1.3 - (0.08*cl[1]))]
-params_time['class_weights'] = [0.8, 1.2]
+#params_time['class_weights'] = [0.8, 1.2]
 assert len(params_time['classes']) == len(params_time['class_weights'])
 params_time['use_diff_stats'] = False
 
