@@ -59,6 +59,7 @@ def default_params(params=None):
     d_param['discriminator']['cdf'] = None
     d_param['discriminator']['channel_cdf'] = None
     d_param['discriminator']['moment'] = None
+    d_param['discriminator']['spectral_norm'] = False
 
     # Optimization parameters
     # -----------------------

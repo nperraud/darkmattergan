@@ -1764,6 +1764,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                      nf_out=params['nfilter'][i],
                      shape=params['shape'][i],
                      stride=params['stride'][i],
+                     use_spectral_norm=params['spectral_norm'],
                      name='{}_conv'.format(i),
                      summary=params['summary'])
             rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)

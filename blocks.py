@@ -176,7 +176,7 @@ def spectral_norm(w, iteration=1):
     return w_norm
 
 
-def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
+def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="conv2d", summary=True):
     '''Convolutional layer for square images'''
 
     weights_initializer = tf.contrib.layers.xavier_initializer()
@@ -187,8 +187,10 @@ def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
             'w', [shape[0], shape[1],
                   imgs.get_shape()[-1], nf_out],
             initializer=weights_initializer)
+        if use_spectral_norm:
+            w = spectral_norm(w)
         conv = tf.nn.conv2d(
-            imgs, spectral_norm(w), strides=[1, stride, stride, 1], padding='SAME')
+            imgs, w, strides=[1, stride, stride, 1], padding='SAME')
 
         biases = _tf_variable('biases', [nf_out], initializer=const)
         conv = tf.nn.bias_add(conv, biases)
@@ -205,9 +207,13 @@ def conv3d(imgs,
            nf_out,
            shape=[5, 5, 5],
            stride=2,
+           use_spectral_norm=False,
            name="conv3d",
            summary=True):
     '''Convolutional layer for square images'''
+
+    if use_spectral_norm:
+        print("Warning spectral norm for conv3d set to True but may not be implemented!")
 
     weights_initializer = tf.contrib.layers.xavier_initializer()
     const = tf.constant_initializer(0.0)
