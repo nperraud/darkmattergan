@@ -1676,6 +1676,51 @@ def apply_non_lin(non_lin, x, reuse):
     return x
 
 
+def legacy_cdf_block(x, params, reuse):
+    cdf = tf_cdf(x, params['cdf'])
+    rprint('    Cdf layer: {}'.format(params['cdf']), reuse)
+    rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+    if params['channel_cdf']:
+        lst = []
+        for i in range(x.shape[-1]):
+            lst.append(tf_cdf(x, params['channel_cdf'],
+                              name="cdf_weight_channel_{}".format(i)))
+            rprint('        Channel Cdf layer: {}'.format(params['cdf']), reuse)
+        lst.append(cdf)
+        cdf = tf.concat(lst, axis=1)
+        rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+    cdf = linear(cdf, 2 * params['cdf'], 'cdf_full', summary=params['summary'])
+    cdf = params['activation'](cdf)
+    rprint('     CDF Full layer with {} outputs'.format(2 * params['cdf']), reuse)
+    rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
+    return cdf
+
+
+def cdf_block(x, params, reuse):
+    assert ('cdf_block' in params.keys)
+    block_params = params['cdf_block']
+    assert ('cdf_in' in block_params.keys)
+    use_first = block_params.get('use_first_channel', False)
+    cdf = tf_cdf(x, block_params['cdf_in'], use_first_channel=use_first)
+    rprint('    Cdf layer: {}'.format(block_params['cdf_in']), reuse)
+    rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+    if block_params.get('channel_cdf', None):
+        lst = []
+        for i in range(x.shape[-1]):
+            lst.append(tf_cdf(x[:,:,:,i], block_params['channel_cdf'], use_first_channel=False,
+                              name="cdf_weight_channel_{}".format(i)))
+            rprint('        Channel Cdf layer: {}'.format(block_params['channel_cdf']), reuse)
+        lst.append(cdf)
+        cdf = tf.concat(lst, axis=1)
+        rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+    out_dim = block_params.get('cdf_out', 2 * block_params['cdf_in'])
+    cdf = linear(cdf, out_dim, 'cdf_full', summary=params['summary'])
+    cdf = params['activation'](cdf)
+    rprint('     CDF Full layer with {} outputs'.format(out_dim), reuse)
+    rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
+    return cdf
+
+
 def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     conv = get_conv(params['is_3d'])
 
@@ -1698,22 +1743,10 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             x = non_lin_f(x)
             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
         if params['cdf']:
-            cdf = tf_cdf(x, params['cdf'])
-            rprint('    Cdf layer: {}'.format(params['cdf']), reuse)
-            rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
-            if params['channel_cdf']:
-                lst = []
-                for i in range(x.shape[-1]):
-                    lst.append(tf_cdf(x, params['channel_cdf'],
-                                      name="cdf_weight_channel_{}".format(i)))
-                    rprint('        Channel Cdf layer: {}'.format(params['cdf']), reuse)
-                lst.append(cdf)
-                cdf = tf.concat(lst, axis=1)
-                rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
-            cdf = linear(cdf, 2 * params['cdf'], 'cdf_full', summary=params['summary'])
-            cdf = params['activation'](cdf)
-            rprint('     CDF Full layer with {} outputs'.format(2*params['cdf']), reuse)
-            rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
+            cdf = legacy_cdf_block(x, params, reuse)
+        if params['cdf_block']:
+            assert(not params['cdf'])
+            cdf = cdf_block(x, params, reuse)
         if params['moment']:
             rprint('    Covariance layer with {} shape'.format(params['moment']), reuse)
             cov = tf_covmat(x, params['moment'])
@@ -1747,9 +1780,9 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         if z is not None:
             x = tf.concat([x, z], axis=1)
             rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
-        if params['cdf']:
+        if params['cdf'] or params['cdf_block']:
             x = tf.concat([x, cdf], axis=1)
-            rprint('     Contenate with CDF variables to {}'.format(x.shape), reuse)           
+            rprint('     Contenate with CDF variables to {}'.format(x.shape), reuse)
         if params['moment']:
             x = tf.concat([x, cov], axis=1)
             rprint('     Contenate with covairance variables to {}'.format(x.shape), reuse)           
