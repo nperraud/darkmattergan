@@ -37,14 +37,14 @@ Mpc_orig = 500
 Mpc = Mpc_orig // (512 // ns)
 cl = [int(sys.argv[1]), int(sys.argv[2])]
 
-te = ''
+time_encoding = 'channel_encoding'
 ten = ''
 
-if te == 'channel_encoding':
+if time_encoding == 'channel_encoding':
     ten = 'ce'
-elif te == 'scale_full':
+elif time_encoding == 'scale_full':
     ten = 'sf'
-elif te == 'scale_half':
+elif time_encoding == 'scale_half':
     ten = 'sh'
 
 
@@ -123,7 +123,7 @@ assert len(params_time['classes']) == len(params_time['class_weights'])
 params_time['use_diff_stats'] = False
 
 params_time['model'] = dict()
-params_time['model']['time_encoding'] = 'channel_encoding'
+params_time['model']['time_encoding'] = time_encoding
 params_time['model']['relative'] = False
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
