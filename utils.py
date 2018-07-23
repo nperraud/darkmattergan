@@ -320,13 +320,15 @@ def print_params_to_py_style_output(params):
             print_params_to_py_style_output_helper(key, value)
 
 
-def print_sub_dict_params(d_name, params):
-    print("\n{} params".format(d_name).title())
+def print_sub_dict_params(d_name, params, indent = 0):
+    indent_str = " " * indent
+    print("\n{}{} params".format(indent_str, d_name).title())
+    for key, value in params.items():
+        if not isinstance(value, dict):
+            print(" {}{}.{}: {}".format(indent_str, d_name, key, value))
     for key, value in params.items():
         if isinstance(value, dict):
-            print(" {}.{}: dict".format(d_name, key))
-        else:
-            print(" {}.{}: {}".format(d_name, key, value))
+            print_sub_dict_params(key, value, indent=indent+1)
 
 
 def print_param_dict(params):
