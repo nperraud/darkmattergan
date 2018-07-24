@@ -1697,9 +1697,9 @@ def legacy_cdf_block(x, params, reuse):
 
 
 def cdf_block(x, params, reuse):
-    assert ('cdf_block' in params.keys)
+    assert ('cdf_block' in params.keys())
     block_params = params['cdf_block']
-    assert ('cdf_in' in block_params.keys)
+    assert ('cdf_in' in block_params.keys())
     use_first = block_params.get('use_first_channel', False)
     cdf = tf_cdf(x, block_params['cdf_in'], use_first_channel=use_first)
     rprint('    Cdf layer: {}'.format(block_params['cdf_in']), reuse)
