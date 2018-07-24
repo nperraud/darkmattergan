@@ -7,7 +7,7 @@ import warnings
 def arg_helper(params, d_param):
     for key in d_param.keys():
         params[key] = params.get(key, d_param[key])
-        if type(params[key]) is dict:
+        if (type(params[key]) is dict) and d_param[key]:
             params[key] = arg_helper(params[key], d_param[key])
     return params
 
