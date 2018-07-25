@@ -48,7 +48,7 @@ class WGanModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
@@ -75,7 +75,7 @@ class WNGanModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         self._D_loss = D_loss_r - D_loss_f + D_gp
         self._G_loss = D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
@@ -97,7 +97,7 @@ class CondWGanModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
@@ -128,7 +128,7 @@ class TemporalGanModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
@@ -176,8 +176,8 @@ class TempGanModelv2(GanModel):
         D_c_loss_r = tf.reduce_mean(self.D_c_real)
 
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        D_c_gp = wgan_regularization(gamma_gp, self.c_discriminator, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_c_gp = gularization(gamma_gp, self.c_discriminator, [self.G_fake], [X])
 
         self._D_loss = D_loss_f - D_loss_r + D_c_loss_f - D_c_loss_r + D_gp + D_c_gp
         self._G_loss = -D_loss_f -D_c_loss_f
@@ -238,7 +238,7 @@ class TemporalGanModelv3(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
 
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.disc, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
@@ -311,7 +311,7 @@ class TemporalRWGanModelv3GP(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real - self.D_fake)
 
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.disc, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -D_loss_r + D_gp
@@ -390,7 +390,7 @@ class TemporalGanModelv4(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
 
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.disc, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
@@ -445,7 +445,13 @@ class TemporalGenericGanModel(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = 0
         if gamma_gp != 0:
-            D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+            if self.params['optimization'].get('JS-regularization', False):
+                print("Using JS-Regularization (Roth et al. 2017)")
+                D_gp = js_regularization(self.D_real, X, self.D_fake, self.G_fake,
+                                         params['optimization']['batch_size'])
+                D_gp = (gamma_gp / 2.0) * D_gp
+            else:
+                D_gp = gularization(gamma_gp, self.disc, [self.G_fake], [X])
 
         if params['time']['model']['relative']:
             D_loss_f = tf.reduce_mean(self.D_fake - self.D_real)
@@ -579,7 +585,7 @@ class TemporalGanModelv5(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
 
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.disc, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
@@ -656,7 +662,7 @@ class TemporalGanModelv3E(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
 
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake], [X])
 
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
@@ -723,7 +729,7 @@ class TemporalGanModelv4old(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
 
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
@@ -774,7 +780,7 @@ class WVeeGanModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.z_fake], [X, self.z_real])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake, self.z_fake], [X, self.z_real])
 
         e = (z - self.z_fake)
         weight_l2 = self.params['optimization']['weight_l2']
@@ -825,7 +831,7 @@ class LapGanModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
@@ -861,7 +867,7 @@ class LapGanModelTanh(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
@@ -889,7 +895,7 @@ class Gan12Model(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
@@ -959,7 +965,7 @@ class LapPatchWGANModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
@@ -1054,7 +1060,7 @@ class LapPatchWGANsingleModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
 
@@ -1133,7 +1139,7 @@ class PatchWGANsingleModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake], [X])
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
 
@@ -1199,7 +1205,7 @@ class LapPatchWGANsimpleModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu, flip_border], [X0, self.Xsu, flip_border])
+        D_gp = gularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu, flip_border], [X0, self.Xsu, flip_border])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
@@ -1282,7 +1288,7 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, self.Xsu], [X_real, self.Xsu])
+        D_gp = gularization(gamma_gp, self.discriminator, [G_fake, self.Xsu], [X_real, self.Xsu])
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
 
@@ -1391,9 +1397,9 @@ class upscale_WGAN_pixel_CNN(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
 
         if self.downsampling:
-            D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
+            D_gp = gularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
         else:
-            D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+            D_gp = gularization(gamma_gp, self.discriminator, [G_fake], [X_real])
 
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
@@ -1455,9 +1461,9 @@ class upscale_WGAN_pixel_CNN(GanModel):
         gamma_gp = self.params['optimization']['gamma_gp']
 
         if self.downsampling:
-            D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
+            D_gp = gularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
         else:
-            D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+            D_gp = gularization(gamma_gp, self.discriminator, [G_fake], [X_real])
 
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
@@ -1530,7 +1536,7 @@ class LapPatchWGANDirect(GanModel):
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+        D_gp = gularization(gamma_gp, self.discriminator, [G_fake], [X_real])
         #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
@@ -1603,7 +1609,7 @@ def fisher_gan_regularization(D_real, D_fake, rho=1):
     return reg_term
 
 
-def wgan_regularization(gamma, discriminator, list_fake, list_real):
+def gularization(gamma, discriminator, list_fake, list_real):
     if not gamma:
         # I am not sure this part or the code is still useful
         t_vars = tf.trainable_variables()
@@ -1632,6 +1638,30 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
         D_gp = gamma * tf.square(tf.norm(gradients[0], ord=2) - 1.0)
         tf.summary.scalar("Disc/GradPen", D_gp, collections=["Training"])
     return D_gp
+
+
+#Roth et al. 2017, see https://github.com/rothk/Stabilizing_GANs
+def js_regularization(D1_logits, D1_arg, D2_logits, D2_arg, batch_size):
+    #print("In shapes: {}, {}, {}, {}".format(D1_logits.shape, D1_arg.shape, D2_logits.shape, D2_arg.shape))
+    D1 = tf.nn.sigmoid(D1_logits)
+    D2 = tf.nn.sigmoid(D2_logits)
+    bs = tf.shape(D1)[0]
+    grad_D1_logits = tf.gradients(D1_logits, D1_arg)[0]
+    #print(grad_D1_logits.shape)
+    grad_D2_logits = tf.gradients(D2_logits, D2_arg)[0]
+    grad_D1_logits_norm = tf.norm(tf.reshape(grad_D1_logits, [bs,-1]), axis=1, keep_dims=True)
+    grad_D2_logits_norm = tf.norm(tf.reshape(grad_D2_logits, [bs,-1]), axis=1, keep_dims=True)
+
+    #set keep_dims=True/False such that grad_D_logits_norm.shape == D.shape
+    print("Shapes: {}=?={} and {}=?={}".format(grad_D1_logits_norm.shape, D1.shape,
+                                               grad_D2_logits_norm.shape, D2.shape))
+    #assert grad_D1_logits_norm.shape == D1.shape
+    #assert grad_D2_logits_norm.shape == D2.shape
+
+    reg_D1 = tf.multiply(tf.square(1.0-D1), tf.square(grad_D1_logits_norm))
+    reg_D2 = tf.multiply(tf.square(D2), tf.square(grad_D2_logits_norm))
+    disc_regularizer = tf.reduce_mean(reg_D1 + reg_D2)
+    return disc_regularizer
 
 
 def get_conv(is_3d=False):
