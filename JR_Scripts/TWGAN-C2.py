@@ -83,7 +83,12 @@ params_cdf = dict()
 #params_cdf['cdf_in'] = 32
 params_cdf['channel_cdf'] = 32
 params_cdf['cdf_out'] = 64
-params_discriminator['cdf_block'] = params_cdf
+#params_discriminator['cdf_block'] = params_cdf
+params_hist = dict()
+params_hist['full'] = 64
+params_hist['bins'] = 32
+params_hist['initial_range'] = 3
+params_discriminator['histogram'] = params_hist
 
 bng = False
 
@@ -99,8 +104,8 @@ params_generator['non_lin'] = tf.nn.relu
 params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
-params_optimization['gamma_gp'] = 1
-params_optimization['JS-regularization'] = True
+params_optimization['gamma_gp'] = 10
+#params_optimization['JS-regularization'] = True
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
