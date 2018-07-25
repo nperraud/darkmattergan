@@ -74,13 +74,13 @@ params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
 params_discriminator['batch_norm'] = [bnd] * len(params_discriminator['nfilter'])
 params_discriminator['spectral_norm'] = True
 params_discriminator['full'] = [64]
-#params_discriminator['cdf'] = 32
-#params_discriminator['channel_cdf'] = 16
+# params_discriminator['cdf'] = 32
+# params_discriminator['channel_cdf'] = 16
 params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 params_cdf = dict()
-#params_cdf['cdf_in'] = 32
+# params_cdf['cdf_in'] = 32
 params_cdf['channel_cdf'] = 32
 params_cdf['cdf_out'] = 64
 params_discriminator['cdf_block'] = params_cdf
@@ -88,7 +88,7 @@ params_hist = dict()
 params_hist['full'] = 64
 params_hist['bins'] = 32
 params_hist['initial_range'] = 3
-#params_discriminator['histogram'] = params_hist
+# params_discriminator['histogram'] = params_hist
 
 bng = False
 
@@ -129,13 +129,13 @@ params_time = dict()
 params_time['classes'] = cl
 params_time['num_classes'] = len(cl)
 params_time['class_weights'] = [(1.3 - (0.08*cl[0])), (1.3 - (0.08*cl[1]))]
-#params_time['class_weights'] = [0.8, 1.2]
+# params_time['class_weights'] = [0.8, 1.2]
 assert len(params_time['classes']) == len(params_time['class_weights'])
 params_time['use_diff_stats'] = False
 
 params_time['model'] = dict()
 params_time['model']['time_encoding'] = time_encoding
-params_time['model']['relative'] = True #Dont forget n_critics when changing this
+params_time['model']['relative'] = True  # Dont forget n_critics when changing this
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
 
@@ -172,7 +172,7 @@ filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_All.h5'.format(Mpc_orig)
 for box_idx in params['time']['classes']:
     images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')
     images = forward(images / divisor)
-    #while images.shape[1] > ns:
+    # while images.shape[1] > ns:
     #    images = skimage.measure.block_reduce(images, (1,2,2), np.sum)
     img_list.append(images)
 
