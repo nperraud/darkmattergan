@@ -48,7 +48,6 @@ elif time_encoding == 'scale_half':
     ten = 'sh'
 
 
-
 def get_model_name(params):
     r = 'R' if params['time']['model']['relative'] else ''
     sel = '_selu' if params['generator']['activation'] == blocks.selu else ''
@@ -56,13 +55,14 @@ def get_model_name(params):
     return 'T{}WGAN{}:{}d{}{}{}{}-{}'.format(r, ten, Mpc, divisor,sel, sn, len(params['generator']['nfilter']),
                                                len(params['discriminator']['nfilter']))
 
+
 shift = 3
 bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_cC2+M{}'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_c+M{}'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -80,8 +80,9 @@ params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 params_cdf = dict()
-params_cdf['cdf_in'] = 32
-params_cdf['channel_cdf'] = 16
+#params_cdf['cdf_in'] = 32
+params_cdf['channel_cdf'] = 32
+params_cdf['cdf_out'] = 64
 params_discriminator['cdf_block'] = params_cdf
 
 bng = False

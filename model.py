@@ -1699,21 +1699,24 @@ def legacy_cdf_block(x, params, reuse):
 def cdf_block(x, params, reuse):
     assert ('cdf_block' in params.keys())
     block_params = params['cdf_block']
-    assert ('cdf_in' in block_params.keys())
+    assert ('cdf_in' in block_params.keys() or 'channel_cdf' in block_params.keys())
     use_first = block_params.get('use_first_channel', False)
-    cdf = tf_cdf(x, block_params['cdf_in'], use_first_channel=use_first)
-    rprint('    Cdf layer: {}'.format(block_params['cdf_in']), reuse)
-    rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+    cdf = None
+    if block_params.get('cdf_in', None):
+        cdf = tf_cdf(x, block_params['cdf_in'], use_first_channel=use_first)
+        rprint('    Cdf layer: {}'.format(block_params['cdf_in']), reuse)
+        rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
     if block_params.get('channel_cdf', None):
         lst = []
         for i in range(x.shape[-1]):
             lst.append(tf_cdf(x[:,:,:,i], block_params['channel_cdf'], use_first_channel=False,
                               name="cdf_weight_channel_{}".format(i)))
             rprint('        Channel Cdf layer: {}'.format(block_params['channel_cdf']), reuse)
-        lst.append(cdf)
+        if block_params.get('cdf_in', None):
+            lst.append(cdf)
         cdf = tf.concat(lst, axis=1)
         rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
-    out_dim = block_params.get('cdf_out', 2 * block_params['cdf_in'])
+    out_dim = block_params.get('cdf_out', 2 * block_params.get('cdf_in',8))
     cdf = linear(cdf, out_dim, 'cdf_full', summary=params['summary'])
     cdf = params['activation'](cdf)
     rprint('     CDF Full layer with {} outputs'.format(out_dim), reuse)
