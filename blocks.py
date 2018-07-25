@@ -435,7 +435,7 @@ def learned_histogram(x, params):
     centers = tf.Variable(
         tf.reshape(tf.transpose(centers), shape=[1, 1, n_features, bins]),
         name='centers', dtype=tf.float32)
-    width = 4 * initial_range / bins  # 50% overlap between bins.
+    width = bins * initial_range / 4  # 50% overlap between bins.
     widths = tf.get_variable(
         name='widths', shape=[1, 1, n_features, bins], dtype=tf.float32,
         initializer=tf.initializers.constant(value=width, dtype=tf.float32))
@@ -444,5 +444,4 @@ def learned_histogram(x, params):
     widths = tf.abs(widths)
     dist = tf.abs(x - centers)
     hist = tf.reduce_mean(tf.nn.relu(1 - dist * widths), axis=1)
-    hist = tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])
-    return hist / (2 * tf.reduce_mean(hist, 1))
+    return tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])
