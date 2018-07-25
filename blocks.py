@@ -444,4 +444,5 @@ def learned_histogram(x, params):
     widths = tf.abs(widths)
     dist = tf.abs(x - centers)
     hist = tf.reduce_mean(tf.nn.relu(1 - dist * widths), axis=1)
-    return tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])
+    hist = tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])
+    return hist / (2 * tf.reduce_mean(hist, 1))

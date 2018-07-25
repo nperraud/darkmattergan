@@ -62,7 +62,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_lhist64_c+M{}'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_lhist32v2_c+M{}'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -86,7 +86,7 @@ params_cdf['cdf_out'] = 64
 #params_discriminator['cdf_block'] = params_cdf
 params_hist = dict()
 params_hist['full'] = 64
-params_hist['bins'] = 64
+params_hist['bins'] = 32
 params_hist['initial_range'] = 3
 params_discriminator['histogram'] = params_hist
 
