@@ -413,3 +413,35 @@ def tf_covmat(x, shape):
     c = 1/tf.cast(nx, tf.float32)*tf.matmul(tf.transpose(conv_vec,perm=[0,2,1]), conv_vec)
     return c
 
+
+def learned_histogram(x, params):
+    """A learned histogram layer.
+
+    The center and width of each bin is optimized.
+    One histogram is learned per feature map.
+    """
+    # Shape of x: #samples x #nodes x #features.
+    bins = params.get('bins', 20)
+    initial_range = params.get('initial_range', 2)
+    is_3d = params.get('is_3d', False)
+    if is_3d:
+        x = tf.reshape(x, [tf.shape(x)[0], x.shape[1] * x.shape[2] * x.shape[3], x.shape[4]])
+    else:
+        x = tf.reshape(x, [tf.shape(x)[0], x.shape[1] * x.shape[2], x.shape[3]])
+    n_features = int(x.get_shape()[2])
+    centers = tf.linspace(float(0), initial_range, bins, name='range')
+    centers = tf.expand_dims(centers, axis=1)
+    centers = tf.tile(centers, [1, n_features])  # One histogram per feature channel.
+    centers = tf.Variable(
+        tf.reshape(tf.transpose(centers), shape=[1, 1, n_features, bins]),
+        name='centers', dtype=tf.float32)
+    width = 4 * initial_range / bins  # 50% overlap between bins.
+    widths = tf.get_variable(
+        name='widths', shape=[1, 1, n_features, bins], dtype=tf.float32,
+        initializer=tf.initializers.constant(value=width, dtype=tf.float32))
+    x = tf.expand_dims(x, axis=3)
+    # All are rank-4 tensors: samples, nodes, features, bins.
+    widths = tf.abs(widths)
+    dist = tf.abs(x - centers)
+    hist = tf.reduce_mean(tf.nn.relu(1 - dist * widths), axis=1)
+    return tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])

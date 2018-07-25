@@ -1754,6 +1754,16 @@ def cdf_block(x, params, reuse):
     return cdf
 
 
+def histogram_block(x, params, reuse):
+    hist = learned_histogram(x, params['histogram'])
+    out_dim = params['histogram'].get('full', 32)
+    hist = linear(hist, out_dim, 'hist_full', summary=params['summary'])
+    hist = params['activation'](hist)
+    rprint('     Histogram full layer with {} outputs'.format(out_dim), reuse)
+    rprint('         Size of the histogram variables: {}'.format(hist.shape), reuse)
+    return hist
+
+
 def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     conv = get_conv(params['is_3d'])
 
@@ -1780,6 +1790,9 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         if params['cdf_block']:
             assert(not params['cdf'])
             cdf = cdf_block(x, params, reuse)
+        if params.get('histogram', None):
+            print('generating histogram block')
+            hist = histogram_block(x, params, reuse)
         if params['moment']:
             rprint('    Covariance layer with {} shape'.format(params['moment']), reuse)
             cov = tf_covmat(x, params['moment'])
@@ -1817,6 +1830,9 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         if params['cdf'] or params['cdf_block']:
             x = tf.concat([x, cdf], axis=1)
             rprint('     Contenate with CDF variables to {}'.format(x.shape), reuse)
+        if params.get('histogram', None):
+            x = tf.concat([x, hist], axis=1)
+            rprint('     Contenate with Histogram variables to {}'.format(x.shape), reuse)
         if params['moment']:
             x = tf.concat([x, cov], axis=1)
             rprint('     Contenate with covairance variables to {}'.format(x.shape), reuse)           
