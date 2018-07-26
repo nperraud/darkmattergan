@@ -443,30 +443,42 @@ class TemporalGenericGanModel(GanModel):
         self.D_fake = self.disc(self.G_fake, reuse=True)
 
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = 0
-        if gamma_gp != 0:
-            if self.params['optimization'].get('JS-regularization', False):
-                print("Using JS-Regularization (Roth et al. 2017)")
-                D_gp = js_regularization(self.D_real, X, self.D_fake, self.G_fake,
-                                         params['optimization']['batch_size'])
-                D_gp = (gamma_gp / 2.0) * D_gp
-            else:
+        if self.params['optimization'].get('JS-regularization', False):
+            print("Using JS-Regularization (Roth et al. 2017)")
+            D_gp = js_regularization(self.D_real, X, self.D_fake, self.G_fake,
+                                     params['optimization']['batch_size'])
+            D_gp = (gamma_gp / 2.0) * D_gp
+
+            s_D_real = tf.nn.sigmoid(self.D_real)
+            s_D_fake = tf.nn.sigmoid(self.D_fake)
+
+            self._D_loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real, labels=tf.ones_like(s_D_real))
+                + tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.zeros_like(s_D_fake)))
+
+            self._G_loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.ones_like(s_D_fake)))
+
+            wgan_summaries(self._D_loss, self._G_loss, s_D_fake, s_D_real)
+        else:
+            D_gp = 0
+            if gamma_gp != 0:
                 D_gp = gularization(gamma_gp, self.disc, [self.G_fake], [X])
 
-        if params['time']['model']['relative']:
-            D_loss_f = tf.reduce_mean(self.D_fake - self.D_real)
-            D_loss_r = tf.reduce_mean(self.D_real - self.D_fake)
+            if params['time']['model']['relative']:
+                D_loss_f = tf.reduce_mean(self.D_fake - self.D_real)
+                D_loss_r = tf.reduce_mean(self.D_real - self.D_fake)
 
-            self._D_loss = -D_loss_r + D_gp
-            self._G_loss = -D_loss_f
-            wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-        else:
-            D_loss_f = tf.reduce_mean(self.D_fake)
-            D_loss_r = tf.reduce_mean(self.D_real)
+                self._D_loss = -D_loss_r + D_gp
+                self._G_loss = -D_loss_f
+                wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+            else:
+                D_loss_f = tf.reduce_mean(self.D_fake)
+                D_loss_r = tf.reduce_mean(self.D_real)
 
-            self._D_loss = -(D_loss_r - D_loss_f) + D_gp
-            self._G_loss = -D_loss_f
-            wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+                self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+                self._G_loss = -D_loss_f
+                wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
     def reshape_time_to_channels(self, X):
         nc = self.params['time']['num_classes']
