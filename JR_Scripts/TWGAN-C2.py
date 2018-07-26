@@ -62,7 +62,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_JS-reg_g0.5nc1_c+M{}'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_lhist32v3_c+M{}'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -83,12 +83,12 @@ params_cdf = dict()
 # params_cdf['cdf_in'] = 32
 params_cdf['channel_cdf'] = 32
 params_cdf['cdf_out'] = 64
-params_discriminator['cdf_block'] = params_cdf
+#params_discriminator['cdf_block'] = params_cdf
 params_hist = dict()
 params_hist['full'] = 64
 params_hist['bins'] = 32
 params_hist['initial_range'] = 3
-# params_discriminator['histogram'] = params_hist
+params_discriminator['histogram'] = params_hist
 
 bng = False
 
@@ -104,8 +104,8 @@ params_generator['non_lin'] = tf.nn.relu
 params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
-params_optimization['gamma_gp'] = 0.5
-params_optimization['JS-regularization'] = True
+params_optimization['gamma_gp'] = 10
+# params_optimization['JS-regularization'] = True
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
@@ -115,7 +115,7 @@ params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
-params_optimization['n_critic'] = 1
+params_optimization['n_critic'] = 5
 
 params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
@@ -135,7 +135,7 @@ params_time['use_diff_stats'] = False
 
 params_time['model'] = dict()
 params_time['model']['time_encoding'] = time_encoding
-params_time['model']['relative'] = True  # Dont forget n_critics when changing this
+params_time['model']['relative'] = False  # Dont forget n_critics when changing this
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
 
