@@ -459,7 +459,7 @@ class TemporalGenericGanModel(GanModel):
             self._G_loss = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.ones_like(s_D_fake)))
 
-            wgan_summaries(self._D_loss, self._G_loss, s_D_fake, s_D_real)
+            # wgan_summaries(self._D_loss, self._G_loss, s_D_fake, s_D_real)
         else:
             D_gp = 0
             if gamma_gp != 0:
