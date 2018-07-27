@@ -1437,6 +1437,8 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
 
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
+
+    conv = get_conv(params['is_3d'])
     nconv = len(params['stride'])
     nfull = len(params['full'])
 
@@ -1493,7 +1495,8 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                 x = tf.concat([X, z], axis=3)
             rprint('     Concat X and z to {}'.format(x.shape), reuse)
 
-        conv_over_deconv = np.all(params['stride'] == 1) # If true use conv, else deconv
+        conv_over_deconv = np.all(np.array(params['stride']) == 1) # If true use conv, else deconv
+        print("conv_over_deconv=", conv_over_deconv)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
@@ -1547,19 +1550,29 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                                         merge= (True if params['residual'] else (i == (nconv-1)) )
                                         )
                     rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
-            
-            else:        
-                x = deconv(in_tensor=x, 
-                           bs=bs, 
-                           sx=sx,
-                           n_filters=params['nfilter'][i],
-                           shape=params['shape'][i],
-                           stride=params['stride'][i],
-                           summary=params['summary'],
-                           conv_num=i,
-                           is_3d=params['is_3d']
-                           )
-                rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+            else:
+                if conv_over_deconv:
+                    x = conv(x,
+                         nf_out=params['nfilter'][i],
+                         shape=params['shape'][i],
+                         stride=params['stride'][i],
+                         name='{}_conv'.format(i),
+                         summary=params['summary'])
+                    rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+                else:
+                    x = deconv(in_tensor=x, 
+                               bs=bs, 
+                               sx=sx,
+                               n_filters=params['nfilter'][i],
+                               shape=params['shape'][i],
+                               stride=params['stride'][i],
+                               summary=params['summary'],
+                               conv_num=i,
+                               is_3d=params['is_3d']
+                               )
+                    rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
 
             # residual connections before ReLU of every even layer, except 0th and last layer
             if params['residual'] and (i != 0) and (i != nconv-1) and (i%2 == 0):

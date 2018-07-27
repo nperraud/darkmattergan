@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
 	time_str = 'log_norm' 
 	global_path = '../saved_result/'
-	name = 'resnet_inception'
+	name = 'resnet_64_to_256'
 
 	bn = False
 

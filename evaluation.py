@@ -279,15 +279,13 @@ def generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sin
                                            j * siny:(j + 1) * siny,
                                            i * sinx:(i + 1) * sinx,
                                            :]
-                    print('downsampled: min={} max={}'.format( np.min(downsampled), np.max(downsampled) ))
                 else:
                     downsampled = None
 
                 # 3) Generate the image
-                print('Current patch: column={}, row={}, height={}'.format(i+1, j+1, k+1))
+                print('Current patch: column={}, row={}, height={}\n'.format(i+1, j+1, k+1))
                 gen_sample, _ = obj.generate(
                     N=N, border=border, downsampled=downsampled, sess=sess)
-                print('gen_sample: min={} max={}\n\n'.format( np.min(gen_sample), np.max(gen_sample) ))
 
                 output_image[:, 
                                 k * soutz:(k + 1) * soutz,

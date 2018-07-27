@@ -298,59 +298,58 @@ def tile_and_plot_3d_image(axis, image, **kwargs):
     axis.imshow(tile, **kwargs)
 
 
-def get_animation(real_cube, fake_cube, figsize=(4, 8), fps=5, axis=0):
+def get_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), fps=5, axis=0):
     '''
     Given real and fake 3d sample, create animation with slices along all 3 dimensions
     Return animation object
     '''
     ind = [0] # has to be a list, as list are mutable
     fig = plt.figure(figsize=figsize)
+
+    dim = fake_cube.shape[0]
+
+    if real_downsampled is not None:
+        dim_downsampled = real_downsampled.shape[0]
+        factor = dim // dim_downsampled
+
+    grid = (1, 5)
+    gridspec.GridSpec(grid[0], grid[1])
+
     def make_frame(t):
 
         cmin = np.min([np.min(fake_cube[:, :, :]), np.min(real_cube[:, :, :])])
         cmax = np.max([np.max(fake_cube[:, :, :]), np.max(real_cube[:, :, :])])
 
-        if axis == 0:
-            ax_real = plt.subplot2grid((1, 2), (0, 0) )
-            ax_real.imshow(real_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-            ax_real.set_title('real-index0')
 
-            ax_fake = plt.subplot2grid((1, 2), (0, 1) )
-            ax_fake.imshow(fake_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-            ax_fake.set_title('fake-index0')
+        plt.subplot2grid( grid, (0, 0), rowspan=1, colspan=2)
+        plt.imshow(real_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        plt.title('real ' + str(dim) + 'x' + str(dim) + 'x' + str(dim))
 
 
-        elif axis == 1:
-            ax_real = plt.subplot2grid((1, 2), (1, 0) )
-            ax_real.imshow(real_cube[:, ind[0], :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-            ax_real.set_title('real-index1')
+        if real_downsampled is not None:
+            plt.subplot2grid( grid, (0, 2), rowspan=1, colspan=1)
+            plt.imshow(real_downsampled[ind[0] // factor, :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(np.min(real_downsampled), np.max(real_downsampled)) )
+            plt.title('real downsampled '+ str(dim_downsampled) + 'x' + str(dim_downsampled) + 'x' + str(dim_downsampled))
 
-            ax_fake = plt.subplot2grid((1, 2), (1, 1) )
-            ax_fake.imshow(fake_cube[:, ind[0], :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-            ax_fake.set_title('fake-index1')
 
-        else:
-            ax_real = plt.subplot2grid((1, 2), (2, 0) )
-            ax_real.imshow(real_cube[:, :, ind[0]], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-            ax_real.set_title('real-index2')
-
-            ax_fake = plt.subplot2grid((1, 2), (2, 1) )
-            ax_fake.imshow(fake_cube[:, : ,ind[0]], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-            ax_fake.set_title('fake-index2')
+        plt.subplot2grid( grid, (0, 3), rowspan=1, colspan=2)
+        plt.imshow(fake_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        plt.title('fake ' + str(dim) + 'x' + str(dim) + 'x' + str(dim))
+        plt.tight_layout()
 
         ind[0] += 1
         return mplfig_to_npimage(fig)
     
-    dim = fake_cube.shape[0]
+
     animation = VideoClip(make_frame, duration= dim//fps)
     return animation
 
 
-def save_animation(real_cube, fake_cube, figsize=(4, 8), fps=5, format='gif', output_file_name='test'):
+def save_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), fps=5, format='gif', output_file_name='test'):
     '''
     Given real and fake 3d sample, create animation with slices along all 3 dimensions, and save it as gif.
     '''
-    animation = get_animation(real_cube, fake_cube, figsize, fps)
+    animation = get_animation(real_cube, fake_cube, real_downsampled, figsize, fps)
     if format == 'gif':
         animation.write_gif(output_file_name + '.gif', fps=fps)
     else:

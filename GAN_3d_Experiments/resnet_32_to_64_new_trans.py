@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
 	time_str = 'new_trans' 
 	global_path = '../saved_result/'
-	name = 'resnet_inception_32_to_64'
+	name = 'resnet_32_to_64'
 
 	bn = False
 

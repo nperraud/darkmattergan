@@ -50,7 +50,7 @@ if __name__ == "__main__":
 	params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn]
 	params_generator['full'] = []
 	params_generator['summary'] = True
-	params_generator['non_lin'] = None
+	params_generator['non_lin'] = tf.nn.relu
 	
 	params_optimization = dict()
 	params_optimization['n_critic'] = 10

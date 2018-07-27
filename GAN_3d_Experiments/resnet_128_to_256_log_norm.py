@@ -6,7 +6,7 @@ sys.path.insert(0, '../')
 
 import numpy as np
 import tensorflow as tf
-import os
+import os, functools
 import data, utils
 from model import upscale_WGAN_pixel_CNN
 from gan import CosmoGAN
@@ -20,23 +20,22 @@ def current_time_str():
 if __name__ == "__main__":
 	ns = 32
 	try_resume = True
-	downsampling = 4
+	downsampling = 2
 	latent_dim = ns**3
 	Mpch = 350
 
-
-	time_str = 'upscaling_GAN_3d_gen_8_disc_6_32_new_trans' 
+	time_str = 'log_norm' 
 	global_path = '../saved_result/'
-	name = 'bigstat_upsampled_upscaling_GAN_3d_{}'.format(ns)
+	name = 'resnet_128_to_256'
 
 	bn = False
 
 	params_discriminator = dict()
-	params_discriminator['stride'] = [2, 2, 2, 2, 2, 1]
-	params_discriminator['nfilter'] = [128, 128, 64, 32, 16, 16]
-	params_discriminator['shape'] = [[5, 5, 5], [5, 5, 5], [5, 5, 5], [3, 3, 3], [3, 3, 3], [3, 3, 3]]
+	params_discriminator['stride'] = [2, 2, 2, 1, 1, 1]
+	params_discriminator['nfilter'] = [64, 64, 64, 64, 32, 2]
+	params_discriminator['inception'] = True
 	params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
-	params_discriminator['full'] = [64]
+	params_discriminator['full'] = [64, 16]
 	params_discriminator['summary'] = True
 	params_discriminator['minibatch_reg'] = False
 
@@ -45,8 +44,9 @@ if __name__ == "__main__":
 	params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
 	params_generator['y_layer'] = 0
 	params_generator['latent_dim'] = latent_dim
-	params_generator['nfilter'] = [8, 32, 64, 128, 128, 64, 64, 1]
-	params_generator['shape'] = [[3, 3, 3], [3, 3, 3], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5]]
+	params_generator['nfilter'] = [64, 64, 64, 64, 64, 64, 64, 1]
+	params_generator['inception'] = True
+	params_generator['residual'] = True
 	params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn]
 	params_generator['full'] = []
 	params_generator['summary'] = True
@@ -69,8 +69,8 @@ if __name__ == "__main__":
 	params_cosmology['clip_max_real'] = False
 	params_cosmology['log_clip'] = 0.1
 	params_cosmology['sigma_smooth'] = 1
-	params_cosmology['forward_map'] = data.fmap.forward
-	params_cosmology['backward_map'] = data.fmap.backward
+	params_cosmology['forward_map'] = data.fmap.log_norm_forward
+	params_cosmology['backward_map'] = data.fmap.log_norm_backward
 	params_cosmology['Nstats'] = 1000
 	
 	params = dict()
@@ -95,5 +95,5 @@ if __name__ == "__main__":
 	resume, params = utils.test_resume(try_resume, params)
 
 	wgan = CosmoGAN(params, upscale_WGAN_pixel_CNN, is_3d=True)
-	dataset = data.load.load_dataset_file(spix=ns, resolution=256,Mpch=Mpch, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
+	dataset = data.load.load_dataset_file(spix=ns, resolution=256, Mpch=Mpch, scaling=1, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
 	wgan.train(dataset, resume=resume)
