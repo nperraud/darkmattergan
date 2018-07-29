@@ -304,6 +304,9 @@ def get_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), f
     Return animation object
     '''
     ind = [0] # has to be a list, as list are mutable
+    plt.style.use('dark_background')
+    #ax = plt.axes([0,0,1,1], frameon=True)
+    #plt.autoscale(tight=False)
     fig = plt.figure(figsize=figsize)
 
     dim = fake_cube.shape[0]
@@ -311,8 +314,11 @@ def get_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), f
     if real_downsampled is not None:
         dim_downsampled = real_downsampled.shape[0]
         factor = dim // dim_downsampled
+        grid = (1, 3)
 
-    grid = (1, 5)
+    else:
+        grid = (1, 2)
+
     gridspec.GridSpec(grid[0], grid[1])
 
     def make_frame(t):
@@ -320,21 +326,23 @@ def get_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), f
         cmin = np.min([np.min(fake_cube[:, :, :]), np.min(real_cube[:, :, :])])
         cmax = np.max([np.max(fake_cube[:, :, :]), np.max(real_cube[:, :, :])])
 
-
-        plt.subplot2grid( grid, (0, 0), rowspan=1, colspan=2)
-        plt.imshow(real_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        plt.title('real ' + str(dim) + 'x' + str(dim) + 'x' + str(dim))
+        i = 0
+        plt.subplot2grid( grid, (0, i), rowspan=1, colspan=1)
+        plt.imshow(real_cube[ind[0] % dim, :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        plt.title('real ' + str(dim) + 'x' + str(dim) + 'x' + str(dim), fontsize=20)
+        i = i + 1
 
 
         if real_downsampled is not None:
-            plt.subplot2grid( grid, (0, 2), rowspan=1, colspan=1)
-            plt.imshow(real_downsampled[ind[0] // factor, :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(np.min(real_downsampled), np.max(real_downsampled)) )
-            plt.title('real downsampled '+ str(dim_downsampled) + 'x' + str(dim_downsampled) + 'x' + str(dim_downsampled))
+            plt.subplot2grid( grid, (0, i), rowspan=1, colspan=1)
+            plt.imshow(real_downsampled[(ind[0] // factor) % dim_downsampled, :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+            plt.title('real downsampled '+ str(dim_downsampled) + 'x' + str(dim_downsampled) + 'x' + str(dim_downsampled), fontsize=20)
+            i = i + 1
 
 
-        plt.subplot2grid( grid, (0, 3), rowspan=1, colspan=2)
-        plt.imshow(fake_cube[ind[0], :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        plt.title('fake ' + str(dim) + 'x' + str(dim) + 'x' + str(dim))
+        plt.subplot2grid( grid, (0, i), rowspan=1, colspan=1)
+        plt.imshow(fake_cube[ind[0] % dim, :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
+        plt.title('fake ' + str(dim) + 'x' + str(dim) + 'x' + str(dim), fontsize=20)
         plt.tight_layout()
 
         ind[0] += 1
@@ -342,6 +350,7 @@ def get_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), f
     
 
     animation = VideoClip(make_frame, duration= dim//fps)
+    #plt.style.use('default')
     return animation
 
 
