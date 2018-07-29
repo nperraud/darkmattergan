@@ -2,12 +2,23 @@ import data.fmap as fmap
 import numpy as np
 import warnings
 
+
 def arg_helper(params, d_param):
     for key in d_param.keys():
         params[key] = params.get(key, d_param[key])
         if type(params[key]) is dict:
             params[key] = arg_helper(params[key], d_param[key])
     return params
+
+
+def default_params_optimization(params=None):
+    d_param = dict()
+    d_param['optimizer'] = "rmsprop"
+    d_param['learning_rate'] = 3e-5
+    d_param['n_critic'] = 5
+    if params is None or 'optimization' not in params.keys():
+        return d_param
+    return arg_helper(params['optimization'], d_param)
 
 
 def default_params(params=None):
@@ -35,6 +46,8 @@ def default_params(params=None):
     # size of input image
     d_param['num_hists_at_once'] = 5
     # Number of histograms to be loaded at once in memory
+    d_param['has_enc'] = False
+    # whether the model has an encoder
 
     # Discriminator parameters
     # ------------------------
@@ -46,17 +59,19 @@ def default_params(params=None):
     d_param['discriminator']['non_lin'] =  None
     d_param['discriminator']['one_pixel_mapping'] = []
     d_param['discriminator']['inception'] = False
+    d_param['discriminator']['cdf'] = None
+    d_param['discriminator']['channel_cdf'] = None
+    d_param['discriminator']['moment'] = None
 
     # Optimization parameters
     # -----------------------
-    d_param['optimization'] = dict()
-    d_param['optimization']['disc_optimizer'] = "rmsprop"
-    d_param['optimization']['gen_optimizer'] = "rmsprop"
-    d_param['optimization']['enc_optimizer'] = "rmsprop"
-    d_param['optimization']['gen_learning_rate'] = 3e-5
-    d_param['optimization']['enc_learning_rate'] = 3e-5
-    d_param['optimization']['disc_learning_rate'] = 3e-5
-    d_param['optimization']['n_critic'] = 5
+    d_param['optimization'] = default_params_optimization(params)
+    d_param['optimization']['disc_optimizer'] = d_param['optimization']['optimizer']
+    d_param['optimization']['disc_learning_rate'] = d_param['optimization']['learning_rate']
+    d_param['optimization']['gen_optimizer'] = d_param['optimization']['optimizer']
+    d_param['optimization']['gen_learning_rate'] = d_param['optimization']['learning_rate']
+    d_param['optimization']['enc_optimizer'] = d_param['optimization']['optimizer']
+    d_param['optimization']['enc_learning_rate'] = d_param['optimization']['learning_rate']
 
     # Generator parameters
     # --------------------
@@ -73,7 +88,7 @@ def default_params(params=None):
 def default_params_cosmology(params=None):
 
     forward = fmap.forward
-    backward = fmap.backward 
+    backward = fmap.backward
 
     d_param = default_params()
     # Cosmology parameters
@@ -92,12 +107,17 @@ def default_params_cosmology(params=None):
 
 
 def default_params_time(params=dict()):
-    warnings.warn('TODO update this code to be ressemble the rest...')
-    params['time']['num_classes'] = params['time'].get('num_classes', 1)
+    
+    d_param = default_params()
+    d_param['time'] = dict()
+
+    d_param['time']['num_classes'] = 1
     # Number of classes to condition on
-    params['time']['classes'] = params['time'].get('classes', None)
+    d_param['time']['classes'] = None
     # Which classes to utilize
     default_scaling = (np.arange(params['time']['num_classes']) + 1) / params['time']['num_classes']
-    params['time']['class_weights'] = params['time'].get('class_weights', default_scaling)
+    d_param['time']['class_weights'] = default_scaling
     # Default temporal weights for classes.
-    return params
+    d_param['time']['use_diff_stats'] = False
+    # Whether to add channels containing the differences between channels
+    return arg_helper(params or {}, d_param)

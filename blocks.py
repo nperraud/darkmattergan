@@ -431,3 +431,67 @@ def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
     x = tf.concat([xin, minibatch_features], axis=1)
 
     return x
+
+
+def tf_cdf(x, n_out, name='cdf_weight', diff_weight=10, use_first_channel=True):
+
+    """Helping function to get correct histograms."""
+    # limit = 4.
+    # wi = tf.range(0.0, limit, delta=limit/n_out, dtype=tf.float32, name='range')
+
+    # wl = tf.Variable(
+    #     tf.reshape(wi, shape=[1, 1, n_out]),
+    #     name='cdf_weight_left',
+    #     dtype=tf.float32)
+    # wr = tf.Variable(
+    #     tf.reshape(wi, shape=[1, 1, n_out]),
+    #     name='cdf_weight_right',
+    #     dtype=tf.float32)
+    weights_initializer = tf.contrib.layers.xavier_initializer()
+    wr = _tf_variable(
+        name+'_right',
+        shape=[1, 1, n_out],
+        initializer=weights_initializer)
+    wl = _tf_variable(
+        name+'_left',
+        shape=[1, 1, n_out],
+        initializer=weights_initializer)
+    if use_first_channel:
+        nc = len(x.shape)
+        if nc == 4:
+            x = x[:, :, :, 0]
+        elif nc == 5:
+            x = x[:, :, :, :, 0]
+        else:
+            raise ValueError('Wrong size')
+    x = tf.expand_dims(reshape2d(x), axis=2)
+    xl = tf.reduce_mean(tf.sigmoid(10 * (wl - x)), axis=1)
+    xr = tf.reduce_mean(tf.sigmoid(10 * (x - wr)), axis=1)
+    tf.summary.histogram("cdf_weight_right", wr, collections=["metrics"])
+    tf.summary.histogram("cdf_weight_left", wl, collections=["metrics"])
+
+    return tf.concat([xl, xr], axis=1)
+
+
+def tf_covmat(x, shape):
+    if x.shape[-1] > 1:
+        lst = []
+        for i in range(x.shape[-1]):
+            lst.append(tf_covmat(x[:,:,:,i:i+1], shape))
+        return tf.stack(lst, axis=1)
+    nel = np.prod(shape)
+    bs = tf.shape(x)[0]
+
+    sh = [shape[0], shape[1], 1, nel]
+    # wi = tf.constant_initializer(0.0)
+    # w = _tf_variable('covmat_var', sh, wi)
+    w = tf.constant(np.eye(nel).reshape(sh), dtype=tf.float32)
+
+    conv = tf.nn.conv2d(x, w, strides=[1, 1, 1, 1], padding='VALID')
+    nx = conv.shape[1]*conv.shape[2]
+    conv_vec = tf.reshape(conv,shape=[bs, nx ,nel])
+    m = tf.reduce_mean(conv_vec, axis=[1,2])
+    conv_vec = tf.subtract(conv_vec,tf.expand_dims(tf.expand_dims(m,axis=1), axis=2))
+    c = 1/tf.cast(nx, tf.float32)*tf.matmul(tf.transpose(conv_vec,perm=[0,2,1]), conv_vec)
+    return c
+

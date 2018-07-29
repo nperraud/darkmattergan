@@ -34,6 +34,10 @@ class GanModel(object):
     def is_3d(self):
         return self._is_3d
 
+    @property
+    def has_encoder(self):
+        return False
+
 
 class WGanModel(GanModel):
     def __init__(self, params, X, z, name='wgan', is_3d=False):
@@ -221,21 +225,26 @@ class TemporalGanModelv3(GanModel):
         self.G_c_fake = self.generator(zn, reuse=False)
         self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
 
-        self.D_real = self.discriminator(X, reuse=False)
-        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+        if params['time']['use_diff_stats']:
+            self.disc = self.df_discriminator
+        else:
+            self.disc = self.discriminator
+
+        self.D_real = self.disc(X, reuse=False)
+        self.D_fake = self.disc(self.G_fake, reuse=True)
 
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
 
         gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
         # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
         # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
-    def reshape_time_to_channels(self, X):
+    def reshape_time_to_channels_old(self, X):
         bs = self.params['optimization']['batch_size']
         nc = self.params['time']['num_classes']
         idx = np.arange(bs) * nc
@@ -245,11 +254,22 @@ class TemporalGanModelv3(GanModel):
             x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
         return x
 
+    def reshape_time_to_channels(self, X):
+        nc = self.params['time']['num_classes']
+        lst = []
+        for i in range(nc):
+            lst.append(X[i::nc])
+        return tf.concat(lst, axis=3)
+
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
 
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+    def df_discriminator(self, X, reuse):
+        y = X[:, :, :, 1:] - X[:, :, :, :-1]
+        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
 
     @property
     def D_loss(self):
@@ -260,7 +280,7 @@ class TemporalGanModelv3(GanModel):
         return self._G_loss
 
 
-class TemporalGanModelv4(GanModel):
+class TemporalGanModelv3E(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
         assert 'time' in params.keys()
@@ -332,6 +352,68 @@ class TemporalGanModelv4(GanModel):
     def E_loss(self):
         return self._E_loss
 
+    @property
+    def has_encoder(self):
+        return True
+
+
+class TemporalGanModelv4(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        assert 'time' in params.keys()
+
+        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
+        z_shape = tf.shape(zn)
+        scaling = np.asarray(params['time']['class_weights'])
+        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+        scaling = np.resize(scaling, (gen_bs, 1))
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        zn = tf.multiply(zn, t)
+
+        self.G_c_fake = self.generator(zn, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
+
+        self.D_real = self.discriminator(X, reuse=False)
+        self.D_fake = self.discriminator(self.G_fake, reuse=True)
+
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def reshape_time_to_channels(self, X):
+        bs = self.params['optimization']['batch_size']
+        nc = self.params['time']['num_classes']
+        idx = np.arange(bs) * nc
+        x = tf.gather(X, idx)
+        #for i in (np.arange(nc - 1) + 1):
+        for i in range(1, nc):
+            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
+        return x
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse, dif_stats=False):
+        y = X[:,:,:,1:] - X[:,:,:,:-1]
+        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
 
 def reshape_channels_to_separate(self, X):
     t = tf.transpose(X, [0, 3, 1, 2])
@@ -380,6 +462,10 @@ class WVeeGanModel(GanModel):
     def E_loss(self):
         return self._E_loss
 
+    @property
+    def has_encoder(self):
+        return True
+
 
 class LapGanModel(GanModel):
     def __init__(self, params, X, z, name='lapgan', is_3d=False):
@@ -390,10 +476,10 @@ class LapGanModel(GanModel):
         inshape = self.Xs.shape.as_list()[1:]
         self.y = tf.placeholder_with_default(self.Xs, shape=[None, *inshape], name='y')       
         self.Xsu = up_sampler(self.Xs, s=self.upsampling)
-        self.G_fake = self.generator(X=self.y, z=z, reuse=False)
+        self.G_fake = self.generator(X=self.Xsu, z=z, reuse=False)
         # self.D_real = self.discriminator(X-self.Xsu, self.Xsu, reuse=False)
         # self.D_fake = self.discriminator(self.G_fake-self.Xsu, self.Xsu, reuse=True)
-        self.D_real = -self.discriminator(X, self.Xsu, reuse=False)
+        self.D_real = self.discriminator(X, self.Xsu, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, self.Xsu, reuse=True)
         D_loss_f = tf.reduce_mean(self.D_fake)
         D_loss_r = tf.reduce_mean(self.D_real)
@@ -566,7 +652,7 @@ class LapPatchWGANModel(GanModel):
 
 class LapPatchWGANsingleModel(GanModel):
     """Seems to work fine but is recursive, so might be a bit slow."""
-    def __init__(self, params, X, z, name='lapgan', is_3d=False):
+    def __init__(self, params, X, z, name='lappatchsingle', is_3d=False):
         ''' z must have the same dimension as X'''
         super().__init__(params=params, name=name, is_3d=is_3d)
         
@@ -577,57 +663,50 @@ class LapPatchWGANsingleModel(GanModel):
         # The input is the downsampled image
         inshape = self.Xs.shape.as_list()[1:]
         self.y = tf.placeholder_with_default(self.Xs, shape=[None, *inshape], name='y')
+        self.Xsu = up_sampler(self.y, s=self.upsampling)
 
         # B) Split the image in 4 parts
-        top, bottom = tf.split(self.y, 2, axis=1)
+        top, bottom = tf.split(self.Xsu, 2, axis=1)
         self.Xs1, self.Xs2 = tf.split(top, 2, axis=2)
         self.Xs3, self.Xs4 = tf.split(bottom, 2, axis=2)
 
         # B') Split latent in 4 parts
         # This may/should be done differently?
         bs = tf.shape(self.y)[0]  # Batch size
-        z = tf.reshape(z, [bs, *inshape])
+        zshape = X.shape.as_list()[1:]
+        z = tf.reshape(z, [bs, *zshape])
         topz, bottomz = tf.split(z, 2, axis=1)
         z1, z2 = tf.split(topz, 2, axis=2)
         z3, z4 = tf.split(bottomz, 2, axis=2)
 
-        # C) Define the 4 Generators
+        # C) Define the Generator
 
-        # This should be done differently!!!
-        # Here are my attenpts
-        # inshape = [el//2 for el in X.shape.as_list()[1:-1]]
-        # y00 = tf.constant(-1.,dtype=tf.float32, shape=[params['optimization']['batch_size'], *inshape,1])
-        # const = tf.placeholder(tf.float32, shape=[None, *inshape,1])
-        # `tf.shape(input)` takes the dynamic shape of `input`.
-        # tinshape = tf.TensorShape(bs).concatenate(tf.TensorShape([*inshape,1]))
-        tinshape = tf.shape(up_sampler(z1, s=self.upsampling))
-
+        tinshape = tf.shape(z1)
         y00 = tf.fill(tinshape, -1.)
         y0 = tf.concat([y00, y00, y00], axis=3)
 
-        self.G_fake1 = self.generator(X=self.Xs1, z=z1, y=y0, reuse=False, scope='generator')
+        self.G_fake1 = self.generator(X=self.Xs1, z=z1, border=y0, reuse=False, scope='generator')
         y11 = tf.reverse(self.G_fake1, axis=[2])
         y1 = tf.concat([y11, y00, y00], axis=3)
 
-        self.G_fake2 = self.generator(X=self.Xs2, z=z2, y=y1, reuse=True, scope='generator')
+        self.G_fake2 = self.generator(X=self.Xs2, z=z2, border=y1, reuse=True, scope='generator')
         y21 = tf.reverse(self.G_fake1, axis=[1])
-        y22 = tf.reverse(self.G_fake2, axis=[1,2])
+        y22 = tf.reverse(self.G_fake2, axis=[1, 2])
         y2 = tf.concat([y21, y22, y00], axis=3)
 
-        self.G_fake3 = self.generator(X=self.Xs3, z=z3,y=y2, reuse=True, scope='generator')
-        y31 = tf.reverse(self.G_fake1, axis=[1,2])
+        self.G_fake3 = self.generator(X=self.Xs3, z=z3, border=y2, reuse=True, scope='generator')
+        y31 = tf.reverse(self.G_fake1, axis=[1, 2])
         y32 = tf.reverse(self.G_fake2, axis=[1])
         y33 = tf.reverse(self.G_fake3, axis=[2])
         y3 = tf.concat([y31, y32, y33], axis=3)
-        self.G_fake4 = self.generator(X=self.Xs4, z=z4, y=y3, reuse=True, scope='generator')
+        self.G_fake4 = self.generator(X=self.Xs4, z=z4, border=y3, reuse=True, scope='generator')
 
         # D) Concatenate back
-        top = tf.concat([self.G_fake1,self.G_fake2], axis=2)
-        bottom = tf.concat([self.G_fake3,self.G_fake4], axis=2)
-        self.G_fake = tf.concat([top,bottom], axis=1)
+        top = tf.concat([self.G_fake1, self.G_fake2], axis=2)
+        bottom = tf.concat([self.G_fake3, self.G_fake4], axis=2)
+        self.G_fake = tf.concat([top, bottom], axis=1)
 
         # E) Discriminator
-        self.Xsu = up_sampler(self.y, s=self.upsampling)
         self.D_real = self.discriminator(X, self.Xsu, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, self.Xsu, reuse=True)
 
@@ -636,9 +715,6 @@ class LapPatchWGANsingleModel(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake, self.Xsu], [X, self.Xsu])
-        #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
-        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
-        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
 
@@ -659,50 +735,50 @@ class LapPatchWGANsingleModel(GanModel):
             tf.summary.image("SmallerImg/y32", y32, max_outputs=1, collections=['Images'])
             tf.summary.image("SmallerImg/y33", y33, max_outputs=1, collections=['Images'])
 
-    def generator(self, X, z, reuse, scope, y=None):
-        return generator_up(X, z, self.params['generator'], y=y, reuse=reuse, scope=scope)
+    def generator(self, X, z, border, reuse, scope):
+        return generator_up(tf.concat([X, border], axis=3), z, self.params['generator'], reuse=reuse, scope=scope)
 
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
 
-class upscale_WGAN_single_model(GanModel):
+class PatchWGANsingleModel(GanModel):
     '''
     Divide image into 4 parts, and iterative generate them
     '''
-    def __init__(self, params, X, z, name='upscale_WGAN_single_model', is_3d=False):
+    def __init__(self, params, X, z, name='patchsingle', is_3d=False):
         ''' z must have the same dimension as X'''
         super().__init__(params=params, name=name, is_3d=is_3d)
 
         # A) Split latent in 4 parts
         bs = tf.shape(X)[0]  # Batch size
+        # nb pixel
         inshape = X.shape.as_list()[1:]
         z = tf.reshape(z, [bs, *inshape])
         topz, bottomz = tf.split(z, 2, axis=1)
         z1, z2 = tf.split(topz, 2, axis=2)
         z3, z4 = tf.split(bottomz, 2, axis=2)
-        
 
         tinshape = tf.shape(z1)
 
         y00 = tf.fill(tinshape, -1.)
         y0 = tf.concat([y00, y00, y00], axis=3)
-        self.G_fake1 = self.generator(X=None, z=z1, y=y0, reuse=False, scope='generator')
+        self.G_fake1 = self.generator(z=z1, border=y0, reuse=False, scope='generator')
 
         y11 = tf.reverse(self.G_fake1, axis=[2])
         y1 = tf.concat([y11, y00, y00], axis=3)
-        self.G_fake2 = self.generator(X=None, z=z2, y=y1, reuse=True, scope='generator')
+        self.G_fake2 = self.generator(z=z2, border=y1, reuse=True, scope='generator')
 
         y21 = tf.reverse(self.G_fake1, axis=[1])
         y22 = tf.reverse(self.G_fake2, axis=[1,2])
         y2 = tf.concat([y21, y22, y00], axis=3)
-        self.G_fake3 = self.generator(X=None, z=z3,y=y2, reuse=True, scope='generator')
+        self.G_fake3 = self.generator(z=z3,border=y2, reuse=True, scope='generator')
 
         y31 = tf.reverse(self.G_fake1, axis=[1,2])
         y32 = tf.reverse(self.G_fake2, axis=[1])
         y33 = tf.reverse(self.G_fake3, axis=[2])
         y3 = tf.concat([y31, y32, y33], axis=3)
-        self.G_fake4 = self.generator(X=None, z=z4, y=y3, reuse=True, scope='generator')
+        self.G_fake4 = self.generator(z=z4, border=y3, reuse=True, scope='generator')
 
         # B) Concatenate back
         top = tf.concat([self.G_fake1,self.G_fake2], axis=2)
@@ -737,12 +813,12 @@ class upscale_WGAN_single_model(GanModel):
             tf.summary.image("SmallerImg/y32", y32, max_outputs=1, collections=['Images'])
             tf.summary.image("SmallerImg/y33", y33, max_outputs=1, collections=['Images'])
 
-    def generator(self, X, z, reuse, scope, y=None):
+    def generator(self, z, border, reuse, scope):
         '''
         X = down-sampled information
         y = border information
         '''
-        return generator_up(X, z, self.params['generator'], y=y, reuse=reuse, scope=scope)
+        return generator_up(X=border, z=z, params=self.params['generator'], reuse=reuse, scope=scope)
 
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
@@ -770,12 +846,12 @@ class LapPatchWGANsimpleModel(GanModel):
         X2f = tf.reverse(X2, axis=[2])
         X3f = tf.reverse(X3, axis=[1,2])
         flip_border = tf.concat([X1f, X2f, X3f], axis=3)
+        self.Xsu = up_sampler(self.y, s=self.upsampling)
 
-        self.G_fake = self.generator(y=self.y, z=z, border=flip_border, reuse=False, scope='generator')
+        self.G_fake = self.generator(X=self.Xsu, z=z, border=flip_border, reuse=False, scope='generator')
 
 
         # E) Discriminator
-        self.Xsu = up_sampler(self.y, s=self.upsampling)
         self.D_real = self.discriminator(X0, self.Xsu, flip_border, reuse=False)
         self.D_fake = self.discriminator(self.G_fake, self.Xsu, flip_border, reuse=True)
 
@@ -812,8 +888,8 @@ class LapPatchWGANsimpleModel(GanModel):
             tf.summary.image("training/X2f", X2f, max_outputs=1, collections=['Images'])
             tf.summary.image("training/X3f", X3f, max_outputs=1, collections=['Images'])
 
-    def generator(self, y, z, border, reuse, scope):
-        return generator_up(y, z, self.params['generator'], y=border, reuse=reuse, scope=scope)
+    def generator(self, X, z, border, reuse, scope):
+        return generator_up(tf.concat([X, border], axis=3), z, params=self.params['generator'], y=None, reuse=reuse, scope=scope)
 
     def discriminator(self, X, Xsu, border, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu, border], axis=3), self.params['discriminator'], reuse=reuse)
@@ -833,6 +909,7 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
         # The input is the downsampled image
         inshape = self.Xs.shape.as_list()[1:]
         self.y = tf.placeholder_with_default(self.Xs, shape=[None, *inshape], name='y')
+       
         # The border is a different input
         inshape = border.shape.as_list()[1:]
         self.border = tf.placeholder_with_default(border, shape=[None, *inshape], name='border')
@@ -842,7 +919,11 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
         X3f = tf.reverse(X3, axis=[1,2])
         flip_border = tf.concat([X1f, X2f, X3f], axis=3)
 
-        self.G_fake = self.generator(y=self.y, z=z, border=flip_border, reuse=False, scope='generator')
+        self.G_fake = self.generator(y=up_sampler(self.y, s=self.upsampling),
+                                     z=z,
+                                     border=flip_border,
+                                     reuse=False,
+                                     scope='generator')
 
         # D) Concatenate back
         top = tf.concat([X3,X2], axis=1)
@@ -851,9 +932,9 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
         X_real = tf.concat([top,bottom], axis=2)
         G_fake = tf.concat([top,bottom_g], axis=2)
         Xs_full = down_sampler(X_real, s=self.upsampling)
+        self.Xsu = up_sampler(Xs_full, s=self.upsampling)
 
         # E) Discriminator
-        self.Xsu = up_sampler(Xs_full, s=self.upsampling)
         self.D_real = self.discriminator(X_real, self.Xsu, reuse=False)
         self.D_fake = self.discriminator(G_fake, self.Xsu, reuse=True)
 
@@ -862,9 +943,6 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, self.Xsu], [X_real, self.Xsu])
-        #D_gp = fisher_gan_regularization(self.D_real, self.D_fake, rho=gamma_gp)
-        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
-        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
 
@@ -885,7 +963,7 @@ class LapPatchWGANsimpleUnfoldModel(GanModel):
             tf.summary.image("checking/X3f", X3f, max_outputs=1, collections=['Images'])
 
     def generator(self, y, z, border, reuse, scope):
-        return generator_up(y, z, self.params['generator'], y=border, reuse=reuse, scope=scope)
+        return generator_up(tf.concat([y, border], axis=3), z, self.params['generator'], y=None, reuse=reuse, scope=scope)
 
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
@@ -1163,6 +1241,7 @@ class LapPatchWGANDirect(GanModel):
 
 def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r):
     tf.summary.scalar("Disc/Neg_Loss", -D_loss, collections=["Training"])
+    tf.summary.scalar("Disc/Neg_Critic", D_loss_f - D_loss_r, collections=["Training"])
     tf.summary.scalar("Disc/Loss_f", D_loss_f, collections=["Training"])
     tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
     tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
@@ -1249,7 +1328,7 @@ def apply_non_lin(non_lin, x, reuse):
             x = non_lin_f(x)
             rprint('    Non lienarity: {}'.format(non_lin), reuse)
         else:
-            x = non_lin(x)
+            x = non_lin(x)   
             rprint('    Costum non linearity: {}'.format(non_lin), reuse)
 
     return x
@@ -1277,18 +1356,35 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
 
 
-        # # 1*1 convolution for forward transform
-        # num_channels = x.shape.as_list()[-1]
-        # x = conv(x,
-        #          nf_out=num_channels,
-        #          shape=[1, 1, 1],
-        #          stride=1,
-        #          name='1_1_conv_disc',
-        #          summary=params['summary'])
-        # rprint('     1*1 Conv layer with {} channels'.format(num_channels), reuse)
-
-        # x = lrelu(x)
-
+        if params['cdf']:
+            cdf = tf_cdf(x, params['cdf'])
+            rprint('    Cdf layer: {}'.format(params['cdf']), reuse)
+            rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+            if params['channel_cdf']:
+                lst = []
+                for i in range(x.shape[-1]):
+                    lst.append(tf_cdf(x, params['channel_cdf'],
+                                      name="cdf_weight_channel_{}".format(i)))
+                    rprint('        Channel Cdf layer: {}'.format(params['cdf']), reuse)
+                lst.append(cdf)
+                cdf = tf.concat(lst, axis=1)
+                rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+            cdf = linear(cdf, 2 * params['cdf'], 'cdf_full', summary=params['summary'])
+            cdf = lrelu(cdf)
+            rprint('     CDF Full layer with {} outputs'.format(2*params['cdf']), reuse)
+            rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
+        if params['moment']:
+            rprint('    Covariance layer with {} shape'.format(params['moment']), reuse)
+            cov = tf_covmat(x, params['moment'])
+            rprint('        Layer output {} shape'.format(cov.shape), reuse)
+            cov = reshape2d(cov)
+            rprint('        Reshape output {} shape'.format(cov.shape), reuse)
+            nel = np.prod(params['moment'])**2
+            cov = linear(cov, nel, 'cov_full', summary=params['summary'])
+            cov = lrelu(cov)
+            rprint('     Covariance Full layer with {} outputs'.format(nel), reuse)
+            rprint('         Size of the CDF variables: {}'.format(cov.shape), reuse)
+            
 
         for i in range(nconv):
             if params['inception']:
@@ -1324,6 +1420,12 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         if z is not None:
             x = tf.concat([x, z], axis=1)
             rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
+        if params['cdf']:
+            x = tf.concat([x, cdf], axis=1)
+            rprint('     Contenate with CDF variables to {}'.format(x.shape), reuse)           
+        if params['moment']:
+            x = tf.concat([x, cov], axis=1)
+            rprint('     Contenate with covairance variables to {}'.format(x.shape), reuse)           
 
         for i in range(nfull):
             x = linear(x,
@@ -1480,7 +1582,6 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                 sz = y.shape.as_list()[3]
             else:
                 sz = X.shape.as_list()[3]
-
             z = tf.reshape(z, [bs, sx, sy, sz, 1], name='vec2img_3d')
         else:
             z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img_2d')
@@ -1496,7 +1597,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
             rprint('     Concat X and z to {}'.format(x.shape), reuse)
 
         conv_over_deconv = np.all(np.array(params['stride']) == 1) # If true use conv, else deconv
-        print("conv_over_deconv=", conv_over_deconv)
+        print("     conv_over_deconv=", conv_over_deconv)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
@@ -1505,23 +1606,11 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                 rprint('     Merge input y of size{}'.format(y.shape), reuse)
 
                 if params['is_3d']:
-                    x = tf.concat([x,y], axis=4)
+                    x = tf.concat([x, y], axis=4)
                 else:
-                    x = tf.concat([x,y],axis=3)
+                    x = tf.concat([x, y], axis=3)
                 rprint('     Concat x and y to {}'.format(x.shape), reuse) 
 
-                # # 1*1 convolution for forward transform
-                # conv = get_conv(params['is_3d'])
-                # num_channels = x.shape.as_list()[-1]
-                # x = conv(x,
-                #          nf_out=num_channels,
-                #          shape=[1, 1, 1],
-                #          stride=1,
-                #          name='1_1_conv_forward',
-                #          summary=params['summary'])
-                # rprint('     1*1 Conv layer with {} channels'.format(num_channels), reuse)
-
-                # x = lrelu(x)
 
             if params['residual'] and (i%2 != 0) and (i < nconv-2): # save odd layer inputs for residual connections
                 residue = x
@@ -1598,19 +1687,6 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                                   reuse=reuse)
 
         x = apply_non_lin(params['non_lin'], x, reuse)
-
-        # # 1*1 convolution for the backward transformation
-        # conv = get_conv(params['is_3d'])
-        # num_channels = x.shape.as_list()[-1]
-        # x = conv(x,
-        #          nf_out=1,
-        #          shape=[1, 1, 1],
-        #          stride=1,
-        #          name='1_1_conv_backward',
-        #          summary=params['summary'])
-        # rprint('     1*1 Conv layer with 1 channels', reuse)
-
-        # x = lrelu(x)
 
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
@@ -1717,7 +1793,7 @@ def generator12(x, img, params, reuse=True, scope="generator12"):
 def one_pixel_mapping(x, n_filters, summary=True, reuse=False):
     """One pixel mapping."""
     rprint('  Begining of one Pixel Mapping '+''.join(['-']*20), reuse)
-    xsh = tf.shape(x)  # Batch size
+    xsh = tf.shape(x) 
 
     rprint('     The input is of size {}'.format(x.shape), reuse)
     x = tf.reshape(x, [xsh[0], prod(x.shape.as_list()[1:]), 1, 1])
@@ -1745,3 +1821,5 @@ def one_pixel_mapping(x, n_filters, summary=True, reuse=False):
     rprint('     Reshape x to size {}'.format(x.shape), reuse)
     rprint('  End of one Pixel Mapping '+''.join(['-']*20)+'\n', reuse)
     return x
+
+

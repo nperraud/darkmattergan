@@ -1,7 +1,9 @@
 import matplotlib
 import matplotlib.cm
+import numpy as np
 
 import tensorflow as tf
+
 
 def colorize(value, vmin=None, vmax=None, cmap=None):
     """
@@ -31,6 +33,7 @@ def colorize(value, vmin=None, vmax=None, cmap=None):
     # normalize
     vmin = tf.reduce_min(value) if vmin is None else vmin
     vmax = tf.reduce_max(value) if vmax is None else vmax
+    value = tf.clip_by_value(value, vmin, vmax)
     value = (value - vmin) / (vmax - vmin) # vmin..vmax
 
     # squeeze last dim if it exists
@@ -40,8 +43,9 @@ def colorize(value, vmin=None, vmax=None, cmap=None):
     indices = tf.to_int32(tf.round(value * 255))
 
     # gather
-    cm = matplotlib.cm.get_cmap(cmap if cmap is not None else 'gray')
-    colors = tf.constant(cm.colors, dtype=tf.float32)
+    cm = matplotlib.cm.get_cmap(cmap if cmap is not None else 'viridis')
+    colors = np.round(255 * cm(np.arange(256))[:, :3]).astype(np.uint8)
+    colors = tf.constant(colors, dtype=tf.uint8)
     value = tf.gather(colors, indices)
 
-return value
+    return value

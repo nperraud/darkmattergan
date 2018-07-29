@@ -13,8 +13,6 @@ import utils
 from data import fmap
 import tensorflow as tf
 import functools
-import os
-import tensorflow as tf
 
 # Parameters
 
@@ -29,10 +27,13 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=c)
 
 
 def non_lin(x):
-	return tf.nn.relu(x) 
+	return tf.nn.relu(x)
 
-time_str = 'stat_c_{}_shift_{}_laplacian_Mpch_{}_res_{}'.format(c, shift, Mpch, res)
-global_path = '/scratch/snx3000/nperraud/saved_result'
+# def non_lin(x):
+#     return tf.nn.tanh(x)
+
+time_str = 'new_stat_c_{}_shift_{}_laplacian{}_no_full'.format(c, shift, Mpch)
+global_path = '/scratch/snx3000/rosenthj/results/'
 
 name = 'WGAN{}'.format(ns)
 
@@ -60,16 +61,19 @@ params_generator['non_lin'] = non_lin
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 16
-params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
-params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 1e-5
-params_optimization['gen_learning_rate'] = 1e-5
-params_optimization['beta1'] = 0.5
-params_optimization['beta2'] = 0.99
+params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
+params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
+params_optimization['disc_learning_rate'] = 3e-5
+params_optimization['gen_learning_rate'] = 3e-5
+params_optimization['beta1'] = 0.9
+params_optimization['beta2'] = 0.999
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
 
 params_cosmology = dict()
+params_cosmology['clip_max_real'] = True
+params_cosmology['log_clip'] = 0.1
+params_cosmology['sigma_smooth'] = 1
 params_cosmology['forward_map'] = forward
 params_cosmology['backward_map'] = backward
 params_cosmology['Nstats'] = 5000
@@ -88,12 +92,12 @@ params['sum_every'] = 200
 params['viz_every'] = 200
 params['save_every'] = 5000
 params['name'] = name
-params['summary_dir'] = os.path.join(global_path, params['name'] + '_' + time_str +'_summary/')
-params['save_dir'] = os.path.join(global_path, params['name'] + '_' + time_str + '_checkpoints/')
+params['summary_dir'] = global_path + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + params['name'] + '_' + time_str + '_checkpoints/'
 
 resume, params = utils.test_resume(try_resume, params)
-# params['optimization']['disc_learning_rate'] = 3e-6
-# params['optimization']['gen_learning_rate'] = 3e-6
+params['optimization']['disc_learning_rate'] = 3e-6
+params['optimization']['gen_learning_rate'] = 3e-6
 
 
 # Build the model

@@ -13,18 +13,7 @@ import socket
 if 'nid' in socket.gethostname() or 'lo-' in socket.gethostname():
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-#from model import *
-#from gan import *
-
-
-# def load_gan(pathgan, GANtype=CosmoGAN):
-#     """Load GAN object from path."""
-#     with open(pathgan + 'params.pkl', 'rb') as f:
-#         params = pickle.load(f)
-#     params['save_dir'] = pathgan
-#     obj = GANtype(params)
-
-#     return obj
+import os
 
 
 def generate_samples(obj, N=None, checkpoint=None, **kwards):
