@@ -8,7 +8,7 @@ matplotlib.use('Agg')
 
 import os
 # import skimage.measure
-from model import TemporalGanModelv3, TemporalGanModelv4, TemporalGanModelv5
+from model import TemporalGenericGanModel
 from gan import TimeCosmoGAN
 import utils
 from data import fmap, path, Dataset
@@ -33,6 +33,16 @@ ns = 32
 try_resume = False
 Mpch = 500
 
+time_encoding = 'channel_encoding'
+ten = ''
+
+if time_encoding == 'channel_encoding':
+    ten = 'ce'
+elif time_encoding == 'scale_full':
+    ten = 'sf'
+elif time_encoding == 'scale_half':
+    ten = 'sh'
+
 shift = 3
 bandwidth = 20000
 forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
@@ -56,6 +66,13 @@ params_discriminator['full'] = [64]
 #params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
+params_cdf = dict()
+params_cdf['cdf_out'] = 32
+params_cdf['channel_cdf'] = 16
+params_discriminator['cdf_block'] = params_cdf
+params_hist = dict()
+params_hist['bla'] = 5
+#params_discriminator['histogram'] = params_hist
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 1, 1, 1]
@@ -68,7 +85,7 @@ params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
 
 params_optimization = dict()
-params_optimization['gamma_gp'] = 10
+params_optimization['gamma_gp'] = 1
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
@@ -78,6 +95,7 @@ params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
+params_optimization['JS-regularization'] = True
 
 params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
@@ -93,6 +111,10 @@ params_time['classes'] = [6, 4, 2, 0]
 params_time['class_weights'] = [0.8, 0.9, 1.0, 1.1]
 params_time['model_idx'] = 4
 params_time['use_diff_stats'] = False
+
+params_time['model'] = dict()
+params_time['model']['time_encoding'] = time_encoding
+params_time['model']['relative'] = False
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
 
@@ -127,13 +149,5 @@ print("\nTime Params")
 print(params['time'])
 print()
 
-model = None
-if params_time['model_idx'] == 2:
-    model = TemporalGanModelv3
-if params_time['model_idx'] == 3:
-    model = TemporalGanModelv4
-if params_time['model_idx'] == 4:
-    model = TemporalGanModelv5
-
 # Build the model
-twgan = TimeCosmoGAN(params, model)
+twgan = TimeCosmoGAN(params, TemporalGenericGanModel)
