@@ -22,6 +22,9 @@ class GanModel(object):
         self._D_loss = None
         self._G_loss = None
 
+    def add_model_specific_inputs(self, feed_dict, phase="generate", step=0):
+        return feed_dict
+
     @property
     def D_loss(self):
         return self._D_loss
@@ -447,14 +450,25 @@ class TemporalGenericGanModel(GanModel):
             print("Using JS-Regularization (Roth et al. 2017)")
             D_gp = js_regularization(self.D_real, X, self.D_fake, self.G_fake,
                                      params['optimization']['batch_size'])
-            D_gp = (gamma_gp / 2.0) * D_gp
+            global_step = tf.train.get_global_step()
+            alpha = self.params['optimization'].get('alpha', None)
+            if alpha:
+                print("Using annealing")
+                T = self.params['optimization']['max_T']
+                alpha = tf.constant(alpha, dtype=tf.float32)
+                alpha = tf.pow(alpha, tf.cast(tf.minimum(global_step, T) / T, tf.float32))
+                D_gp = D_gp * gamma_gp * alpha
+            else:
+                print("Not using annealing")
+                D_gp = gamma_gp * D_gp
 
             s_D_real = tf.nn.sigmoid(self.D_real)
             s_D_fake = tf.nn.sigmoid(self.D_fake)
 
             self._D_loss = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real, labels=tf.ones_like(s_D_real))
-                + tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.zeros_like(s_D_fake)))
+                + tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.zeros_like(s_D_fake))) \
+                + D_gp
 
             self._G_loss = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.ones_like(s_D_fake)))

@@ -37,6 +37,8 @@ class GAN(object):
         tf.reset_default_graph()
 
         self.params = default_params(params)
+        tf.Variable(self.params.get('curr_counter', 0),
+                                  name="global_step", trainable=False)
         self._is_3d = is_3d
         if model is None:
             model = params['model']
@@ -99,8 +101,6 @@ class GAN(object):
         g_vars = [var for var in t_vars if 'generator' in var.name]
         e_vars = [var for var in t_vars if 'encoder' in var.name]
 
-        global_step = tf.Variable(0, name="global_step", trainable=False)
-
         optimizer_D, optimizer_G, optimizer_E = self._build_optmizer()
 
         grads_and_vars_d = optimizer_D.compute_gradients(
@@ -108,8 +108,10 @@ class GAN(object):
         grads_and_vars_g = optimizer_G.compute_gradients(
             self._G_loss, var_list=g_vars)
 
+        global_step = tf.train.get_global_step()
+
         self._D_solver = optimizer_D.apply_gradients(
-            grads_and_vars_d, global_step=global_step)
+            grads_and_vars_d)
         self._G_solver = optimizer_G.apply_gradients(
             grads_and_vars_g, global_step=global_step)
 
@@ -118,7 +120,7 @@ class GAN(object):
             grads_and_vars_e = optimizer_E.compute_gradients(
                 self._E_loss, var_list=e_vars)
             self._E_solver = optimizer_E.apply_gradients(
-                grads_and_vars_e, global_step=global_step)
+                grads_and_vars_e)
 
         self._buid_opt_summaries(optimizer_D, grads_and_vars_d, optimizer_G,
                                  grads_and_vars_g, optimizer_E)
@@ -462,7 +464,11 @@ class GAN(object):
         latent_dim = self.params['generator']['latent_dim']
         return utils.sample_latent(bs, latent_dim, self._prior_distribution)
 
-    def _get_dict(self, z=None, X=None, index=None, **kwargs):
+    def _add_optimizer_inputs(self, feed_dict, phase):
+        # TODO implement learning rate annealing
+        return feed_dict
+
+    def _get_dict(self, z=None, X=None, phase='generate', index=None, **kwargs):
         feed_dict = dict()
         if z is not None:
             if index is not None:
@@ -474,6 +480,8 @@ class GAN(object):
                 feed_dict[self._X] = X[index]
             else:
                 feed_dict[self._X] = X
+        if phase == 'train_D' or phase == 'train_G' or phase == 'train_E':
+            feed_dict = self._add_optimizer_inputs(feed_dict, phase)
         for key, value in kwargs.items():
             if value is not None:
                 if index is not None:
