@@ -117,7 +117,7 @@ params_optimization['beta2'] = 0.99
 params_optimization['max_T'] = 50000
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
-params_optimization['n_critic'] = 5
+params_optimization['n_critic'] = 1
 
 params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
