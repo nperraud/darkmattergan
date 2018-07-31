@@ -62,7 +62,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_gp1_c+M{}'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_gp4_c+M{}'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -104,7 +104,7 @@ params_generator['non_lin'] = tf.nn.relu
 params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
-params_optimization['gamma_gp'] = 1
+params_optimization['gamma_gp'] = 4
 params_optimization['JS-regularization'] = True
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
