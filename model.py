@@ -473,7 +473,7 @@ class TemporalGenericGanModel(GanModel):
             self._G_loss = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.ones_like(s_D_fake)))
 
-            # wgan_summaries(self._D_loss, self._G_loss, s_D_fake, s_D_real)
+            js_gan_summaries(s_D_fake, s_D_real)
         else:
             D_gp = 0
             if gamma_gp != 0:
@@ -1607,6 +1607,11 @@ class LapPatchWGANDirect(GanModel):
 #         D_fake = self.discriminator(G_fake, reuse=True)       
         
 #         return G_fake, D_real, D_fake, Xs, G_fake_s
+
+def js_gan_summaries(D_out_f, D_out_r):
+    tf.summary.scalar("Disc/Out_f", tf.reduce_mean(D_out_f), collections=["Training"])
+    tf.summary.scalar("Disc/Out_r", tf.reduce_mean(D_out_r), collections=["Training"])
+    tf.summary.scalar("Disc/Out_f-r", tf.reduce_mean(D_out_f - D_out_r), collections=["Training"])
 
 def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r):
     tf.summary.scalar("Disc/Neg_Loss", -D_loss, collections=["Training"])
