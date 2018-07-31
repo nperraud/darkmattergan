@@ -1,4 +1,5 @@
 import data.fmap as fmap
+import blocks
 import numpy as np
 import warnings
 
@@ -6,7 +7,7 @@ import warnings
 def arg_helper(params, d_param):
     for key in d_param.keys():
         params[key] = params.get(key, d_param[key])
-        if type(params[key]) is dict:
+        if (type(params[key]) is dict) and d_param[key]:
             params[key] = arg_helper(params[key], d_param[key])
     return params
 
@@ -48,6 +49,7 @@ def default_params(params=None):
     # Discriminator parameters
     # ------------------------
     d_param['discriminator'] = dict()
+    d_param['discriminator']['activation'] = blocks.lrelu
     d_param['discriminator']['minibatch_reg'] = False
     # Minibatch regularization
     # d_param['discriminator']['minibatch_reg'] = False
@@ -56,7 +58,9 @@ def default_params(params=None):
     d_param['discriminator']['one_pixel_mapping'] = []
     d_param['discriminator']['cdf'] = None
     d_param['discriminator']['channel_cdf'] = None
+    d_param['discriminator']['cdf_block'] = None
     d_param['discriminator']['moment'] = None
+    d_param['discriminator']['spectral_norm'] = False
 
     # Optimization parameters
     # -----------------------
@@ -71,6 +75,7 @@ def default_params(params=None):
     # Generator parameters
     # --------------------
     d_param['generator'] = dict()
+    d_param['generator']['activation'] = blocks.lrelu
     d_param['generator']['y_layer'] = None
     d_param['generator']['one_pixel_mapping'] = []
 

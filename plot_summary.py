@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 # Inspired by Andres
 
+
 class PlotSummary(object):
     def __init__(self, name, cat, collections=None):
         self._name = name

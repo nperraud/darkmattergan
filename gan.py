@@ -830,11 +830,11 @@ class CosmoGAN(GAN):
             md['wasserstein_mass_hist'],
             collections=[collection])
         tf.summary.scalar(
-            "total_stats_error_l1" + name_suffix,
+            "Combined_Stats/total_stats_error_l1" + name_suffix,
             md['total_stats_error_l1'],
             collections=[collection])
         tf.summary.scalar(
-            "total_stats_error_l2" + name_suffix,
+            "Combined_Stats/total_stats_error_l2" + name_suffix,
             md['total_stats_error_l2'],
             collections=[collection])
 
@@ -867,7 +867,7 @@ class CosmoGAN(GAN):
         stats['mass_hist_real'] = mass_hist_real
         stats['x_mass'] = x_mass
         stats['lim_mass'] = lim_mass
-        
+
         del real
         return stats
 
@@ -1077,7 +1077,6 @@ class CosmoGAN(GAN):
         print(' {} current PSD L2 {}, logL2 {}, total {}'.format(
             self._counter, l2_psd, log_l2_psd, total_stats_error))
 
-
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
 
@@ -1158,18 +1157,17 @@ class TimeGAN(GAN):
         self.params = default_params_time(params)
         super().__init__(params=self.params, model=model, is_3d=is_3d)
 
-
     def _build_image_summary(self):
         vmin = tf.reduce_min(self._X)
         vmax = tf.reduce_max(self._X)
         for c in range(self.params["time"]["num_classes"]):
             tf.summary.image(
-                "training/Real_Image_c{}".format(c),
+                "training/Real_Image_t{}".format(self.params['time']['classes'][c]),
                 colorize(self._X[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
                 collections=['Images'])
             tf.summary.image(
-                "training/Fake_Image_c{}".format(c),
+                "training/Fake_Image_t{}".format(self.params['time']['classes'][c]),
                 colorize(self._G_fake[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
                 collections=['Images'])
@@ -1178,7 +1176,7 @@ class TimeGAN(GAN):
         if bs is None:
             bs = self.batch_size
         latent = super()._sample_latent(bs=bs)
-        return np.repeat(latent, self.params['time']['num_classes'], axis=0)
+        return np.repeat(latent, self.num_classes, axis=0)
 
     def _sample_single_latent(self, bs=None):
         if bs is None:
@@ -1199,16 +1197,16 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
     def __init__(self, params, model=None, is_3d=False):
         super().__init__(params=params, model=model, is_3d=is_3d)
         self._md_t = dict()
-        for c in range(params['time']['num_classes']):
-            suff = '_t' + str(params['time']['classes'][c])
-            self._md_t[c], self._plots[c] = CosmoGAN._init_logs('Time Cosmo Metrics', name_suffix=suff)
+        for t in range(self.num_classes):
+            suff = '_t' + str(params['time']['classes'][t])
+            self._md_t[t], self._plots[t] = CosmoGAN._init_logs('Time Cosmo Metrics', name_suffix=suff)
         self.summary_op_metrics_t = tf.summary.merge(
             tf.get_collection("Time Cosmo Metrics"))
 
     def train(self, dataset, resume=False):
         real = self._backward_map(dataset.get_all_data())
         self._stats_t = []
-        for t in range(self.params['time']['num_classes']):
+        for t in range(self.num_classes):
             self._stats_t.append(self._compute_real_stats(real[:,:,:,t]))
         super().train(dataset=dataset, resume=resume)
 
@@ -1224,7 +1222,7 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
             fake_image = self._generate_sample_safe(z_sel, Xsel)
             fake_image = self._backward_map(fake_image)
 
-            for t in range(self.params['time']['num_classes']):
+            for t in range(self.num_classes):
                 real = real_image[:,:,:,t]
                 fake = fake_image[:,:,:,t]
 

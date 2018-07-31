@@ -87,6 +87,7 @@ def azimuthalAverage(image, center=None, stddev=False, returnradii=False, return
     else:
         return radial_prof
 
+
 def azimuthalAverageBins(image,azbins,symmetric=None, center=None, **kwargs):
     """ Compute the azimuthal average over a limited range of angles 
     kwargs are passed to azimuthalAverage """
@@ -121,6 +122,7 @@ def azimuthalAverageBins(image,azbins,symmetric=None, center=None, **kwargs):
         azavlist.append(zz)
 
     return azbins,rr,azavlist
+
 
 def radialAverage(image, center=None, stddev=False, returnAz=False, return_naz=False, 
         binsize=1.0, weights=None, steps=False, interpnan=False, left=None, right=None,
@@ -226,6 +228,7 @@ def radialAverage(image, center=None, stddev=False, returnAz=False, return_naz=F
         return nr,bin_centers,azimuthal_prof
     else:
         return azimuthal_prof
+
 
 def radialAverageBins(image,radbins, corners=True, center=None, **kwargs):
     """ Compute the radial average over a limited range of radii """
