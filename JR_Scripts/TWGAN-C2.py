@@ -62,7 +62,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_lhist32v3_c+M{}'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_lhist32v4_c+M{}'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -112,8 +112,8 @@ params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 1e-6
 params_optimization['gen_learning_rate'] = 1e-6
 params_optimization['beta1'] = 0.9
-params_optimization['beta2'] = 0.99
-params_optimization['epsilon'] = 1e-8
+params_optimization['beta2'] = 0.999
+params_optimization['epsilon'] = 1e-4
 params_optimization['epoch'] = 1000
 params_optimization['n_critic'] = 5
 
