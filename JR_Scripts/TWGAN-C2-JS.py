@@ -62,7 +62,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_an1_2b999_e5eps_c+M{}'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_an1_2b999_e1eps_c+M{}'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -115,7 +115,7 @@ params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.999
 params_optimization['alpha'] = 0.01
 params_optimization['max_T'] = 150000
-params_optimization['epsilon'] = 1e-4
+params_optimization['epsilon'] = 1e-1
 params_optimization['epoch'] = 1000
 params_optimization['n_critic'] = 1
 
