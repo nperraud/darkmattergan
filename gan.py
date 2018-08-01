@@ -427,6 +427,8 @@ class GAN(object):
                             self._save(self._savedir, self._counter)
                             self._save_current_step = False
                         self._counter += 1
+                        if (self._counter % 1000) == 0:
+                            print("Sanity check for global step: {}".format(tf.train.get_global_step().eval()))
                     epoch += 1
             except KeyboardInterrupt:
                 pass
