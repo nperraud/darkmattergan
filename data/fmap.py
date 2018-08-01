@@ -69,29 +69,6 @@ def gauss_backward(x, shift=0, clip_max=1e6):
     return np.round(y - 1 - shift)
 
 
-def log_forward(x, shift=6):
-    return (np.log(x + 1 + shift) - np.log(1 + shift))/3.
-
-
-def log_backward(x, shift=6, clip_max=2e6):
-    x_max = log_forward(clip_max, shift=shift)
-    x = np.clip(x, 0.0, x_max)
-    return np.round(np.exp(3*x + np.log(1 + shift)) - 1 - shift)
-
-
-def log(x):
-    return np.log(x + 1)
-
-def inv_log(y, clip_max=1e8):
-    y = np.clip(y, 0, log(clip_max))
-    return np.round(np.e**y - 1)
-
-def normalize(x, scale=1.0, shift=0):
-    return scale*((x-64.0)/189156.69) + shift
-
-def un_normalize(y, scale=1.0, shift=0):
-    return np.round(189156.69*((y-shift)/scale) + 64.0)
-
 def shifted_log_forward(X, shift=1.0):
     return np.log(np.sqrt(X) + np.e**shift) - shift
 
