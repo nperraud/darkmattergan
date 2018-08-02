@@ -104,7 +104,7 @@ generator_net.add_conv_layer(512, stride=2, shape=3)
 generator_net.add_conv_layer(256, stride=2, shape=5)
 generator_net.add_conv_layer(128, stride=1, shape=5)
 generator_net.add_conv_layer(64, stride=1, shape=5)
-generator_net.add_conv_layer(1, stride=1, shape=5)
+generator_net.add_conv_layer(1, stride=1, shape=5, batch_norm=None)
 
 params_generator = generator_net.params
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
