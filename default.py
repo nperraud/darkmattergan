@@ -49,6 +49,7 @@ def default_params(params=None):
     # Discriminator parameters
     # ------------------------
     d_param['discriminator'] = dict()
+    d_param['discriminator']['full'] = []
     d_param['discriminator']['activation'] = blocks.lrelu
     d_param['discriminator']['minibatch_reg'] = False
     # Minibatch regularization
@@ -75,6 +76,7 @@ def default_params(params=None):
     # Generator parameters
     # --------------------
     d_param['generator'] = dict()
+    d_param['generator']['full'] = []
     d_param['generator']['activation'] = blocks.lrelu
     d_param['generator']['y_layer'] = None
     d_param['generator']['one_pixel_mapping'] = []
