@@ -345,6 +345,9 @@ class NetParamHelper(object):
         self.params = add_bottleneck_layer(self.params, nfilter, shape=shape, stride=stride,
                                      batch_norm=batch_norm, is_3d=self.is_3d)
 
+    def add_full(self, units):
+        self.params['full'] = get_lst_append_ret(self.params, 'full', units)
+
     def params(self):
         return self.params
 
