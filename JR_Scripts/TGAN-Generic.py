@@ -63,7 +63,7 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_bneck_ad2_c+M{}'.format(cl[0], cl[1], Mpc)
+time_str = '{}{}r_bneckG_ad2_c+M{}'.format(cl[0], cl[1], Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -102,9 +102,12 @@ generator_net.add_conv_layer(64, stride=2, shape=3)
 generator_net.add_conv_layer(256, stride=2, shape=3)
 generator_net.add_conv_layer(512, stride=2, shape=3)
 generator_net.add_conv_layer(256, stride=2, shape=5)
-generator_net.add_conv_layer(128, stride=1, shape=5)
-generator_net.add_conv_layer(64, stride=1, shape=5)
-generator_net.add_conv_layer(1, stride=1, shape=5, batch_norm=None)
+generator_net.add_bottleneck_layer([64, 64, 256], stride=1, shape=3)
+generator_net.add_bottleneck_layer([64, 64, 256], stride=1, shape=3)
+generator_net.add_bottleneck_layer([64, 64, 256], stride=1, shape=3)
+generator_net.add_conv_layer(128, stride=1, shape=3)
+generator_net.add_conv_layer(64, stride=1, shape=3)
+generator_net.add_conv_layer(1, stride=1, shape=3, batch_norm=None)
 
 params_generator = generator_net.params
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
