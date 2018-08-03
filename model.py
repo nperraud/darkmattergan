@@ -1837,7 +1837,20 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             rprint('         Size of the CDF variables: {}'.format(cov.shape), reuse)
             
         for i in range(nconv):
-            x = conv(x,
+            if params.get('separate_first', False) and i == 0:
+                n_out = params['nfilter'][i] // int(x.shape[3])
+                lst = []
+                for j in range(x.shape[3]):
+                    lst.append(conv(x[:,:,:,j:j+1],
+                        nf_out=n_out,
+                        shape=params['shape'][i],
+                        stride=params['stride'][i],
+                        use_spectral_norm=params['spectral_norm'],
+                        name='{}_conv{}'.format(i,j),
+                        summary=params['summary']))
+                x = tf.concat(lst, axis=3)
+            else:
+                x = conv(x,
                      nf_out=params['nfilter'][i],
                      shape=params['shape'][i],
                      stride=params['stride'][i],
