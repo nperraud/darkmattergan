@@ -31,7 +31,7 @@ def save_dict(params):
 def get_class_weights(cls):
     weights = []
     for i in range(len(cls)):
-        weights.append(1.3 - (0.08*cl[0]))
+        weights.append(1.3 - (0.08*cls[i]))
     return weights
 
 # Parameters
