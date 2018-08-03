@@ -28,6 +28,12 @@ def save_dict(params):
     utils.save_dict_for_humans(params['save_dir'] + 'params.txt', params)
 
 
+def get_class_weights(cls):
+    weights = []
+    for i in range(len(cls)):
+        weights.append(1.3 - (0.08*cl[0]))
+    return weights
+
 # Parameters
 ns = 64
 model_idx = 5
@@ -35,7 +41,9 @@ divisor = 3
 try_resume = False
 Mpc_orig = 500
 Mpc = Mpc_orig // (512 // ns)
-cl = [int(sys.argv[1]), int(sys.argv[2])]
+cl = []
+for i in range(len(sys.argv)-1):
+    cl.append(int(sys.argv[i+1]))
 
 time_encoding = 'channel_encoding'
 ten = ''
@@ -63,7 +71,10 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '{}{}r_bneckG_ad2_c+M{}'.format(cl[0], cl[1], Mpc)
+cl_str = ''
+for cl_id in cl:
+    cl_str = cl_str + str(cl_id)
+time_str = '{}r_bneckG_ad2_c+M{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -140,7 +151,8 @@ params_cosmology['Nstats'] = 1000
 params_time = dict()
 params_time['classes'] = cl
 params_time['num_classes'] = len(cl)
-params_time['class_weights'] = [(1.3 - (0.08*cl[0])), (1.3 - (0.08*cl[1]))]
+params_time['class_weights'] = get_class_weights(cl)
+# params_time['class_weights'] = [(1.3 - (0.08*cl[0])), (1.3 - (0.08*cl[1]))]
 # params_time['class_weights'] = [0.8, 1.2]
 assert len(params_time['classes']) == len(params_time['class_weights'])
 params_time['use_diff_stats'] = False
@@ -159,6 +171,9 @@ params['cosmology'] = params_cosmology
 params['time'] = params_time
 
 name = get_model_name(params)
+dir_suffix = ''
+if params_time['num_classes'] > 1:
+    dir_suffix = '_C{}'.format(params_time['num_classes'])
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
@@ -167,8 +182,8 @@ params['sum_every'] = 400
 params['viz_every'] = 400
 params['save_every'] = 10000
 params['name'] = name
-params['summary_dir'] = global_path + 'summaries_{}x{}_C2/'.format(ns,ns) + params['name'] + '_' + time_str +'_summary/'
-params['save_dir'] = global_path + 'models_{}x{}_C2/'.format(ns,ns) + params['name'] + '_' + time_str + '_checkpoints/'
+params['summary_dir'] = global_path + 'summaries_{}x{}{}/'.format(ns,ns,dir_suffix) + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + 'models_{}x{}{}/'.format(ns,ns,dir_suffix) + params['name'] + '_' + time_str + '_checkpoints/'
 
 
 resume, params = utils.test_resume(try_resume, params)
