@@ -74,18 +74,18 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_bneckG_v2ad_c+M{}'.format(cl_str, Mpc)
+time_str = '{}r_v2ad_c+M{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
 
 discriminator_net = utils.NetParamHelper()
 discriminator_net.add_conv_layer(64, stride=2, shape=5)
-discriminator_net.add_bottleneck_layer([32, 32, 128], stride=2, shape=5)
-discriminator_net.add_bottleneck_layer([64, 64, 256], stride=2, shape=5)
-discriminator_net.add_bottleneck_layer([64, 64, 256], stride=2, shape=5)
-discriminator_net.add_bottleneck_layer([32, 32, 128], stride=1, shape=3)
-discriminator_net.add_bottleneck_layer([16, 16, 64], stride=1, shape=3)
+discriminator_net.add_conv_layer(128, stride=2, shape=5)
+discriminator_net.add_conv_layer(256, stride=2, shape=5)
+discriminator_net.add_conv_layer(256, stride=2, shape=5)
+discriminator_net.add_conv_layer(128, stride=1, shape=3)
+discriminator_net.add_conv_layer(64, stride=1, shape=3)
 discriminator_net.add_full(64)
 
 params_discriminator = discriminator_net.params
@@ -113,12 +113,9 @@ generator_net.add_conv_layer(64, stride=2, shape=3)
 generator_net.add_conv_layer(256, stride=2, shape=3)
 generator_net.add_conv_layer(512, stride=2, shape=3)
 generator_net.add_conv_layer(256, stride=2, shape=5)
-generator_net.add_bottleneck_layer([64, 64, 256], stride=1, shape=3)
-generator_net.add_bottleneck_layer([64, 64, 256], stride=1, shape=3)
-generator_net.add_bottleneck_layer([64, 64, 256], stride=1, shape=3)
-generator_net.add_conv_layer(128, stride=1, shape=3)
-generator_net.add_conv_layer(64, stride=1, shape=3)
-generator_net.add_conv_layer(1, stride=1, shape=3, batch_norm=None)
+generator_net.add_conv_layer(128, stride=1, shape=5)
+generator_net.add_conv_layer(64, stride=1, shape=5)
+generator_net.add_conv_layer(1, stride=1, shape=5, batch_norm=None)
 
 params_generator = generator_net.params
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
