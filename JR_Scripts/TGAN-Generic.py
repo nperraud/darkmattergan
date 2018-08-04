@@ -74,7 +74,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_v2ad2_c+M{}'.format(cl_str, Mpc)
+time_str = '{}r_v2ad3_b5_c+M{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -131,7 +131,7 @@ params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 1e-6
 params_optimization['gen_learning_rate'] = 1e-6
-params_optimization['beta1'] = 0.9
+params_optimization['beta1'] = 0.5
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-4
 params_optimization['epoch'] = 1000
