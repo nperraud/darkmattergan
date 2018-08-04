@@ -65,7 +65,7 @@ def default_params(params=None):
 
     # Optimization parameters
     # -----------------------
-    d_param['optimization'] = default_params_optimization(params)
+    d_param['optimization'] = dict(default_params_optimization(params))
     d_param['optimization']['disc_optimizer'] = d_param['optimization']['optimizer']
     d_param['optimization']['disc_learning_rate'] = d_param['optimization']['learning_rate']
     d_param['optimization']['gen_optimizer'] = d_param['optimization']['optimizer']
