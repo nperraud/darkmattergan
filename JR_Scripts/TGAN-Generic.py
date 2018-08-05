@@ -74,12 +74,15 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_lr1e4relv2ad4_b5_c+sf{}'.format(cl_str, Mpc)
+time_str = '{}r_lr1e4relv2ad4d_b5_c+sf{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
 
 discriminator_net = utils.NetParamHelper()
+discriminator_net.add_conv_layer(128, stride=1, shape=5)
+discriminator_net.add_conv_layer(16, stride=1, shape=1)
+discriminator_net.add_conv_layer(64, stride=2, shape=5)
 discriminator_net.add_conv_layer(64, stride=2, shape=5)
 discriminator_net.add_conv_layer(128, stride=2, shape=5)
 discriminator_net.add_conv_layer(256, stride=2, shape=5)
