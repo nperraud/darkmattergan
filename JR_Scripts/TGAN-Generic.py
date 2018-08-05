@@ -74,7 +74,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_v2ad3_b5_c+M{}'.format(cl_str, Mpc)
+time_str = '{}r_relv2ad4_b5_c+M{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -121,7 +121,7 @@ params_generator = generator_net.params
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
-params_generator['activation'] = blocks.selu
+params_generator['activation'] = blocks.lrelu
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
@@ -129,11 +129,11 @@ params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 8
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 1e-6
-params_optimization['gen_learning_rate'] = 1e-6
+params_optimization['disc_learning_rate'] = 1e-5
+params_optimization['gen_learning_rate'] = 1e-5
 params_optimization['beta1'] = 0.5
 params_optimization['beta2'] = 0.99
-params_optimization['epsilon'] = 1e-4
+params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
 params_optimization['n_critic'] = 5
 
