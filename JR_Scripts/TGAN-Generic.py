@@ -45,7 +45,7 @@ cl = []
 for i in range(len(sys.argv)-1):
     cl.append(int(sys.argv[i+1]))
 
-time_encoding = 'scale_full'
+time_encoding = 'channel_encoding'
 ten = ''
 
 if time_encoding == 'channel_encoding':
