@@ -74,16 +74,20 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_lr1e5relv2rms4_b5_c+sf{}'.format(cl_str, Mpc)
+time_str = '{}r_Hlr3e5relv2ad4_b5_c+sf{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
 
 discriminator_net = utils.NetParamHelper()
+discriminator_net.add_conv_layer(32 * (len(cl) + 1), stride=1, shape=5)
+discriminator_net.add_conv_layer(32, stride=1, shape=1)
 discriminator_net.add_conv_layer(96, stride=2, shape=5)
 discriminator_net.add_conv_layer(128, stride=2, shape=5)
 discriminator_net.add_conv_layer(256, stride=2, shape=5)
 discriminator_net.add_conv_layer(256, stride=2, shape=5)
+discriminator_net.add_conv_layer(128, stride=1, shape=3)
+discriminator_net.add_conv_layer(128, stride=1, shape=3)
 discriminator_net.add_conv_layer(128, stride=1, shape=3)
 discriminator_net.add_conv_layer(64, stride=1, shape=3)
 discriminator_net.add_full(64)
@@ -115,8 +119,10 @@ generator_net.add_conv_layer(256, stride=2, shape=3)
 generator_net.add_conv_layer(512, stride=2, shape=3)
 generator_net.add_conv_layer(256, stride=2, shape=5)
 generator_net.add_conv_layer(128, stride=1, shape=3)
-generator_net.add_conv_layer(128, stride=1, shape=5)
-generator_net.add_conv_layer(64, stride=1, shape=5)
+generator_net.add_conv_layer(128, stride=1, shape=3)
+generator_net.add_conv_layer(128, stride=1, shape=3)
+generator_net.add_conv_layer(128, stride=1, shape=3)
+generator_net.add_conv_layer(64, stride=1, shape=3)
 generator_net.add_conv_layer(1, stride=1, shape=5, batch_norm=None)
 
 params_generator = generator_net.params
@@ -129,10 +135,10 @@ params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 # params_optimization['JS-regularization'] = True
 params_optimization['batch_size'] = 8
-params_optimization['gen_optimizer'] = 'rmsprop' # rmsprop / adam / sgd
-params_optimization['disc_optimizer'] = 'rmsprop' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 1e-5
-params_optimization['gen_learning_rate'] = 1e-5
+params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
+params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
+params_optimization['disc_learning_rate'] = 3e-5
+params_optimization['gen_learning_rate'] = 3e-5
 params_optimization['beta1'] = 0.5
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
