@@ -74,7 +74,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_Hlr1e5relv2ad4_b5_c+sf{}'.format(cl_str, Mpc)
+time_str = '{}r_Hlr1e5v2ad4_b5_c+sf{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -131,7 +131,7 @@ params_generator = generator_net.params
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
-params_generator['activation'] = blocks.lrelu
+params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
