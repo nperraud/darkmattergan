@@ -288,6 +288,7 @@ def tile_cube_to_2d(cube):
     tile = np.vstack(v_stacks)
     return tile
 
+
 def tile_and_plot_3d_image(axis, image, **kwargs):
     '''
     Take a 3d cube as input.

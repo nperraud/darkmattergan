@@ -42,7 +42,7 @@ s_dir = params['summary_dir']
 q = ""
 for i in range(5):
     q = q + s_dir.split('/')[i] + '/'
-q = q + 'summaries_32_C2_v4/' + s_dir.split('/')[6] + '/'
+q = q + 'summaries_32_C2_v5/' + s_dir.split('/')[6] + '/'
 params['summary_dir'] = q
 gan.params = params
 
@@ -82,7 +82,7 @@ for i in range(len(chkp_lst)):
     if i == 0:
         print("Initializing constant stats")
         gan._stats = gan.params['cosmology']['stats']
-        gan._stats['N'] = gan.params['cosmology']['Nstats']
+        gan._stats['N'] = 5 * gan.params['cosmology']['Nstats']
         gan._sum_data_iterator = itertools.cycle(dataset.iter(gan._stats['N']))
 
         gan._summary_writer = tf.summary.FileWriter(
@@ -91,6 +91,6 @@ for i in range(len(chkp_lst)):
         gan._stats_t = gen_real_t_stats(gan, params, dataset)
 
         sample_z = gan._sample_latent(gan.batch_size)
-        X_real = dataset.get_samples(gan.batch_size)
+    X_real = dataset.get_samples(gan.batch_size)
     gan._train_log(
         gan._get_dict(sample_z, X_real))

@@ -298,3 +298,44 @@ def compose2(first,second):
 
 def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
+
+
+def print_params_to_py_style_output_helper(name, params):
+    print("\n# {} Params".format(name.title()))
+    d_name = "params_{}".format(name)
+    print("{} = dict()".format(d_name))
+    for key, value in params.items():
+        print("{}['{}'] = {}".format(d_name, key, value))
+    print("params['{}'] = {}".format(name, d_name))
+
+
+def print_params_to_py_style_output(params):
+    print("# General Params")
+    print("params = dict()")
+    for key, value in params.items():
+        if not isinstance(value, dict):
+            print("params['{}'] = {}".format(key, value))
+    for key, value in params.items():
+        if isinstance(value, dict):
+            print_params_to_py_style_output_helper(key, value)
+
+
+def print_sub_dict_params(d_name, params, indent = 0):
+    indent_str = " " * indent
+    print("\n{}{} params".format(indent_str, d_name).title())
+    for key, value in params.items():
+        if not isinstance(value, dict):
+            print(" {}{}.{}: {}".format(indent_str, d_name, key, value))
+    for key, value in params.items():
+        if isinstance(value, dict):
+            print_sub_dict_params(key, value, indent=indent+1)
+
+
+def print_param_dict(params):
+    print("General Params")
+    for key, value in params.items():
+        if not isinstance(value, dict):
+            print(" {}: {}".format(key, value))
+    for key, value in params.items():
+        if isinstance(value, dict):
+            print_sub_dict_params(key, value)

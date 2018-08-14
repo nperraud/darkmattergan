@@ -41,6 +41,10 @@ def lrelu(x, leak=0.2, name="lrelu"):
     return tf.maximum(x, leak * x, name=name)
 
 
+def selu(x, name="selu"):
+    return tf.nn.selu(x, name=name)
+
+
 def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
     with tf.variable_scope(name):
         bn = tf.contrib.layers.batch_norm(
@@ -95,7 +99,6 @@ def downsample(imgs, s, is_3d=False, sess=None):
             img_d.append(sess.run(down_sampler_op, feed_dict={placeholder: curr_img}))
 
         return np.squeeze(np.concatenate(img_d, axis=3))
-
 
 
 def down_sampler(x=None, s=2, is_3d=False):
@@ -172,8 +175,39 @@ def up_sampler(x, s=2, is_3d=False):
 # print(np.linalg.norm(img_dud-img_d,ord='fro'))
 # print(np.linalg.norm(img_dudu-img_du,ord='fro'))
 
+def l2_norm(v, eps=1e-12):
+    return v / (tf.reduce_sum(v ** 2) ** 0.5 + eps)
 
-def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
+
+def spectral_norm(w, iteration=1):
+    w_shape = w.shape.as_list()
+    w = tf.reshape(w, [-1, w_shape[-1]])
+
+    u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.truncated_normal_initializer(), trainable=False)
+
+    u_hat = u
+    v_hat = None
+    for i in range(iteration):
+        """
+        power iteration
+        Usually iteration = 1 will be enough
+        """
+        v_ = tf.matmul(u_hat, tf.transpose(w))
+        v_hat = l2_norm(v_)
+
+        u_ = tf.matmul(v_hat, w)
+        u_hat = l2_norm(u_)
+
+    sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))
+    w_norm = w / sigma
+
+    with tf.control_dependencies([u.assign(u_hat)]):
+        w_norm = tf.reshape(w_norm, w_shape)
+
+    return w_norm
+
+
+def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="conv2d", summary=True):
     '''Convolutional layer for square images'''
 
     weights_initializer = tf.contrib.layers.xavier_initializer()
@@ -184,6 +218,8 @@ def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
             'w', [shape[0], shape[1],
                   imgs.get_shape()[-1], nf_out],
             initializer=weights_initializer)
+        if use_spectral_norm:
+            w = spectral_norm(w)
         conv = tf.nn.conv2d(
             imgs, w, strides=[1, stride, stride, 1], padding='SAME')
 
@@ -202,9 +238,13 @@ def conv3d(imgs,
            nf_out,
            shape=[5, 5, 5],
            stride=2,
+           use_spectral_norm=False,
            name="conv3d",
            summary=True):
     '''Convolutional layer for square images'''
+
+    if use_spectral_norm:
+        print("Warning spectral norm for conv3d set to True but may not be implemented!")
 
     weights_initializer = tf.contrib.layers.xavier_initializer()
     const = tf.constant_initializer(0.0)
@@ -495,3 +535,36 @@ def tf_covmat(x, shape):
     c = 1/tf.cast(nx, tf.float32)*tf.matmul(tf.transpose(conv_vec,perm=[0,2,1]), conv_vec)
     return c
 
+
+def learned_histogram(x, params):
+    """A learned histogram layer.
+
+    The center and width of each bin is optimized.
+    One histogram is learned per feature map.
+    """
+    # Shape of x: #samples x #nodes x #features.
+    bins = params.get('bins', 20)
+    initial_range = params.get('initial_range', 2)
+    is_3d = params.get('is_3d', False)
+    if is_3d:
+        x = tf.reshape(x, [tf.shape(x)[0], x.shape[1] * x.shape[2] * x.shape[3], x.shape[4]])
+    else:
+        x = tf.reshape(x, [tf.shape(x)[0], x.shape[1] * x.shape[2], x.shape[3]])
+    n_features = int(x.get_shape()[2])
+    centers = tf.linspace(float(0), initial_range, bins, name='range')
+    centers = tf.expand_dims(centers, axis=1)
+    centers = tf.tile(centers, [1, n_features])  # One histogram per feature channel.
+    centers = tf.Variable(
+        tf.reshape(tf.transpose(centers), shape=[1, 1, n_features, bins]),
+        name='centers', dtype=tf.float32)
+    # width = bins * initial_range / 4  # 50% overlap between bins.
+    width = 1 / initial_range  # 50% overlap between bins.
+    widths = tf.get_variable(
+        name='widths', shape=[1, 1, n_features, bins], dtype=tf.float32,
+        initializer=tf.initializers.constant(value=width, dtype=tf.float32))
+    x = tf.expand_dims(x, axis=3)
+    # All are rank-4 tensors: samples, nodes, features, bins.
+    widths = tf.abs(widths)
+    dist = tf.abs(x - centers)
+    hist = tf.reduce_mean(tf.nn.relu(1 - dist * widths), axis=1)
+    return tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])
