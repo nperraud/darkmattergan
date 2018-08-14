@@ -258,6 +258,10 @@ class Dataset_file(object):
         return self._scaling
 
     def get_big_dataset(self):
+        '''
+        Get the bigger dataset before it was sliced
+        using the 'self._slice_fn' function.
+        '''
         _class = self.__class__ # get the appropriate derived class
         return _class(resolution   =self._resolution, 
                         Mpch       =self._Mpch,

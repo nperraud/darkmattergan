@@ -6,7 +6,7 @@ import time
 import os
 import pickle
 import utils
-import metrics, evaluation, blocks
+import metrics, blocks
 import itertools
 import math
 from colorize import colorize
@@ -855,9 +855,6 @@ class CosmoGAN(GAN):
         plots['psd'] = PlotSummaryLog('Power_spectrum_density' + name_suffix, 'PLOT')
         plots['mass_hist'] = PlotSummaryLog('Mass_histogram' + name_suffix, 'PLOT')
         plots['peak_hist'] = PlotSummaryLog('Peak_histogram' + name_suffix, 'PLOT')
-        plots['psd_big'] = PlotSummaryLog('Power_spectrum_density_big', 'PLOT')
-        plots['mass_hist_big'] = PlotSummaryLog('Mass_histogram_big', 'PLOT')
-        plots['peak_hist_big'] = PlotSummaryLog('Peak_histogram_big', 'PLOT')
 
         return md, plots
 
@@ -865,9 +862,6 @@ class CosmoGAN(GAN):
     def _compute_real_stats(self, dataset):
         """Compute the main statistics on the real data."""
         real = self._backward_map(dataset.get_all_data())
-
-        if self.is_3d:
-            real_big = self._backward_map(self._big_dataset.get_all_data())
         
         stats = dict()
 
@@ -875,7 +869,6 @@ class CosmoGAN(GAN):
         if self.is_3d:
             if len(real.shape) > 4:
                 real = real[:, :, :, :, 0]
-                real_big = real_big[:, :, :, :, 0]
         else:
             if len(real.shape) > 3:
                 real = np.transpose(real, [0,3,1,2])
@@ -889,27 +882,12 @@ class CosmoGAN(GAN):
         stats['psd_axis'] = psd_axis
         del psd_real
 
-        if self.is_3d:
-            psd_real_big, psd_axis_big = metrics.power_spectrum_batch_phys(
-                X1=real_big, is_3d=self.is_3d)
-            stats['psd_real_big'] = np.mean(psd_real_big, axis=0)
-            stats['psd_axis_big'] = psd_axis_big
-            del psd_real_big
-
         # PEAK HISTOGRAM
         peak_hist_real, x_peak, lim_peak = metrics.peak_count_hist(dat=real)
         stats['peak_hist_real'] = peak_hist_real
         stats['x_peak'] = x_peak
         stats['lim_peak'] = lim_peak
         del peak_hist_real, x_peak, lim_peak
-
-        if self.is_3d:
-            peak_hist_real_big, x_peak_big, lim_peak_big = metrics.peak_count_hist(dat=real_big)
-            stats['peak_hist_real_big'] = peak_hist_real_big
-            stats['x_peak_big'] = x_peak_big
-            stats['lim_peak_big'] = lim_peak_big
-            del peak_hist_real_big, x_peak_big, lim_peak_big
-
 
         # MASS HISTOGRAM
         mass_hist_real, _, lim_mass = metrics.mass_hist(dat=real)
@@ -920,27 +898,12 @@ class CosmoGAN(GAN):
         stats['x_mass'] = x_mass
         stats['lim_mass'] = lim_mass
         del mass_hist_real
-
-        if self.is_3d:
-            mass_hist_real_big, _, lim_mass_big = metrics.mass_hist(dat=real_big)
-            lim_mass_big = list(lim_mass_big)
-            lim_mass_big[1] = lim_mass_big[1]+1
-            mass_hist_real_big, x_mass_big, lim_mass_big = metrics.mass_hist(dat=real_big, lim=lim_mass_big)
-            stats['mass_hist_real_big'] = mass_hist_real_big
-            stats['x_mass_big'] = x_mass_big
-            stats['lim_mass_big'] = lim_mass_big
-            del mass_hist_real_big
         
         del real 
-        if self.is_3d:
-            real_big
-        
         return stats
 
 
     def train(self, dataset, resume=False):
-        
-        self._big_dataset = dataset.get_big_dataset()
 
         if resume:
             self._stats = self.params['cosmology']['stats']
@@ -958,75 +921,11 @@ class CosmoGAN(GAN):
             self.params['cosmology']['stats'] = self._stats
 
         self._stats['N'] = self.params['cosmology']['Nstats']
-        self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(batch_size=self._stats['N'],
-                                                                        num_hists_at_once=self.params['num_hists_at_once'],
-                                                                        name='_big_dataset_iter'))
         self._sum_data_iterator = itertools.cycle(dataset.iter(batch_size=self._stats['N'],
                                                                num_hists_at_once=self.params['num_hists_at_once'],
                                                                name='_sum_data_iterator'))
 
         super().train(dataset=dataset, resume=resume)
-
-
-    def compute_big_stats(self):
-        '''
-        Compute psd, peak and mass histograms
-        on the bigger images
-        '''
-            
-        if self.params['generator']['downsampling']:
-            Xsel_big = next(self._big_dataset_iter)
-
-            if self._is_3d:
-                Xsel_big = Xsel_big[:, :, :, :, :1]
-            else:
-                Xsel_big = Xsel_big[:, :, :, :1]
-
-            downsampled = blocks.downsample(Xsel_big, s=self.params['generator']['downsampling'], is_3d=self.is_3d, sess=self._sess)
-            downsampled = np.expand_dims(downsampled, axis=4)
-            fake_image_big = evaluation.upscale_image(self, small=downsampled, sess=self._sess, is_3d=self.is_3d)
-
-        else:
-            fake_image_big = evaluation.upscale_image(self, num_samples=5, sess=self._sess, resolution=(self._big_dataset.resolution // self._big_dataset.scaling), is_3d=self.is_3d)
-
-        fake_big = self._backward_map(fake_image_big)
-
-        psd_gen_big, _ = metrics.power_spectrum_batch_phys(
-            X1=fake_big, is_3d=self.is_3d)
-        psd_gen_big = np.mean(psd_gen_big, axis=0)
-
-        summary_str = self._plots['psd_big'].produceSummaryToWrite(
-            self._sess,
-            self._stats['psd_axis_big'],
-            self._stats['psd_real_big'],
-            psd_gen_big)
-        self._summary_writer.add_summary(summary_str, self._counter)
-
-        del psd_gen_big
-
-        peak_hist_fake_big, _, _ = metrics.peak_count_hist(
-            fake_big, lim=self._stats['lim_peak_big'])
-
-        summary_str = self._plots['peak_hist_big'].produceSummaryToWrite(
-            self._sess,
-            self._stats['x_peak_big'],
-            self._stats['peak_hist_real_big'],
-            peak_hist_fake_big)
-        self._summary_writer.add_summary(summary_str, self._counter)
-
-        del peak_hist_fake_big
-
-        mass_hist_fake_big, _, _ = metrics.mass_hist(
-            fake_big, lim=self._stats['lim_mass_big'])
-
-        summary_str = self._plots['mass_hist_big'].produceSummaryToWrite(
-            self._sess,
-            self._stats['x_mass_big'],
-            self._stats['mass_hist_real_big'],
-            mass_hist_fake_big)
-        self._summary_writer.add_summary(summary_str, self._counter)
-
-        del mass_hist_fake_big, fake_big, fake_image_big
 
 
     def _process_stat_dict(self, real, fake, _stats=None, _plots=None):
@@ -1214,10 +1113,8 @@ class CosmoGAN(GAN):
             self._counter, l2_psd, log_l2_psd, total_stats_error))
 
     def _train_log(self, feed_dict):
-        super()._train_log(feed_dict)
 
-        if self.is_3d and self.params['big_every'] and np.mod(self._counter, self.params['big_every']) == 0:
-            self.compute_big_stats()
+        super()._train_log(feed_dict)
 
         if np.mod(self._counter, self.params['sum_every']) == 0:
             Xsel = next(self._sum_data_iterator)
@@ -1287,6 +1184,355 @@ class CosmoGAN(GAN):
         raw_images = self._backward_map(images)
 
         return images, raw_images
+
+
+class UpscaleCosmoGAN(CosmoGAN):
+    def __init__(self, params, model=None, is_3d=False):
+        super().__init__(params=params, model=model, is_3d=is_3d)
+
+        self._init_logs()
+
+
+    def _init_logs(self):
+        self._plots['psd_big'] = PlotSummaryLog('Power_spectrum_density_big', 'PLOT')
+        self._plots['mass_hist_big'] = PlotSummaryLog('Mass_histogram_big', 'PLOT')
+        self._plots['peak_hist_big'] = PlotSummaryLog('Peak_histogram_big', 'PLOT')
+
+
+    def _compute_real_stats(self, dataset):
+        """Compute the main statistics on the real data."""
+
+        stats = super()._compute_real_stats(dataset)
+
+        # Currently works for 3d only
+        if self.is_3d:
+            real_big = self._backward_map(self._big_dataset.get_all_data())
+            real_big = real_big[:, :, :, :, 0]
+
+            # PSD
+            psd_real_big, psd_axis_big = metrics.power_spectrum_batch_phys(
+                X1=real_big, is_3d=self.is_3d)
+            stats['psd_real_big'] = np.mean(psd_real_big, axis=0)
+            stats['psd_axis_big'] = psd_axis_big
+            del psd_real_big
+
+            # PEAK HISTOGRAM
+            peak_hist_real_big, x_peak_big, lim_peak_big = metrics.peak_count_hist(dat=real_big)
+            stats['peak_hist_real_big'] = peak_hist_real_big
+            stats['x_peak_big'] = x_peak_big
+            stats['lim_peak_big'] = lim_peak_big
+            del peak_hist_real_big, x_peak_big, lim_peak_big
+
+
+            # MASS HISTOGRAM
+            mass_hist_real_big, _, lim_mass_big = metrics.mass_hist(dat=real_big)
+            lim_mass_big = list(lim_mass_big)
+            lim_mass_big[1] = lim_mass_big[1]+1
+            mass_hist_real_big, x_mass_big, lim_mass_big = metrics.mass_hist(dat=real_big, lim=lim_mass_big)
+            stats['mass_hist_real_big'] = mass_hist_real_big
+            stats['x_mass_big'] = x_mass_big
+            stats['lim_mass_big'] = lim_mass_big
+            del mass_hist_real_big
+        
+            del real_big
+        
+        return stats
+
+
+    def compute_big_stats(self):
+        '''
+        Compute psd, peak and mass histograms
+        on the bigger images
+        '''
+            
+        if self.params['generator']['downsampling']:
+            Xsel_big = next(self._big_dataset_iter)
+
+            if self._is_3d:
+                Xsel_big = Xsel_big[:, :, :, :, :1]
+            else:
+                Xsel_big = Xsel_big[:, :, :, :1]
+
+            downsampled = blocks.downsample(Xsel_big, s=self.params['generator']['downsampling'], is_3d=self.is_3d, sess=self._sess)
+            downsampled = np.expand_dims(downsampled, axis=4)
+            fake_image_big = self.upscale_image(small=downsampled, sess=self._sess)
+
+        else:
+            fake_image_big = self.upscale_image(num_samples=5, sess=self._sess, resolution=(self._big_dataset.resolution // self._big_dataset.scaling))
+
+        fake_big = self._backward_map(fake_image_big)
+
+        psd_gen_big, _ = metrics.power_spectrum_batch_phys(
+            X1=fake_big, is_3d=self.is_3d)
+        psd_gen_big = np.mean(psd_gen_big, axis=0)
+
+        summary_str = self._plots['psd_big'].produceSummaryToWrite(
+            self._sess,
+            self._stats['psd_axis_big'],
+            self._stats['psd_real_big'],
+            psd_gen_big)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        del psd_gen_big
+
+        peak_hist_fake_big, _, _ = metrics.peak_count_hist(
+            fake_big, lim=self._stats['lim_peak_big'])
+
+        summary_str = self._plots['peak_hist_big'].produceSummaryToWrite(
+            self._sess,
+            self._stats['x_peak_big'],
+            self._stats['peak_hist_real_big'],
+            peak_hist_fake_big)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        del peak_hist_fake_big
+
+        mass_hist_fake_big, _, _ = metrics.mass_hist(
+            fake_big, lim=self._stats['lim_mass_big'])
+
+        summary_str = self._plots['mass_hist_big'].produceSummaryToWrite(
+            self._sess,
+            self._stats['x_mass_big'],
+            self._stats['mass_hist_real_big'],
+            mass_hist_fake_big)
+        self._summary_writer.add_summary(summary_str, self._counter)
+
+        del mass_hist_fake_big, fake_big, fake_image_big
+
+
+    def train(self, dataset, resume=False):
+        
+        self._big_dataset = dataset.get_big_dataset()
+        self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(batch_size=self.params['cosmology']['Nstats'],
+                                                                        num_hists_at_once=self.params['num_hists_at_once'],
+                                                                        name='_big_dataset_iter'))
+        super().train(dataset=dataset, resume=resume)
+
+
+
+    def _train_log(self, feed_dict):
+        super()._train_log(feed_dict)
+
+        # Currently works for 3d
+        if self.is_3d and self.params['big_every'] and np.mod(self._counter, self.params['big_every']) == 0:
+            self.compute_big_stats()
+
+
+    def generate(self,
+                 N=None,
+                 z=None,
+                 X=None,
+                 sess=None,
+                 checkpoint=None,
+                 **kwargs):
+        '''
+        Generate samples from already trained model.
+        Arguments:
+        Pass either N or z.
+        Pass either sess or checkpoint.
+        If sess is passed, it is assumed that the model has already been loaded using gan.load method
+        '''
+
+        return super().generate(N=N, z=z, X=X, sess=sess, checkpoint=checkpoint, **kwargs)
+
+
+    def upscale_image(self, small=None, num_samples=None, resolution=None, checkpoint=None, sess=None):
+        """Upscale image using the lappachsimple model, or upscale_WGAN_pixel_CNN model.
+
+        For model upscale_WGAN_pixel_CNN, pass num_samples to generate and resolution of the final bigger histogram.
+        for model lappachsimple         , pass small.
+
+        3D only works for upscale_WGAN_pixel_CNN.
+
+        This function can be accelerated if the model is created only once.
+        """
+        # Number of sample to produce
+        if small is None:
+            if num_samples is None:
+                raise ValueError("Both small and num_samples cannot be None")
+            else:
+                N = num_samples
+        else:
+            N = small.shape[0]
+
+        # Output dimension of the generator
+        soutx, souty = self.params['image_size'][:2]
+        if self.is_3d:
+            soutz = self.params['image_size'][2]
+
+        if small is not None:
+            # Dimension of the low res image
+            lx, ly = small.shape[1:3]
+            if self.is_3d:
+                lz = small.shape[3]
+
+            # Input dimension of the generator
+            sinx = soutx // self.params['generator']['downsampling']
+            siny = souty // self.params['generator']['downsampling']
+            if self.is_3d:
+                sinz = soutz // self.params['generator']['downsampling']
+
+            # Number of part to be generated
+            nx = lx // sinx
+            ny = ly // siny
+            if self.is_3d:
+                nz = lz // sinz
+
+        else:
+            sinx = siny = sinz = None
+            if resolution is None:
+                raise ValueError("Both small and resolution cannot be None")
+            else:
+                nx = resolution // soutx
+                ny = resolution // souty
+                nz = resolution // soutz
+
+
+        # If no session passed, create a new one and load a checkpoint.
+        if sess is None:
+            new_sess = tf.Session()
+            res = self.load(sess=new_sess, checkpoint=checkpoint)
+            if res:
+                print('Checkpoint successfully loaded!')
+        else:
+            new_sess = sess
+
+        if self.is_3d:
+            output_image = self.generate_3d_output(new_sess, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz)
+        else:
+            output_image = self.generate_2d_output(new_sess, N, nx, ny, soutx, souty, small, sinx, siny)
+
+        # If a new session was created, close it. 
+        if sess is None:
+            new_sess.close()
+
+        return np.squeeze(output_image)
+
+
+    def generate_3d_output(self, sess, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz):
+        output_image = np.zeros(
+                shape=[N, soutz * nz, souty * ny, soutx * nx, 1], dtype=np.float32)
+        output_image[:] = np.nan
+
+        print('Total number of patches = {}*{}*{} = {}'.format(nx, ny, nz, nx*ny*nz) )
+
+        for k in range(nz): # height
+            for j in range(ny): # rows
+                for i in range(nx): # columns
+
+                    # 1) Generate the border
+                    border = np.zeros([N, soutz, souty, soutx, 7])
+
+                    if j: # one row above, same height
+                        border[:, :, :, :, 0:1] = output_image[:, 
+                                                                k * soutz:(k + 1) * soutz,
+                                                                (j - 1) * souty:j * souty, 
+                                                                i * soutx:(i + 1) * soutx, 
+                                                            :]
+                    if i: # one column left, same height
+                        border[:, :, :, :, 1:2] = output_image[:,
+                                                                k * soutz:(k + 1) * soutz,
+                                                                j * souty:(j + 1) * souty, 
+                                                                (i - 1) * soutx:i * soutx, 
+                                                            :]
+                    if i and j: # one row above, one column left, same height
+                        border[:, :, :, :, 2:3] = output_image[:,
+                                                                k * soutz:(k + 1) * soutz,
+                                                                (j - 1) * souty:j * souty, 
+                                                                (i - 1) * soutx:i * soutx, 
+                                                            :]
+                    if k: # same row, same column, one height above
+                        border[:, :, :, :, 3:4] = output_image[:,
+                                                                (k - 1) * soutz:k * soutz,
+                                                                j * souty:(j + 1) * souty, 
+                                                                i * soutx:(i + 1) * soutx, 
+                                                            :]
+                    if k and j: # one row above, same column, one height above
+                        border[:, :, :, :, 4:5] = output_image[:,
+                                                                (k - 1) * soutz:k * soutz,
+                                                                (j - 1) * souty:j * souty, 
+                                                                i * soutx:(i + 1) * soutx, 
+                                                            :]
+                    if k and i: # same row, one column left, one height above
+                        border[:, :, :, :, 5:6] = output_image[:,
+                                                                (k - 1) * soutz:k * soutz,
+                                                                j * souty:(j + 1) * souty, 
+                                                                (i - 1) * soutx:i * soutx, 
+                                                            :]
+                    if k and i and j: # one row above, one column left, one height above
+                        border[:, :, :, :, 6:7] = output_image[:,
+                                                                (k - 1) * soutz:k * soutz,
+                                                                (j - 1) * souty:j * souty, 
+                                                                (i - 1) * soutx:i * soutx, 
+                                                            :]
+
+
+                    # 2) Prepare low resolution
+                    if small is not None:
+                        downsampled = small[:, k * sinz:(k + 1) * sinz,
+                                               j * siny:(j + 1) * siny,
+                                               i * sinx:(i + 1) * sinx,
+                                               :]
+                    else:
+                        downsampled = None
+
+                    # 3) Generate the image
+                    print('Current patch: column={}, row={}, height={}\n'.format(i+1, j+1, k+1))
+                    gen_sample, _ = self.generate(
+                        N=N, border=border, downsampled=downsampled, sess=sess)
+
+                    output_image[:, 
+                                    k * soutz:(k + 1) * soutz,
+                                    j * souty:(j + 1) * souty, 
+                                    i * soutx:(i + 1) * soutx, 
+                                :] = gen_sample
+
+        return output_image
+
+
+    def generate_2d_output(self, sess, N, nx, ny, soutx, souty, small, sinx, siny):
+        output_image = np.zeros(
+                shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
+        output_image[:] = np.nan
+
+        for j in range(ny):
+            for i in range(nx):
+                # 1) Generate the border
+                border = np.zeros([N, soutx, souty, 3])
+                if i:
+                    border[:, :, :, :1] = output_image[:, 
+                                                        (i - 1) * soutx:i * soutx, 
+                                                        j * souty:(j + 1) * souty, 
+                                                    :]
+                if j:
+                    border[:, :, :, 1:2] = output_image[:, 
+                                                        i * soutx:(i + 1) * soutx, 
+                                                        (j - 1) * souty:j * souty, 
+                                                    :]
+                if i and j:
+                    border[:, :, :, 2:3] = output_image[:, 
+                                                        (i - 1) * soutx:i * soutx, 
+                                                        (j - 1) * souty:j * souty, 
+                                                    :]
+
+
+                if small is not None:
+                    # 2) Prepare low resolution
+                    downsampled = np.expand_dims(small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3)
+                else:
+                    downsampled = None
+
+                # 3) Generate the image
+                print('Current patch: column={}, row={}'.format(j+1, i+1))
+                gen_sample, _ = self.generate(
+                    N=N, border=border, downsampled=downsampled, sess=sess)
+
+                output_image[:, 
+                                i * soutx:(i + 1) * soutx, 
+                                j * souty:(j + 1) * souty, 
+                            :] = gen_sample
+
+        return output_image
 
 
 class TimeGAN(GAN):
