@@ -298,7 +298,7 @@ def tile_and_plot_3d_image(axis, image, **kwargs):
     axis.imshow(tile, **kwargs)
 
 
-def get_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), fps=5, axis=0):
+def get_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), fps=5, axis=0, names=['real ', 'real downsampled ', 'fake '], fontsize=20):
     '''
     Given real and fake 3d sample, create animation with slices along all 3 dimensions
     Return animation object
@@ -315,34 +315,35 @@ def get_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), f
         dim_downsampled = real_downsampled.shape[0]
         factor = dim // dim_downsampled
         grid = (1, 3)
+        cmin = min([np.min(fake_cube[:, :, :]), np.min(real_cube[:, :, :]), np.min(real_downsampled)])
+        cmax = max([np.max(fake_cube[:, :, :]), np.max(real_cube[:, :, :]), np.max(real_downsampled)])
 
     else:
         grid = (1, 2)
+        cmin = min([np.min(fake_cube[:, :, :]), np.min(real_cube[:, :, :])])
+        cmax = max([np.max(fake_cube[:, :, :]), np.max(real_cube[:, :, :])])
 
     gridspec.GridSpec(grid[0], grid[1])
 
     def make_frame(t):
 
-        cmin = np.min([np.min(fake_cube[:, :, :]), np.min(real_cube[:, :, :])])
-        cmax = np.max([np.max(fake_cube[:, :, :]), np.max(real_cube[:, :, :])])
-
         i = 0
         plt.subplot2grid( grid, (0, i), rowspan=1, colspan=1)
         plt.imshow(real_cube[ind[0] % dim, :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        plt.title('real ' + str(dim) + 'x' + str(dim) + 'x' + str(dim), fontsize=20)
+        plt.title(names[0] + str(dim) + 'x' + str(dim) + 'x' + str(dim), fontsize=fontsize)
         i = i + 1
 
 
         if real_downsampled is not None:
             plt.subplot2grid( grid, (0, i), rowspan=1, colspan=1)
             plt.imshow(real_downsampled[(ind[0] // factor) % dim_downsampled, :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-            plt.title('real downsampled '+ str(dim_downsampled) + 'x' + str(dim_downsampled) + 'x' + str(dim_downsampled), fontsize=20)
+            plt.title(names[1] + str(dim_downsampled) + 'x' + str(dim_downsampled) + 'x' + str(dim_downsampled), fontsize=fontsize)
             i = i + 1
 
 
         plt.subplot2grid( grid, (0, i), rowspan=1, colspan=1)
         plt.imshow(fake_cube[ind[0] % dim, :, :], interpolation='nearest', cmap=plt.cm.plasma, clim=(cmin, cmax) )
-        plt.title('fake ' + str(dim) + 'x' + str(dim) + 'x' + str(dim), fontsize=20)
+        plt.title(names[2] + str(dim) + 'x' + str(dim) + 'x' + str(dim), fontsize=fontsize)
         plt.tight_layout()
 
         ind[0] += 1
@@ -354,11 +355,12 @@ def get_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), f
     return animation
 
 
-def save_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), fps=5, format='gif', output_file_name='test'):
+def save_animation(real_cube, fake_cube, real_downsampled=None, figsize=(4, 8), fps=5, format='gif', output_file_name='test', names=['real ', 'real downsampled ', 'fake '],
+    fontsize=20):
     '''
     Given real and fake 3d sample, create animation with slices along all 3 dimensions, and save it as gif.
     '''
-    animation = get_animation(real_cube, fake_cube, real_downsampled, figsize, fps)
+    animation = get_animation(real_cube, fake_cube, real_downsampled, figsize, fps, names=names, fontsize=fontsize)
     if format == 'gif':
         animation.write_gif(output_file_name + '.gif', fps=fps)
     else:
