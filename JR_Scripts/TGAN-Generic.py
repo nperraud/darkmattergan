@@ -45,7 +45,7 @@ cl = []
 for i in range(len(sys.argv)-1):
     cl.append(int(sys.argv[i+1]))
 
-time_encoding = 'scale_half'
+time_encoding = 'channel_encoding'
 ten = ''
 
 if time_encoding == 'channel_encoding':
@@ -75,7 +75,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_Hlr3e5_v2ad_c+sf{}'.format(cl_str, Mpc)
+time_str = '{}r_Hlr3e5_bs4_v2ad_c+sf{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -135,7 +135,7 @@ params_generator['activation'] = blocks.selu
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 # params_optimization['JS-regularization'] = True
-params_optimization['batch_size'] = 8
+params_optimization['batch_size'] = 4
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 3e-5
