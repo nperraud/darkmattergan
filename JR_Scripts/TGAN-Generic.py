@@ -45,7 +45,7 @@ cl = []
 for i in range(len(sys.argv)-1):
     cl.append(int(sys.argv[i+1]))
 
-time_encoding = 'channel_encoding'
+time_encoding = 'scale_full'
 ten = ''
 
 if time_encoding == 'channel_encoding':
@@ -58,10 +58,11 @@ elif time_encoding == 'scale_half':
 
 def get_model_name(params):
     r = 'R' if params['time']['model']['relative'] else ''
-    sel = '_selu' if params['generator']['activation'] == blocks.selu else ''
+    act = '_selu' if params['generator']['activation'] == blocks.selu else ''
+    act = '_lrelu' if params['generator']['activation'] == blocks.lrelu else act
     sn = '_sn' if params['discriminator']['spectral_norm'] else ''
     l = 'F' if params['optimization'].get('JS-regularization', False) else 'W'
-    return 'T{}{}GAN{}:{}d{}{}{}{}-{}'.format(r, l, ten, Mpc, divisor,sel, sn, len(params['generator']['nfilter']),
+    return 'T{}{}GAN{}:{}d{}{}{}{}-{}'.format(r, l, ten, Mpc, divisor, act, sn, len(params['generator']['nfilter']),
                                                len(params['discriminator']['nfilter']))
 
 
@@ -74,7 +75,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_Hlr3e5_v2ad_gp0_c+sf{}'.format(cl_str, Mpc)
+time_str = '{}r_Hlr3e5_v2ad_c+sf{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -132,7 +133,7 @@ params_generator['non_lin'] = tf.nn.relu
 params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
-params_optimization['gamma_gp'] = 0
+params_optimization['gamma_gp'] = 10
 # params_optimization['JS-regularization'] = True
 params_optimization['batch_size'] = 8
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
