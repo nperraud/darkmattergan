@@ -31,7 +31,7 @@ def save_dict(params):
 def get_class_weights(cls):
     weights = []
     for i in range(len(cls)):
-        weights.append(1.0 - (0.00*cls[i]))
+        weights.append(1.3 - (0.08*cls[i]))
     return weights
 
 # Parameters
@@ -45,7 +45,7 @@ cl = []
 for i in range(len(sys.argv)-1):
     cl.append(int(sys.argv[i+1]))
 
-time_encoding = 'scale_full'
+time_encoding = 'channel_encoding'
 ten = ''
 
 if time_encoding == 'channel_encoding':
@@ -74,21 +74,22 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_Hlr3e5v2ad5_b5_c+sf{}'.format(cl_str, Mpc)
+time_str = '{}r_Hlr3e5_huge_b5_c{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
 
 discriminator_net = utils.NetParamHelper()
-discriminator_net.add_conv_layer(32 * (len(cl) + 1), stride=1, shape=5)
+discriminator_net.add_conv_layer(64 * (len(cl) + 1), stride=1, shape=5)
 discriminator_net.add_conv_layer(32, stride=1, shape=1)
 discriminator_net.add_conv_layer(96, stride=2, shape=5)
 discriminator_net.add_conv_layer(128, stride=2, shape=5)
 discriminator_net.add_conv_layer(256, stride=2, shape=5)
 discriminator_net.add_conv_layer(256, stride=2, shape=5)
+discriminator_net.add_conv_layer(128, stride=1, shape=3)
+discriminator_net.add_conv_layer(128, stride=1, shape=3)
+discriminator_net.add_conv_layer(128, stride=1, shape=3)
 discriminator_net.add_conv_layer(256, stride=2, shape=5)
-discriminator_net.add_conv_layer(128, stride=1, shape=3)
-discriminator_net.add_conv_layer(128, stride=1, shape=3)
 discriminator_net.add_conv_layer(128, stride=1, shape=3)
 discriminator_net.add_conv_layer(64, stride=1, shape=3)
 discriminator_net.add_full(64)
@@ -120,6 +121,7 @@ generator_net.add_conv_layer(128, stride=2, shape=3)
 generator_net.add_conv_layer(256, stride=2, shape=3)
 generator_net.add_conv_layer(512, stride=2, shape=3)
 generator_net.add_conv_layer(256, stride=2, shape=5)
+generator_net.add_conv_layer(128, stride=1, shape=3)
 generator_net.add_conv_layer(128, stride=1, shape=3)
 generator_net.add_conv_layer(128, stride=1, shape=3)
 generator_net.add_conv_layer(128, stride=1, shape=3)
