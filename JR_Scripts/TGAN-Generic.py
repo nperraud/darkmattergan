@@ -75,7 +75,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_Hlr1e5_bs2_v2ad_c+sf{}'.format(cl_str, Mpc)
+time_str = '{}r_Hlr1e5_bs4_v2ad_c{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -95,7 +95,7 @@ discriminator_net.add_full(64)
 
 params_discriminator = discriminator_net.params
 params_discriminator['spectral_norm'] = True
-params_discriminator['separate_first'] = True
+params_discriminator['separate_first'] = False
 # params_discriminator['cdf'] = 32
 # params_discriminator['channel_cdf'] = 16
 # params_discriminator['moment'] = [5,5]
@@ -135,7 +135,7 @@ params_generator['activation'] = blocks.selu
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 # params_optimization['JS-regularization'] = True
-params_optimization['batch_size'] = 2
+params_optimization['batch_size'] = 4
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
 params_optimization['disc_learning_rate'] = 1e-5
