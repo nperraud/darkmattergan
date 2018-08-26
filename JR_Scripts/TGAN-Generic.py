@@ -94,8 +94,8 @@ discriminator_net.add_conv_layer(64, stride=1, shape=3)
 discriminator_net.add_full(64)
 
 params_discriminator = discriminator_net.params
-params_discriminator['spectral_norm'] = True
-params_discriminator['separate_first'] = False
+params_discriminator['spectral_norm'] = False
+params_discriminator['separate_first'] = True
 # params_discriminator['cdf'] = 32
 # params_discriminator['channel_cdf'] = 16
 # params_discriminator['moment'] = [5,5]
