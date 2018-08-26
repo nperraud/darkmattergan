@@ -130,7 +130,7 @@ params_generator = generator_net.params
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
-params_generator['activation'] = blocks.lrelu
+params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
