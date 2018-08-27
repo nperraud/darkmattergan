@@ -170,11 +170,11 @@ def gen_latent(gan, n):
 
 
 def gen_fake_images(gan, n, t, checkpoint=None):
-    t = np.array(t)
+    t = np.array(gan.params['time']['class_weights'])
     z = gen_latent(gan, n)
     z = np.repeat(z, t.shape[0], axis=0)
     t = np.tile(t, n)
-    frames = get_scaling(gan.params['time']['classes'], gan.params['time']['class_weights'])
+    # frames = get_scaling(gan.params['time']['classes'], gan.params['time']['class_weights'])
     imgs = gan.generate(z=z, y=np.reshape(t, (z.shape[0], 1)), single_channel=None,
                         checkpoint=checkpoint)[0]
     imgs = np.array(imgs)
