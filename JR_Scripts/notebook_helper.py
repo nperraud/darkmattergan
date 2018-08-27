@@ -83,18 +83,18 @@ def gen_images_and_add_to_list_old(lst, gan):
         lst.append(img)
 
 
-def gen_images_10_time_steps(gan):
+def gen_images_10_time_steps(gan, chpt):
     z = np.repeat(gan._sample_latent(1)[:1], 10, axis=0)
     print(z.shape)
     frames = get_scaling(gan.params['time']['classes'], gan.params['time']['class_weights'])
-    imgs = gan.generate(z=z, checkpoint=55000, y=np.reshape(frames, (10, 1)), single_channel=None)[0]
+    imgs = gan.generate(z=z, checkpoint=chpt, y=np.reshape(frames, (10, 1)), single_channel=None)[0]
     imgs = np.array(imgs)
     print(imgs.shape)
     return np.reshape(imgs, imgs.shape[0:3])
 
 
-def gen_images_and_add_to_list(lst, gan):
-    lst.extend(gen_images_10_time_steps(gan))
+def gen_images_and_add_to_list(lst, gan, chpt):
+    lst.extend(gen_images_10_time_steps(gan, chpt))
 
 
 def wasserstein_distance(x_og, y, w):
@@ -125,10 +125,10 @@ def gen_contained_marker(d1, d2, classes, h=1):
     return mat * ma * 0.7
 
 
-def visual_comparison_fake_real(dset, gan):
+def visual_comparison_fake_real(dset, gan, chpt):
     series = dset.get_samples(1)[0]
     series = np.transpose(series, [2, 0, 1])
-    img_series = np.array(gen_images_10_time_steps(gan))
+    img_series = np.array(gen_images_10_time_steps(gan, chpt))
     _, contained_classes = get_main_and_contained_classes(gan.params)
     marker = gen_contained_marker(img_series, series, contained_classes)
     fig, ax = plt.subplots(figsize=(128, 16))
