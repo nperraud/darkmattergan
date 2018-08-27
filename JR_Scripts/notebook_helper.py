@@ -138,6 +138,22 @@ def visual_comparison_fake_real(dset, gan, chpt):
     return img_series, series
 
 
+def visual_comparison_fake_real_compact(dset, gan, chpt):
+    series = dset.get_samples(1)[0]
+    series = np.transpose(series, [2, 0, 1])
+    img_series = np.array(gen_images_10_time_steps(gan, chpt))
+    main_classes, contained_classes = get_main_and_contained_classes(gan.params)
+    marker = gen_contained_marker(img_series, series, contained_classes)
+    img_series = np.flip(img_series[main_classes], 0)
+    series = np.flip(series[main_classes], 0)
+    marker = np.flip(marker[main_classes], 0)
+    fig, ax = plt.subplots(figsize=(128, 16))
+    ax.imshow(np.vstack([np.hstack(img_series), np.hstack(marker), np.hstack(series)]), interpolation=None)
+    # ax.imshow(np.hstack(series), interpolation=None)
+    plt.tight_layout()
+    return img_series, series
+
+
 def zoom_comparison(fake_img, real_img, params):
     main_classes, contained_classes = get_main_and_contained_classes(params)
     real_img = real_img[main_classes]
