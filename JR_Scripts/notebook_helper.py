@@ -212,7 +212,7 @@ def plot_mass_hist(data, data_name, lim, params, cmap):
     plt.figure()
     plt.title("Mass Histogram of {} Data".format(data_name))
     nc = len(params['time']['classes'])
-    for i in range(len(nc)):
+    for i in range(nc):
         hist_f, bins, _ = metrics.mass_hist(dat=data[i::nc], lim=lim)
         plt.plot(bins, hist_f, '-', label='t{}'.format(params['time']['classes'][i]), c=cmap[i])
         plt.legend()
