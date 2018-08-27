@@ -212,7 +212,7 @@ def plot_mass_hist(data, data_name, lim, params, cmap):
     plt.figure()
     plt.title("Mass Histogram of {} Data".format(data_name))
     nc = params['time']['classes']
-    for i in range(nc):
+    for i in range(len(nc)):
         hist_f, bins, _ = metrics.mass_hist(dat=data[i::nc], lim=lim)
         plt.plot(bins, hist_f, '-', label='t{}'.format(params['time']['classes'][i]), c=cmap[i])
         plt.legend()
@@ -222,7 +222,7 @@ def plot_mass_hist(data, data_name, lim, params, cmap):
 
 def plot_real_vs_fake_mass_hists(real, fake, lim, params):
     nc = params['time']['num_classes']
-    for i in range(nc):
+    for i in range(len(nc)):
         plt.figure()
         plt.title("Mass Histograms for t{}".format(params['time']['classes'][i]))
         plt.yscale("log")
