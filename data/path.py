@@ -26,6 +26,8 @@ def celeba_path():
     # Check if we are on pizdaint
     if 'nid' in hostname:
         rootpath = '/scratch/snx3000/nperraud/celeba/'
+    elif 'omenx' in hostname:
+        rootpath = '/store/nati/dataset/downsampled-celeba/'
     else:
         raise NotImplementedError()
     return rootpath

@@ -156,6 +156,27 @@ def stat_backward(x, c=2e4, shift=3):
     x = np.clip(x, 0., np.inf)
     return stat_backward_0(x + stat_forward_0(shift, c=c), c=c) - shift
 
+def log_norm_forward(x, c=2000):
+    if not type(x).__module__ == np.__name__:
+        x = np.array([x])
+    res = np.zeros(shape=x.shape, dtype=np.float32)
+    mask = x > c
+    maski = mask == False
+    res[maski] = np.log(x[maski] + 1) - np.log(c + 1)
+    res[mask] = (x[mask] / (c + 1) - 1)
+    return res
+
+def log_norm_backward(x, c=2000):
+    if not type(x).__module__ == np.__name__:
+        x = np.array([x])
+    res = np.zeros(shape=x.shape, dtype=np.float32)
+
+    mask = x > 0
+    maski = mask == False
+
+    res[maski] = np.exp(x[maski] + np.log(c + 1)) - 1
+    res[mask] = (x[mask] + 1) * (c + 1)
+    return res
 
 forward = stat_forward
 backward = stat_backward
