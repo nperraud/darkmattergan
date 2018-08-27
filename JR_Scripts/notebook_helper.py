@@ -13,17 +13,26 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 root_folder = "/home/jonathan/Documents/Master_Thesis/"
+cscs_root_folder = "/scratch/snx3000/rosenthj/"
 
 
-def load_params(model_folder):
-    cscs_results = root_folder + "CSCSResults/"
+def load_params(model_folder, cscs=False):
+    cscs_results = ""
+    if cscs:
+        cscs_results = cscs_root_folder + "results/"
+    else:
+        cscs_results = root_folder + "CSCSResults/"
     model_folder = cscs_results + model_folder
     params = utils.load_dict_pickle(model_folder + "params.pkl")
     return params, model_folder
 
 
-def get_dataset(mpc, num_images, params):
-    filename = root_folder + 'Data/nbody_{}Mpc_All.h5'.format(mpc)
+def get_dataset(mpc, num_images, params, cscs=False):
+    filename = ""
+    if cscs:
+        filename = cscs_root_folder + 'data/nbody_{}Mpc_All.h5'.format(mpc)
+    else:
+        filename = root_folder + 'Data/nbody_{}Mpc_All.h5'.format(mpc)
     img_list = []
     for box_idx in np.arange(10):
         images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')[:num_images]
@@ -33,8 +42,12 @@ def get_dataset(mpc, num_images, params):
     return Dataset.Dataset_time(images, spix=params['image_size'][0])
 
 
-def get_data(mpc, num_images, params):
-    filename = root_folder + 'Data/nbody_{}Mpc_All.h5'.format(mpc)
+def get_data(mpc, num_images, params, cscs=False):
+    filename = ""
+    if cscs:
+        filename = cscs_root_folder + 'data/nbody_{}Mpc_All.h5'.format(mpc)
+    else:
+        filename = root_folder + 'Data/nbody_{}Mpc_All.h5'.format(mpc)
     img_list = []
     for box_idx in np.arange(10):
         images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')[:num_images]
