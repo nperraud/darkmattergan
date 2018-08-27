@@ -437,6 +437,14 @@ class TemporalGenericGanModel(GanModel):
         self.G_c_fake = self.generator(z, reuse=False)
         self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
 
+        if 'encoder' in params.keys():
+            channel_images = self.reshape_channels_to_images(X)
+            channel_images = self.generator(self.encoder(channel_images, reuse=False),reuse=True)
+            self.reconstructed = self.reshape_time_to_channels(channel_images)
+            self._E_loss = tf.nn.l2_loss(X - self.reconstructed)
+        else:
+            self._E_loss = None
+
         if params['time']['use_diff_stats']:
             self.disc = self.df_discriminator
         else:
@@ -501,6 +509,11 @@ class TemporalGenericGanModel(GanModel):
             lst.append(X[i::nc])
         return tf.concat(lst, axis=3)
 
+    def reshape_channels_to_images(self, x):
+        x = tf.transpose(x, [0, 3, 1, 2])
+        x = tf.reshape(x, [tf.shape(x)[0] * x.shape[1], x.shape[2], x.shape[3]])
+        return tf.expand_dims(x, axis=-1)
+
     def prep_latent(self, z, params):
         if params['time_encoding'] == 'channel_encoding':
             ld_width = self.params['image_size'][0]
@@ -550,6 +563,15 @@ class TemporalGenericGanModel(GanModel):
             z0 = tf.expand_dims(z0, -1)
             return tf.concat([z0, zn], axis=2)
 
+        if params['time_encoding'] == 'late_time_encoding':
+            scaling = np.asarray(self.params['time']['class_weights'])
+            gen_bs = self.params['optimization']['batch_size'] * self.params['time']['num_classes']
+            scaling = np.resize(scaling, (gen_bs, 1))
+            default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+            self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+            z_shape = tf.shape(z)
+            self.t = self.y[:z_shape[0]]
+            return z
         raise ValueError(' [!] time encoding not defined')
 
     def generator(self, z, reuse):
@@ -557,6 +579,9 @@ class TemporalGenericGanModel(GanModel):
 
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+    def encoder(self, X, reuse):
+        return encoder(X, self.params['encoder'], latent_dim=self.params['generator']['latent_dim'], reuse=reuse)
 
     def df_discriminator(self, X, reuse):
         y = X[:, :, :, 1:] - X[:, :, :, :-1]
@@ -569,6 +594,9 @@ class TemporalGenericGanModel(GanModel):
     @property
     def G_loss(self):
         return self._G_loss
+
+    def E_loss(self):
+        return self._E_loss
 
 
 class TemporalGanModelv5(GanModel):
@@ -1906,6 +1934,12 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     return x
 
 
+def add_late_channel_encoding(x, t):
+    t = tf.expand_dims(t, axis=-1)
+    t = tf.expand_dims(tf.tile(t, [1, x.shape[1], x.shape[2]]), axis=-1)
+    return tf.concat([x,t], axis=-1)
+
+
 def generator(x, params, y=None, reuse=True, scope="generator"):
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
@@ -1939,6 +1973,9 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
         rprint('     Reshape to {}'.format(x.shape), reuse)
 
         for i in range(nconv):
+            # if params.get("late_channel_encoding", -1) == i:
+            #    x = add_late_channel_encoding(x, y)
+            #    print("Added channel encoding")
             sx = sx * params['stride'][i]
             x = deconv(in_tensor=x, 
                        bs=bs, 

@@ -1165,20 +1165,23 @@ class TimeGAN(GAN):
         self.params = default_params_time(params)
         super().__init__(params=self.params, model=model, is_3d=is_3d)
 
-    def _build_image_summary(self):
-        vmin = tf.reduce_min(self._X)
-        vmax = tf.reduce_max(self._X)
+    def _build_image_summary_generic(self, real, fake, collection):
+        vmin = tf.reduce_min(real)
+        vmax = tf.reduce_max(fake)
         for c in range(self.params["time"]["num_classes"]):
             tf.summary.image(
                 "training/Real_Image_t{}".format(self.params['time']['classes'][c]),
-                colorize(self._X[:, :, :, c:(c+1)], vmin, vmax),
+                colorize(real[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
-                collections=['Images'])
+                collections=collection)
             tf.summary.image(
                 "training/Fake_Image_t{}".format(self.params['time']['classes'][c]),
-                colorize(self._G_fake[:, :, :, c:(c+1)], vmin, vmax),
+                colorize(fake[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
-                collections=['Images'])
+                collections=collection)
+
+    def _build_image_summary(self):
+        self._build_image_summary_generic(self._X, self._G_fake, ['Images'])
 
     def _sample_latent(self, bs=None):
         if bs is None:
@@ -1242,6 +1245,105 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
             summary_str = self._sess.run(
                 self.summary_op_metrics_t, feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
+
+    def add_enc_to_path(self, s):
+        q = ""
+        for i in range(5):
+            q = q + s.split('/')[i] + '/'
+        return q + s.split('/')[5] + '_Enc/' + s.split('/')[6] + '/'
+
+    def train_encoder(self, dataset):
+
+        n_data = dataset.N
+
+        self._counter = 1
+        self._n_epoch = self.params['optimization']['epoch']
+        self._total_iter = self._n_epoch * (n_data // self.batch_size) - 1
+        self._n_batch = n_data // self.batch_size
+
+        self._build_image_summary_generic(self._X, self._model.reconstructed, ['ImagesEnc'])
+        self.summary_op_img = tf.summary.merge(tf.get_collection("ImagesEnc"))
+
+        self._save_current_step = False
+
+        # Create the save diretory if it does not exist
+        os.makedirs(self.add_enc_to_path(self.params['save_dir']), exist_ok=True)
+        run_config = tf.ConfigProto()
+
+        gen_and_disc_vars = [x for x in tf.global_variables() if
+                             x not in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='encoder')]
+        self._saver = tf.train.Saver(gen_and_disc_vars, max_to_keep=1000)
+        full_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
+        with tf.Session(config=run_config) as self._sess:
+            self._sess.run(tf.global_variables_initializer())
+            print('Load weights in the network')
+            self.load()
+            self._saver = full_saver
+            self.params['save_dir'] = self.add_enc_to_path(self.params['save_dir'])
+            self._savedir = self.params['save_dir']
+            if self.normalized():
+                X = dataset.get_all_data()
+                m = np.mean(X)
+                v = np.var(X - m)
+                self._mean.assign([m]).eval()
+                self._var.assign([v]).eval()
+            self._var.eval()
+            self._mean.eval()
+            self._summary_writer = tf.summary.FileWriter(
+                self.add_enc_to_path(self.params['summary_dir']), self._sess.graph)
+            try:
+                epoch = 0
+                start_time = time.time()
+                prev_iter_time = start_time
+                self._counter = 0
+
+                while epoch < self._n_epoch:
+                    for idx, batch_real in enumerate(
+                            dataset.iter(self.batch_size)):
+
+                        self.params['curr_counter'] = self._counter
+
+                        # reshape input according to 2d, 3d, or patch case
+                        X_real = self.add_input_channel(batch_real)
+                        sample_z = self._sample_latent(self.batch_size)
+                        _, loss_e = self._sess.run(
+                            [self._E_solver, self._E_loss],
+                            feed_dict=self._get_dict(sample_z, X_real))
+
+                        if np.mod(self._counter,
+                                  self.params['print_every']) == 0:
+                            current_time = time.time()
+                            print("Epoch: [{:2d}] [{:4d}/{:4d}] "
+                                  "Counter:{:2d}\t"
+                                  "({:4.1f} min\t"
+                                  "{:4.3f} examples/sec\t"
+                                  "{:4.2f} sec/batch)\t"
+                                  "L_Enc:{:.8f}".format(
+                                      epoch, idx, self._n_batch,
+                                      self._counter,
+                                      (current_time - start_time) / 60,
+                                      100.0 * self.batch_size /
+                                      (current_time - prev_iter_time),
+                                      (current_time - prev_iter_time) / 100,
+                                      loss_e))
+                            prev_iter_time = current_time
+
+                        if np.mod(self._counter, self.params['viz_every']) == 0:
+                            summary_str, real_arr, fake_arr = self._sess.run(
+                                [self.summary_op_img, self._X, self._model.reconstructed],
+                                feed_dict=self._get_dict(sample_z, X_real))
+                            self._summary_writer.add_summary(summary_str, self._counter)
+
+                        if (np.mod(self._counter, self.params['save_every'])
+                                == 0) | self._save_current_step:
+                            self._save(self._savedir, self._counter)
+                            self._save_current_step = False
+                        self._counter += 1
+                    epoch += 1
+            except KeyboardInterrupt:
+                pass
+            self._save(self._savedir, self._counter)
+
 
     def _sample_latent(self, bs=None):
         return TimeGAN._sample_latent(self, bs)
