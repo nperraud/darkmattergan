@@ -595,8 +595,13 @@ class TemporalGenericGanModel(GanModel):
     def G_loss(self):
         return self._G_loss
 
+    @property
     def E_loss(self):
         return self._E_loss
+
+    @property
+    def has_encoder(self):
+        return 'encoder' in self.params.keys()
 
 
 class TemporalGanModelv5(GanModel):

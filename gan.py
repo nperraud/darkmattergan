@@ -1270,8 +1270,11 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         os.makedirs(self.add_enc_to_path(self.params['save_dir']), exist_ok=True)
         run_config = tf.ConfigProto()
 
-        gen_and_disc_vars = [x for x in tf.global_variables() if
-                             x not in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='encoder')]
+        gen_and_disc_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator') + tf.get_collection(
+            tf.GraphKeys.GLOBAL_VARIABLES, scope='discriminator')
+
+        #gen_and_disc_vars = [x for x in tf.global_variables() if
+        #                     x not in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='encoder')]
         self._saver = tf.train.Saver(gen_and_disc_vars, max_to_keep=1000)
         full_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
         with tf.Session(config=run_config) as self._sess:
