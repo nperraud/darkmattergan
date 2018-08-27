@@ -5,8 +5,48 @@ import tensorflow as tf
 import numpy as np
 import scipy
 
+def log_norm_forward_0(x, c=8000.0):
+    if not type(x).__module__ == np.__name__:
+        x = np.array([x])
+    res = np.zeros(shape=x.shape, dtype=np.float32)
 
-def gauss_forward(x, shift=0, a=1):
+    mask = (x > c)
+    maski = (mask == False)
+
+    res[maski] = np.log(x[maski] + 1) - np.log(c + 1)
+    res[mask] = ((x[mask] + 1) / (c + 1) - 1)
+    return res
+
+def log_norm_forward(x, c=8000.0, scale=6.0):
+    shift = log_norm_forward_0(0.0, c)
+    #print("shift=", shift)
+    y = log_norm_forward_0(x, c)
+    #print("log_norm_forward_0 = ", y)
+    #print("ret = ", (y - shift) / scale)
+    return ((y - shift) / scale)
+
+
+def log_norm_backward_0(y, c=8000.0):
+    if not type(y).__module__ == np.__name__:
+        y = np.array([y])
+    res = np.zeros(shape=y.shape, dtype=np.float32)
+
+    mask = (y > 0)
+    maski = (mask == False)
+
+    res[maski] = np.exp(y[maski] + np.log(c + 1)) - 1
+    res[mask] = ((y[mask] + 1) * (c + 1)) - 1
+    return np.round(res)
+
+def log_norm_backward(y, c=8000.0, scale=6.0):
+    shift = log_norm_forward_0(0.0, c)
+    #print("shift = ", shift)
+    y = (y * scale) + shift
+    #print("y=", y)
+    return log_norm_backward_0(y, c)
+
+
+def gauss_forward(x, shift=0, a = 1):
     y = x + 1 + shift
     cp = (y - 1) / y
     v = scipy.special.erfinv(cp) / np.sqrt(2)
@@ -27,16 +67,6 @@ def gauss_backward(x, shift=0, clip_max=1e6):
     cg = scipy.special.erf(np.sqrt(2) * (x + c))
     y = 1 / (1 - cg)
     return np.round(y - 1 - shift)
-
-
-def log_forward(x, shift=6):
-    return (np.log(x + 1 + shift) - np.log(1 + shift))/3.
-
-
-def log_backward(x, shift=6, clip_max=2e6):
-    x_max = log_forward(clip_max, shift=shift)
-    x = np.clip(x, 0.0, x_max)
-    return np.round(np.exp(3*x + np.log(1 + shift)) - 1 - shift)
 
 
 def shifted_log_forward(X, shift=1.0):

@@ -8,10 +8,14 @@ import pickle
 import numpy as np
 import metrics
 import plot
+import matplotlib
+import socket
+if 'nid' in socket.gethostname() or 'lo-' in socket.gethostname():
+    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import os
 from model import *
 from gan import *
-import os
 
 
 def load_gan(pathgan, GANtype=CosmoGAN):
@@ -20,7 +24,6 @@ def load_gan(pathgan, GANtype=CosmoGAN):
         params = pickle.load(f)
     params['save_dir'] = pathgan
     obj = GANtype(params)
-
     return obj
 
 
@@ -143,196 +146,6 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
         ax.tick_params(axis='both', which='major', labelsize=10)
         ax.legend()
     return l2, logel2, l1, logel1
-
-
-def upscale_image(obj, small=None, num_samples=None, resolution=None, checkpoint=None, is_3d=False):
-    """Upscale image using the lappachsimple model, or upscale_WGAN_pixel_CNN model.
-
-    For model upscale_WGAN_pixel_CNN, pass num_samples to generate and resolution of the final bigger histogram.
-    for model lappachsimple         , pass small.
-
-    3D only works for upscale_WGAN_pixel_CNN.
-
-    This function can be accelerated if the model is created only once.
-    """
-    # Number of sample to produce
-    if small is None:
-        if num_samples is None:
-            raise ValueError("Both small and num_samples cannot be None")
-        else:
-            N = num_samples
-    else:
-        N = small.shape[0]
-
-    # Output dimension of the generator
-    soutx, souty = obj.params['image_size'][:2]
-    if is_3d:
-        soutz = obj.params['image_size'][2]
-
-    if small is not None:
-        # Dimension of the low res image
-        lx, ly = small.shape[1:3]
-        if is_3d:
-            lz = small.shape[3]
-
-        # Input dimension of the generator
-        sinx = soutx // obj.params['generator']['downsampling']
-        siny = souty // obj.params['generator']['downsampling']
-        if is_3d:
-            sinz = soutz // obj.params['generator']['downsampling']
-
-        # Number of part to be generated
-        nx = lx // sinx
-        ny = ly // siny
-        if is_3d:
-            nz = lz // sinz
-
-    else:
-        sinx = siny = sinz = None
-        if resolution is None:
-            raise ValueError("Both small and resolution cannot be None")
-        else:
-            nx = resolution // soutx
-            ny = resolution // souty
-            nz = resolution // soutz
-
-
-    # Final output image
-    with tf.Session() as sess:
-        obj.load(sess=sess, checkpoint=checkpoint)
-
-        if is_3d:
-            output_image = generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz)
-        else:
-            output_image = generate_2d_output(sess, obj, N, nx, ny, soutx, souty, small, sinx, siny)
-        
-    return np.squeeze(output_image)
-
-
-def generate_3d_output(sess, obj, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz):
-    output_image = np.zeros(
-            shape=[N, soutz * nz, souty * ny, soutx * nx, 1], dtype=np.float32)
-    output_image[:] = np.nan
-
-    print('Total number of patches = {}*{}*{} = {}'.format(nx, ny, nz, nx*ny*nz) )
-
-    for k in range(nz): # height
-        for j in range(ny): # rows
-            for i in range(nx): # columns
-
-                # 1) Generate the border
-                border = np.zeros([N, soutz, souty, soutx, 7])
-
-                if j: # one row above, same height
-                    border[:, :, :, :, 0:1] = output_image[:, 
-                                                            k * soutz:(k + 1) * soutz,
-                                                            (j - 1) * souty:j * souty, 
-                                                            i * soutx:(i + 1) * soutx, 
-                                                        :]
-                if i: # one column left, same height
-                    border[:, :, :, :, 1:2] = output_image[:,
-                                                            k * soutz:(k + 1) * soutz,
-                                                            j * souty:(j + 1) * souty, 
-                                                            (i - 1) * soutx:i * soutx, 
-                                                        :]
-                if i and j: # one row above, one column left, same height
-                    border[:, :, :, :, 2:3] = output_image[:,
-                                                            k * soutz:(k + 1) * soutz,
-                                                            (j - 1) * souty:j * souty, 
-                                                            (i - 1) * soutx:i * soutx, 
-                                                        :]
-                if k: # same row, same column, one height above
-                    border[:, :, :, :, 3:4] = output_image[:,
-                                                            (k - 1) * soutz:k * soutz,
-                                                            j * souty:(j + 1) * souty, 
-                                                            i * soutx:(i + 1) * soutx, 
-                                                        :]
-                if k and j: # one row above, same column, one height above
-                    border[:, :, :, :, 4:5] = output_image[:,
-                                                            (k - 1) * soutz:k * soutz,
-                                                            (j - 1) * souty:j * souty, 
-                                                            i * soutx:(i + 1) * soutx, 
-                                                        :]
-                if k and i: # same row, one column left, one height above
-                    border[:, :, :, :, 5:6] = output_image[:,
-                                                            (k - 1) * soutz:k * soutz,
-                                                            j * souty:(j + 1) * souty, 
-                                                            (i - 1) * soutx:i * soutx, 
-                                                        :]
-                if k and i and j: # one row above, one column left, one height above
-                    border[:, :, :, :, 6:7] = output_image[:,
-                                                            (k - 1) * soutz:k * soutz,
-                                                            (j - 1) * souty:j * souty, 
-                                                            (i - 1) * soutx:i * soutx, 
-                                                        :]
-
-
-                # 2) Prepare low resolution
-                if small is not None:
-                    downsampled = small[:, k * sinx:(k + 1) * sinz, 
-                                           j * siny:(j + 1) * siny,
-                                           i * siny:(i + 1) * sinx,
-                                           :]
-                else:
-                    downsampled = None
-
-                # 3) Generate the image
-                print('Current patch: column={}, row={}, height={}'.format(i+1, j+1, k+1))
-                gen_sample, _ = obj.generate(
-                    N=N, border=border, downsampled=downsampled, sess=sess)
-
-                output_image[:, 
-                                k * soutz:(k + 1) * soutz,
-                                j * souty:(j + 1) * souty, 
-                                i * soutx:(i + 1) * soutx, 
-                            :] = gen_sample
-
-    return output_image
-
-
-def generate_2d_output(sess, obj, N, nx, ny, soutx, souty, small, sinx, siny):
-    output_image = np.zeros(
-            shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
-    output_image[:] = np.nan
-
-    for j in range(ny):
-        for i in range(nx):
-            # 1) Generate the border
-            border = np.zeros([N, soutx, souty, 3])
-            if i:
-                border[:, :, :, :1] = output_image[:, 
-                                                    (i - 1) * soutx:i * soutx, 
-                                                    j * souty:(j + 1) * souty, 
-                                                :]
-            if j:
-                border[:, :, :, 1:2] = output_image[:, 
-                                                    i * soutx:(i + 1) * soutx, 
-                                                    (j - 1) * souty:j * souty, 
-                                                :]
-            if i and j:
-                border[:, :, :, 2:3] = output_image[:, 
-                                                    (i - 1) * soutx:i * soutx, 
-                                                    (j - 1) * souty:j * souty, 
-                                                :]
-
-
-            if small is not None:
-                # 2) Prepare low resolution
-                downsampled = np.expand_dims(small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3)
-            else:
-                downsampled = None
-
-            # 3) Generate the image
-            print('Current patch: column={}, row={}'.format(j+1, i+1))
-            gen_sample, _ = obj.generate(
-                N=N, border=border, downsampled=downsampled, sess=sess)
-
-            output_image[:, 
-                            i * soutx:(i + 1) * soutx, 
-                            j * souty:(j + 1) * souty, 
-                        :] = gen_sample
-
-    return output_image
 
 
 def equalizing_histogram(real, fake, nbins=1000, bs=2000):

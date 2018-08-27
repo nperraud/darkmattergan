@@ -34,7 +34,9 @@ def default_params(params=None):
     d_param['sum_every'] = 200
     # Compute the numerical summaries every 'sum_every' iterations
     d_param['viz_every'] = 200
-    # Buil the visual summaries every 'viz_every' iterations
+    # Build the visual summaries every 'viz_every' iterations
+    d_param['big_every'] = None
+    # Build the visual summaries of the bigger samples every 'big_every' iterations
     d_param['normalize'] = False
     # Apply a normalization step to the data
     d_param['resume'] = False
@@ -43,6 +45,8 @@ def default_params(params=None):
     # Prior distribution to sample from ('Gaussian','Uniform',...)
     d_param['image_size'] = [32, 32, 1]
     # size of input image
+    d_param['num_hists_at_once'] = 5
+    # Number of histograms to be loaded at once in memory
     d_param['has_enc'] = False
     # whether the model has an encoder
 
@@ -56,6 +60,7 @@ def default_params(params=None):
     # print('Minibatch regularization set to False (Force)')
     d_param['discriminator']['non_lin'] =  None
     d_param['discriminator']['one_pixel_mapping'] = []
+    d_param['discriminator']['inception'] = False
     d_param['discriminator']['cdf'] = None
     d_param['discriminator']['channel_cdf'] = None
     d_param['discriminator']['cdf_block'] = None
@@ -78,6 +83,9 @@ def default_params(params=None):
     d_param['generator']['activation'] = blocks.lrelu
     d_param['generator']['y_layer'] = None
     d_param['generator']['one_pixel_mapping'] = []
+    d_param['generator']['downsampling'] = None
+    d_param['generator']['inception'] = False
+    d_param['generator']['residual'] = False
 
     return arg_helper(params or {}, d_param)
 
