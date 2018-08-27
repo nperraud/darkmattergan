@@ -36,7 +36,7 @@ def get_dataset(mpc, num_images, params, cscs=False):
     img_list = []
     for box_idx in np.arange(10):
         images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')[:num_images]
-        images = params['cosmology']['forward_map'](images)
+        images = params['cosmology']['forward_map'](images / 3)
         img_list.append(images)
     images = np.array(img_list)
     return Dataset.Dataset_time(images, spix=params['image_size'][0])
@@ -51,7 +51,7 @@ def get_data(mpc, num_images, params, cscs=False):
     img_list = []
     for box_idx in np.arange(10):
         images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')[:num_images]
-        images = params['cosmology']['forward_map'](images)
+        images = params['cosmology']['forward_map'](images / 3)
         img_list.append(images)
     images = np.array(img_list)
     return images
