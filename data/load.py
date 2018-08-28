@@ -6,8 +6,9 @@ from data import path
 from data import transformation, fmap
 from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time
 from data.Dataset_file import Dataset_file_2d, Dataset_file_3d, Dataset_file_2d_patch, Dataset_file_3d_patch, Dataset_file_time
-from data.Dataset_medical import Dataset_medical_2d, Dataset_medical_3d, Dataset_medical_2d_patch, Dataset_medical_3d_patch, Dataset_medical_time
-
+from data.Dataset_medical import DatasetMedical
+# from data.Dataset_medical import Dataset_medical_2d, Dataset_medical_3d, Dataset_medical_2d_patch, Dataset_medical_3d_patch, Dataset_medical_time
+from skimage import io
 
 import blocks
 
@@ -360,4 +361,47 @@ def load_time_dataset(
     return dataset
 
 
+def load_medical_data():
+    pathdata = os.path.join(path.medical_path(),'volumedata.tif')
+    return np.array(io.imread(pathdata))
+
+
+def load_medical_dataset(
+        shuffle=True,
+        forward_map=None,
+        spix=32,
+        augmentation=True,
+        scaling=1,
+        patch=True):
+
+    ''' Load a 2D dataset object 
+
+     Arguments
+    ---------
+    * shuffle: shuffle the data (default True)
+    * forward : foward mapping use None for raw data (default None)
+    * spix : resolution of the image (default 128)
+    * augmentation : use data augmentation (default True)
+    * scaling : downscale the image by a factor (default 1)
+    * patch: experimental feature for patchgan
+    '''
+    images = load_medical_data()
+    images = images.reshape([1, *images.shape])
+    if scaling>1:
+        images = blocks.downsample_np(images, scaling, True)
+
+    # 5) Make a dataset
+    if patch:
+        dataset = DatasetMedical(images, augmentation=augmentation,
+        spix=spix, shuffle=shuffle, transform=forward_map)
+    else:
+        if augmentation:
+            t = transformation.random_rotate_3d
+        else:
+            t = do_noting
+        images = forward_map(images)
+        dataset = Dataset_3d(images, spix=spix,
+        shuffle=shuffle, transform=t)
+
+    return dataset
 
