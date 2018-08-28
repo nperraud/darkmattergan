@@ -251,7 +251,7 @@ def peak_hist_over_time(real, fake, params, lim=None, title_a="Real Data", title
     cmap = cmap[1:-1]
     plt.figure()
     plt.title("Peak Histograms of {}".format(title_a))
-    plt.ylabel("Frequency", labelpad=22, rotation=0)
+    plt.ylabel("Frequency", labelpad=24, rotation=0)
     plt.xlabel("Peak Intensity")
     plt.yscale("log")
     plt.xscale("log")
@@ -265,7 +265,24 @@ def peak_hist_over_time(real, fake, params, lim=None, title_a="Real Data", title
         peak_hist, x, _ = metrics.peak_count_hist(fake[i::nc], lim=lim)
         plt.plot(x, peak_hist, '-', label='${}$'.format(red[params['time']['classes'][i]]), c=cmap[i])
         plt.legend()
-    plt.ylabel("Frequency", labelpad=22, rotation=0)
+    plt.ylabel("Frequency", labelpad=24, rotation=0)
     plt.xlabel("Peak Intensity")
     plt.yscale("log")
     plt.xscale("log")
+
+
+def peak_hist_a_vs_b(a, b, params, lim, label_a="Real", label_b="Fake Data"):
+    nc = params['time']['num_classes']
+    # cmap = get_cmap('viridis', nc)
+    for i in range(params['time']['num_classes']):
+        plt.figure()
+        plt.title("Peak Histograms for ${}$".format(red[params['time']['classes'][i]]))
+        plt.ylabel("Frequency", labelpad=24, rotation=0)
+        plt.xlabel("Peak Intensity")
+        plt.yscale("log")
+        plt.xscale("log")
+        peak_hist, x, _ = metrics.peak_count_hist(a[i::nc], lim=lim)
+        plt.plot(x, peak_hist, '-', label='{}'.format(label_a), c='r')
+        peak_hist, x, _ = metrics.peak_count_hist(b[i::nc], lim=lim)
+        plt.plot(x, peak_hist, '-', label='{}'.format(label_b), c='b')
+        plt.legend()
