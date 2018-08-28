@@ -1167,7 +1167,7 @@ class TimeGAN(GAN):
 
     def _build_image_summary_generic(self, real, fake, collection, afix=''):
         vmin = tf.reduce_min(real)
-        vmax = tf.reduce_max(fake)
+        vmax = tf.reduce_max(real)
         for c in range(self.params["time"]["num_classes"]):
             tf.summary.image(
                 "training/Real_Image{}_t{}".format(afix, self.params['time']['classes'][c]),
