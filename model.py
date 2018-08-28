@@ -437,11 +437,18 @@ class TemporalGenericGanModel(GanModel):
         self.G_c_fake = self.generator(z, reuse=False)
         self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
 
-        if 'encoder' in params.keys():
+        if False: #'encoder' in params.keys():
             channel_images = self.reshape_channels_to_images(X)
             channel_images = self.generator(self.encoder(channel_images, reuse=False),reuse=True)
             self.reconstructed = self.reshape_time_to_channels(channel_images)
             self._E_loss = tf.losses.mean_squared_error(X, self.reconstructed)
+
+        if 'encoder' in params.keys():
+            z_recon = self.encoder(self.G_c_fake, reuse=False)
+            self._E_loss = tf.losses.mean_squared_error(z, z_recon)
+            channel_images = self.reshape_channels_to_images(X)
+            channel_images = self.generator(self.encoder(channel_images, reuse=True),reuse=True)
+            self.reconstructed = self.reshape_time_to_channels(channel_images)
         else:
             self._E_loss = None
 

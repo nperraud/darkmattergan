@@ -1250,7 +1250,7 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         q = ""
         for i in range(5):
             q = q + s.split('/')[i] + '/'
-        return q + s.split('/')[5] + '_encoder/' + s.split('/')[6] + '/'
+        return q + s.split('/')[5] + '_zenc/' + s.split('/')[6] + '/'
 
     def train_encoder(self, dataset):
 
@@ -1335,6 +1335,10 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
                             summary_str, real_arr, fake_arr = self._sess.run(
                                 [self.summary_op_img, self._X, self._model.reconstructed],
                                 feed_dict=self._get_dict(sample_z, X_real))
+                            self._summary_writer.add_summary(summary_str, self._counter)
+
+                        if np.mod(self._counter, self.params['sum_every']) == 0:
+                            summary_str = self._sess.run(self.summary_op, feed_dict=self._get_dict(sample_z, X_real))
                             self._summary_writer.add_summary(summary_str, self._counter)
 
                         if (np.mod(self._counter, self.params['save_every'])
