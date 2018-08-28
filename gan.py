@@ -1250,7 +1250,7 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         q = ""
         for i in range(5):
             q = q + s.split('/')[i] + '/'
-        return q + s.split('/')[5] + '_enc/' + s.split('/')[6] + '/'
+        return q + s.split('/')[5] + '_encoder/' + s.split('/')[6] + '/'
 
     def train_encoder(self, dataset):
 
