@@ -211,7 +211,7 @@ def reshape_data_to_old_format(data, params):
 def plot_mass_hist(data, data_name, lim, params, cmap):
     plt.figure()
     plt.title("Mass Histogram of {} Data".format(data_name))
-    nc = len(params['time']['classes'])
+    nc = params['time']['num_classes']
     for i in range(nc):
         hist_f, bins, _ = metrics.mass_hist(dat=data[i::nc], lim=lim)
         plt.plot(bins, hist_f, '-', label='{}'.format(red[params['time']['classes'][i]]), c=cmap[i])
@@ -223,7 +223,7 @@ def plot_mass_hist(data, data_name, lim, params, cmap):
 
 
 def plot_real_vs_fake_mass_hists(real, fake, lim, params):
-    nc = len(params['time']['num_classes'])
+    nc = params['time']['num_classes']
     for i in range(nc):
         plt.figure()
         plt.title("Mass Histograms for {}".format(red[params['time']['classes'][i]]))
