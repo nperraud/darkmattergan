@@ -1165,17 +1165,17 @@ class TimeGAN(GAN):
         self.params = default_params_time(params)
         super().__init__(params=self.params, model=model, is_3d=is_3d)
 
-    def _build_image_summary_generic(self, real, fake, collection):
+    def _build_image_summary_generic(self, real, fake, collection, afix=''):
         vmin = tf.reduce_min(real)
         vmax = tf.reduce_max(fake)
         for c in range(self.params["time"]["num_classes"]):
             tf.summary.image(
-                "training/Real_Image_t{}".format(self.params['time']['classes'][c]),
+                "training/Real_Image{}_t{}".format(afix, self.params['time']['classes'][c]),
                 colorize(real[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
                 collections=collection)
             tf.summary.image(
-                "training/Fake_Image_t{}".format(self.params['time']['classes'][c]),
+                "training/Fake_Image{}_t{}".format(afix, self.params['time']['classes'][c]),
                 colorize(fake[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
                 collections=collection)
@@ -1261,7 +1261,7 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         self._total_iter = self._n_epoch * (n_data // self.batch_size) - 1
         self._n_batch = n_data // self.batch_size
 
-        self._build_image_summary_generic(self._X, self._model.reconstructed, ['ImagesEnc'])
+        self._build_image_summary_generic(self._X, self._model.reconstructed, ['ImagesEnc'], afix="_Enc")
         self.summary_op_img = tf.summary.merge(tf.get_collection("ImagesEnc"))
 
         self._save_current_step = False

@@ -2142,6 +2142,12 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
 
             x = lrelu(x)
 
+        x = conv2d(x,
+                   nf_out=latent_dim // (x.shape[1] * x.shape[2]),
+                   shape=[1,1],
+                   stride=1,
+                   name='out',
+                   summary=params['summary'])
         x = reshape2d(x, name='img2vec')
         rprint('     Reshape to {}'.format(x.shape), reuse)
         for i in range(nfull):
@@ -2154,12 +2160,7 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         #x = linear(x, latent_dim, 'out', summary=params['summary'])
-        x = conv2d(x,
-                   nf_out=latent_dim // (x.shape[1] * x.shape[2]),
-                   shape=[1,1],
-                   stride=1,
-                   name='out',
-                   summary=params['summary'])
+
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
         rprint('     The output is of size {}'.format(x.shape), reuse)
