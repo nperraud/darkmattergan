@@ -303,3 +303,18 @@ def power_spectral_densities(data, params, data_name):
         psd = np.mean(psd, axis=0)
         plt.plot(bins, psd, '-', label='${}$'.format(red[params['time']['classes'][i]]), c=cmap[i])
         plt.legend()
+
+
+def power_spectral_density_a_vs_b(a, b, params, label_a="Real", label_b="Fake"):
+    nc = params['time']['num_classes']
+    for i in range(nc):
+        plt.figure()
+        plt.title("Power Spectral Densities for Redshift ${}$".format(red[params['time']['classes'][i]]))
+        plt.xlabel("Wavelength")
+        plt.yscale("log")
+        plt.xscale("log")
+        psd_r, x = metrics.power_spectrum_batch_phys(a[i::nc])
+        plt.plot(x, np.mean(psd_r, axis=0), '-', label=label_a, c='r')
+        psd_f, x = metrics.power_spectrum_batch_phys(b[i::nc])
+        plt.plot(x, np.mean(psd_f, axis=0), '-', label=label_b, c='b')
+        plt.legend()
