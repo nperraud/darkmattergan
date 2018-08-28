@@ -48,6 +48,11 @@ params['encoder'] = params_encoder
 params['optimization']['enc_optimizer'] = params['optimization']['gen_optimizer']
 params['optimization']['enc_learning_rate'] = params['optimization']['gen_learning_rate']
 
+params['viz_every'] = 2 * params['viz_every']
+params['save_every'] = 2 * params['save_every']
+params['optimization']['batch_size'] = 2 * params['optimization']['batch_size']
+
+
 # Build the model
 twgan = TimeCosmoGAN(params)
 
