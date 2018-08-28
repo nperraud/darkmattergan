@@ -6,6 +6,7 @@ from data import path
 from data import transformation, fmap
 from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time
 from data.Dataset_file import Dataset_file_2d, Dataset_file_3d, Dataset_file_2d_patch, Dataset_file_3d_patch, Dataset_file_time
+from data.Dataset_medical import Dataset_medical_2d, Dataset_medical_3d, Dataset_medical_2d_patch, Dataset_medical_3d_patch, Dataset_medical_time
 
 
 import blocks
@@ -263,6 +264,58 @@ def load_dataset_file(
             spix=spix, shuffle=shuffle, transform=t)
         else:
             dataset = Dataset_file_2d(resolution=resolution, Mpch=Mpch,
+            forward_map = forward_map, scaling=scaling,
+            spix=spix, shuffle=shuffle, transform=t)
+
+    return dataset
+
+
+def load_medical_dataset(
+        nsamples=None,
+        resolution=256,
+        shuffle=True,
+        forward_map = None,
+        spix=32,
+        augmentation=True,
+        scaling=1,
+        is_3d=True,
+        patch=True):
+
+    ''' Load a 2D dataset object 
+
+     Arguments
+    ---------
+    * nsamples : desired number of samples, if None => all of them (default None)
+    * shuffle: shuffle the data (default True)
+    * foward : foward mapping use None for raw data (default None)
+    * spix : resolution of the image (default 128)
+    * augmentation : use data augmentation (default True)
+    * scaling : downscale the image by a factor (default 1)
+    * is_3d : load a 3d dataset (default False)
+    * patch: experimental feature for patchgan
+    '''
+
+    if augmentation:
+        t = transformation.random_rotate_3d
+    
+    # 5) Make a dataset
+    if patch:
+        if is_3d:
+            dataset = Dataset_medical_3d_patch(resolution=resolution,
+            forward_map = forward_map, scaling=scaling, 
+            spix=spix, shuffle=shuffle, transform=t)
+        else:
+            dataset = Dataset_medical_2d_patch(resolution=resolution,
+            forward_map = forward_map, scaling=scaling, 
+            spix=spix, shuffle=shuffle, transform=t)
+
+    else:
+        if is_3d:
+            dataset = Dataset_medical_3d(resolution=resolution,
+            forward_map = forward_map, scaling=scaling,
+            spix=spix, shuffle=shuffle, transform=t)
+        else:
+            dataset = Dataset_medical_2d(resolution=resolution,
             forward_map = forward_map, scaling=scaling,
             spix=spix, shuffle=shuffle, transform=t)
 
