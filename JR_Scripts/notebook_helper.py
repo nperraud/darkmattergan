@@ -14,7 +14,7 @@ import matplotlib.cm as cm
 
 root_folder = "/home/jonathan/Documents/Master_Thesis/"
 cscs_root_folder = "/scratch/snx3000/rosenthj/"
-
+red = ['z = 0.000', 'z = 0.111', 'z = 0.250', 'z = 0.428', 'z = 0.666', 'z = 1.000', 'z = 1.500', 'z = 2.333', 'z = 4.000', 'z = 9.000']
 
 def load_params(model_folder, cscs=False):
     cscs_results = ""
@@ -214,7 +214,7 @@ def plot_mass_hist(data, data_name, lim, params, cmap):
     nc = len(params['time']['classes'])
     for i in range(nc):
         hist_f, bins, _ = metrics.mass_hist(dat=data[i::nc], lim=lim)
-        plt.plot(bins, hist_f, '-', label='t{}'.format(params['time']['classes'][i]), c=cmap[i])
+        plt.plot(bins, hist_f, '-', label='{}'.format(red[params['time']['classes'][i]]), c=cmap[i])
         plt.legend()
     plt.yscale("log")
     plt.xscale("log")
@@ -224,7 +224,7 @@ def plot_real_vs_fake_mass_hists(real, fake, lim, params):
     nc = len(params['time']['num_classes'])
     for i in range(nc):
         plt.figure()
-        plt.title("Mass Histograms for t{}".format(params['time']['classes'][i]))
+        plt.title("Mass Histograms for {}".format(red[params['time']['classes'][i]]))
         plt.yscale("log")
         plt.xscale("log")
         hist_r, bins, _ = metrics.mass_hist(dat=real[i::nc], lim=lim)
