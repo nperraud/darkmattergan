@@ -27,7 +27,7 @@ def load_params(model_folder, cscs=False):
     return params, model_folder
 
 
-def get_dataset(mpc, num_images, params, cscs=False):
+def get_dataset(mpc, num_images, params, shuffle=False, cscs=False):
     filename = ""
     if cscs:
         filename = cscs_root_folder + 'data/nbody_{}Mpc_All.h5'.format(mpc)
@@ -39,7 +39,7 @@ def get_dataset(mpc, num_images, params, cscs=False):
         images = params['cosmology']['forward_map'](images / 3)
         img_list.append(images)
     images = np.array(img_list)
-    return Dataset.Dataset_time(images, spix=params['image_size'][0])
+    return Dataset.Dataset_time(images, shuffle=shuffle, spix=params['image_size'][0])
 
 
 def get_data(mpc, num_images, params, cscs=False):
