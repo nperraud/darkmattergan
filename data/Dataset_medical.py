@@ -63,10 +63,12 @@ class DatasetMedical(object):
         ''' Get the `N` first samples '''
         return self._transform(self._slice_fn(self._X)[self._p[:N]])
 
-    def iter(self, batch_size=1):
-        return self.__iter__(batch_size)
+    # TODO: kwargs to be removed
+    def iter(self, batch_size=1, **kwargs):
+        return self.__iter__(batch_size, **kwargs)
 
-    def __iter__(self, batch_size=1):
+    # TODO: kwargs to be removed
+    def __iter__(self, batch_size=1, **kwargs):
 
         if batch_size > self.N:
             raise ValueError(
