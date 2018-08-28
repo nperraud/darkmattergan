@@ -214,7 +214,7 @@ def plot_mass_hist(data, data_name, lim, params, cmap):
     nc = params['time']['num_classes']
     for i in range(nc):
         hist_f, bins, _ = metrics.mass_hist(dat=data[i::nc], lim=lim)
-        plt.plot(bins, hist_f, '-', label='{}'.format(red[params['time']['classes'][i]]), c=cmap[i])
+        plt.plot(bins, hist_f, '-', label='${}$'.format(red[params['time']['classes'][i]]), c=cmap[i])
         plt.legend()
     plt.ylabel("Frequency", labelpad=22, rotation=0)
     plt.xlabel("Pixel Intensity")
@@ -243,3 +243,29 @@ def get_lim_mass(data):
     lim_mass = list(lim_mass)
     lim_mass[1] = lim_mass[1] + 1
     return lim_mass
+
+
+def peak_hist_over_time(real, fake, params, lim=None, title_a="Real Data", title_b="Fake Data"):
+    nc = params['time']['num_classes']
+    cmap = get_cmap('viridis', nc + 2)
+    cmap = cmap[1:-1]
+    plt.figure()
+    plt.title("Peak Histograms of {}".format(title_a))
+    plt.ylabel("Frequency", labelpad=22, rotation=0)
+    plt.xlabel("Peak Intensity")
+    plt.yscale("log")
+    plt.xscale("log")
+    for i in range(nc):
+        peak_hist, x, _ = metrics.peak_count_hist(real[i::nc], lim=lim)
+        plt.plot(x, peak_hist, '-', label='${}$'.format(red[params['time']['classes'][i]]), c=cmap[i])
+        plt.legend()
+    plt.figure()
+    plt.title("Peak Histograms of {}".format(title_b))
+    for i in range(nc):
+        peak_hist, x, _ = metrics.peak_count_hist(fake[i::nc], lim=lim)
+        plt.plot(x, peak_hist, '-', label='${}$'.format(red[params['time']['classes'][i]]), c=cmap[i])
+        plt.legend()
+    plt.ylabel("Frequency", labelpad=22, rotation=0)
+    plt.xlabel("Peak Intensity")
+    plt.yscale("log")
+    plt.xscale("log")
