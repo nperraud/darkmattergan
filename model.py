@@ -449,6 +449,9 @@ class TemporalGenericGanModel(GanModel):
             channel_images = self.reshape_channels_to_images(X)
             channel_images = self.generator(self.encoder(channel_images, reuse=True),reuse=True)
             self.reconstructed = self.reshape_time_to_channels(channel_images)
+            tf.summary.scalar("Enc/Loss", self._E_loss, collections=["Training"])
+            reconstruction_loss = self.losses.mean_squared_error(X, self.reconstructed)
+            tf.summary.scalar("Enc/Reconstruction_Loss", reconstruction_loss, collections=["Training"])
         else:
             self._E_loss = None
 

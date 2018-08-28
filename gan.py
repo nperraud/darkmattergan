@@ -296,7 +296,7 @@ class GAN(object):
             if optimizer_E is not None:
                 optim_learning_rate_E = get_lr_ADAM(optimizer_E, enc_learning_rate)
                 tf.summary.scalar(
-                    'Gen/ADAM_learning_rate',
+                    'Enc/ADAM_learning_rate',
                     optim_learning_rate_E,
                     collections=["Training"])
 
@@ -1250,7 +1250,7 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
         q = ""
         for i in range(5):
             q = q + s.split('/')[i] + '/'
-        return q + s.split('/')[5] + '_zenc/' + s.split('/')[6] + '/'
+        return q + s.split('/')[5] + '_z_enc/' + s.split('/')[6] + '/'
 
     def train_encoder(self, dataset):
 
