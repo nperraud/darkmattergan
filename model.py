@@ -2143,7 +2143,7 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
             x = lrelu(x)
 
         x = conv2d(x,
-                   nf_out=latent_dim // (x.shape[1] * x.shape[2]),
+                   nf_out=64,
                    shape=[1,1],
                    stride=1,
                    name='out',
