@@ -36,7 +36,7 @@ def medical_path():
     hostname = socket.gethostname()
     # Check if we are on pizdaint
     if 'nid' in hostname:
-        rootpath = '/scratch/snx3000/sankit/pre_processed_medical_data/'
+        rootpath = '/scratch/snx3000/nperraud/pre_processed_medical_data/'
     elif 'omenx' in hostname:
         rootpath = '/store/nati/datasets/pre_processed_medical_data/'        
     else:
