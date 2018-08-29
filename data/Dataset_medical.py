@@ -46,7 +46,7 @@ class DatasetMedical(object):
             self._transform = transform
         else:
             self._transform = do_nothing
-
+        self._spix = spix
 
         self._N = len(self._slice_fn(X))
         if shuffle:
@@ -57,7 +57,7 @@ class DatasetMedical(object):
 
     def get_all_data(self):
         ''' Return all the data (shuffled) '''
-        return self._transform(self._slice_fn(self._X)[self._p])
+        return self._transform(slice_3d(self._X, self.spix)[self._p])
 
     def get_samples(self, N=100):
         ''' Get the `N` first samples '''
@@ -78,8 +78,6 @@ class DatasetMedical(object):
         if self.shuffle:
             self._p = np.random.permutation(self._N)
         nel = (self._N // batch_size) * batch_size
-        print(transformation.random_rotate_3d(self._X).shape)
-        print('hello')
         transformed_data = self._slice_fn(self._X)[self._p[range(nel)]]
         for data in grouper(transformed_data, batch_size):
             yield self._transform(np.array(data))
@@ -93,6 +91,11 @@ class DatasetMedical(object):
     def N(self):
         ''' Number of element in the dataset '''
         return self._N
+
+    @property
+    def spix(self):
+        return self._spix
+    
 
 def grouper(iterable, n, fillvalue=None):
     """
@@ -166,6 +169,32 @@ def slice_shift_3d_patch(bbox, spix=32):
     img_with_nbrs = np.vstack(np.split(img_with_nbrs, nz, axis=3))
       
     return img_with_nbrs
+
+def slice_3d(cubes, spix=64):
+    '''
+    slice each cube in cubes to smaller cubes,
+    and return all the smaller cubes
+    '''
+    num_slices_dim_1 = cubes.shape[1] // spix
+    num_slices_dim_2 = cubes.shape[2] // spix
+    num_slices_dim_3 = cubes.shape[3] // spix
+
+    # To ensure left over pixels in each dimension are ignored
+    limit_dim_1 = num_slices_dim_1 * spix
+    limit_dim_2 = num_slices_dim_2 * spix
+    limit_dim_3 = num_slices_dim_3 * spix
+
+    cubes = cubes[:, :limit_dim_1, :limit_dim_2, :limit_dim_3]
+
+    # split along first dimension
+    cubes = np.vstack(np.split(cubes, num_slices_dim_1, axis=1))
+    # split along second dimension
+    cubes = np.vstack(np.split(cubes, num_slices_dim_2, axis=2))
+    # split along third dimension
+    cubes = np.vstack(np.split(cubes, num_slices_dim_3, axis=3))
+
+    return cubes
+
 
 # class Dataset_medical(object):
 #     ''' Dataset oject for GAN and CosmoGAN classes

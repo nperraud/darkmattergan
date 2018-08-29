@@ -1204,37 +1204,37 @@ class UpscaleCosmoGAN(CosmoGAN):
 
         stats = super()._compute_real_stats(dataset)
 
-        # Currently works for 3d only
-        if self.is_3d:
-            real_big = self._backward_map(self._big_dataset.get_all_data())
-            real_big = real_big[:, :, :, :, 0]
+        # # Currently works for 3d only
+        # if self.is_3d:
+        #     real_big = self._backward_map(self._big_dataset.get_all_data())
+        #     real_big = real_big[:, :, :, :, 0]
 
-            # PSD
-            psd_real_big, psd_axis_big = metrics.power_spectrum_batch_phys(
-                X1=real_big, is_3d=self.is_3d)
-            stats['psd_real_big'] = np.mean(psd_real_big, axis=0)
-            stats['psd_axis_big'] = psd_axis_big
-            del psd_real_big
+        #     # PSD
+        #     psd_real_big, psd_axis_big = metrics.power_spectrum_batch_phys(
+        #         X1=real_big, is_3d=self.is_3d)
+        #     stats['psd_real_big'] = np.mean(psd_real_big, axis=0)
+        #     stats['psd_axis_big'] = psd_axis_big
+        #     del psd_real_big
 
-            # PEAK HISTOGRAM
-            peak_hist_real_big, x_peak_big, lim_peak_big = metrics.peak_count_hist(dat=real_big)
-            stats['peak_hist_real_big'] = peak_hist_real_big
-            stats['x_peak_big'] = x_peak_big
-            stats['lim_peak_big'] = lim_peak_big
-            del peak_hist_real_big, x_peak_big, lim_peak_big
+        #     # PEAK HISTOGRAM
+        #     peak_hist_real_big, x_peak_big, lim_peak_big = metrics.peak_count_hist(dat=real_big)
+        #     stats['peak_hist_real_big'] = peak_hist_real_big
+        #     stats['x_peak_big'] = x_peak_big
+        #     stats['lim_peak_big'] = lim_peak_big
+        #     del peak_hist_real_big, x_peak_big, lim_peak_big
 
 
-            # MASS HISTOGRAM
-            mass_hist_real_big, _, lim_mass_big = metrics.mass_hist(dat=real_big)
-            lim_mass_big = list(lim_mass_big)
-            lim_mass_big[1] = lim_mass_big[1]+1
-            mass_hist_real_big, x_mass_big, lim_mass_big = metrics.mass_hist(dat=real_big, lim=lim_mass_big)
-            stats['mass_hist_real_big'] = mass_hist_real_big
-            stats['x_mass_big'] = x_mass_big
-            stats['lim_mass_big'] = lim_mass_big
-            del mass_hist_real_big
+        #     # MASS HISTOGRAM
+        #     mass_hist_real_big, _, lim_mass_big = metrics.mass_hist(dat=real_big)
+        #     lim_mass_big = list(lim_mass_big)
+        #     lim_mass_big[1] = lim_mass_big[1]+1
+        #     mass_hist_real_big, x_mass_big, lim_mass_big = metrics.mass_hist(dat=real_big, lim=lim_mass_big)
+        #     stats['mass_hist_real_big'] = mass_hist_real_big
+        #     stats['x_mass_big'] = x_mass_big
+        #     stats['lim_mass_big'] = lim_mass_big
+        #     del mass_hist_real_big
         
-            del real_big
+        #     del real_big
         
         return stats
 
@@ -1246,16 +1246,17 @@ class UpscaleCosmoGAN(CosmoGAN):
         '''
             
         if self.params['generator']['downsampling']:
-            Xsel_big = next(self._big_dataset_iter)
+            pass
+            # Xsel_big = next(self._big_dataset_iter)
 
-            if self._is_3d:
-                Xsel_big = Xsel_big[:, :, :, :, :1]
-            else:
-                Xsel_big = Xsel_big[:, :, :, :1]
+            # if self._is_3d:
+            #     Xsel_big = Xsel_big[:, :, :, :, :1]
+            # else:
+            #     Xsel_big = Xsel_big[:, :, :, :1]
 
-            downsampled = blocks.downsample(Xsel_big, s=self.params['generator']['downsampling'], is_3d=self.is_3d, sess=self._sess)
-            downsampled = np.expand_dims(downsampled, axis=4)
-            fake_image_big = self.upscale_image(small=downsampled, sess=self._sess)
+            # downsampled = blocks.downsample(Xsel_big, s=self.params['generator']['downsampling'], is_3d=self.is_3d, sess=self._sess)
+            # downsampled = np.expand_dims(downsampled, axis=4)
+            # fake_image_big = self.upscale_image(small=downsampled, sess=self._sess)
 
         else:
             fake_image_big = self.upscale_image(num_samples=5, sess=self._sess, resolution=(self._big_dataset.resolution // self._big_dataset.scaling))
@@ -1302,10 +1303,10 @@ class UpscaleCosmoGAN(CosmoGAN):
 
     def train(self, dataset, resume=False):
         
-        self._big_dataset = dataset.get_big_dataset()
-        self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(batch_size=self.params['cosmology']['Nstats'],
-                                                                        num_hists_at_once=self.params['num_hists_at_once'],
-                                                                        name='_big_dataset_iter'))
+        # self._big_dataset = dataset.get_big_dataset()
+        # self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(batch_size=self.params['cosmology']['Nstats'],
+        #                                                                 num_hists_at_once=self.params['num_hists_at_once'],
+        #                                                                 name='_big_dataset_iter'))
         super().train(dataset=dataset, resume=resume)
 
 
