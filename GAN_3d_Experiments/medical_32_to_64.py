@@ -1,8 +1,8 @@
 import sys
 sys.path.insert(0, '../')
 
-#import matplotlib
-#matplotlib.use('Agg')
+import matplotlib
+matplotlib.use('Agg')
 
 import numpy as np
 import tensorflow as tf
@@ -98,5 +98,5 @@ if __name__ == "__main__":
 	resume, params = utils.test_resume(try_resume, params)
 
 	wgan = UpscaleCosmoGAN(params, upscale_WGAN_pixel_CNN, is_3d=True)
-	dataset = data.load.load_medical_dataset(spix=ns, resolution=256, scaling=4, forward_map=params_cosmology['forward_map'], patch=True, is_3d=True)
+	dataset = data.load.load_medical_dataset(spix=ns, scaling=4, forward_map=params_cosmology['forward_map'], patch=True)
 	wgan.train(dataset, resume=resume)

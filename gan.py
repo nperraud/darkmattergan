@@ -908,15 +908,6 @@ class CosmoGAN(GAN):
         if resume:
             self._stats = self.params['cosmology']['stats']
         else:
-            real = self._backward_map(dataset.get_all_data())
-            # This line should be improved, probably going to mess with Jonathan code
-            if self.is_3d:
-                if len(real.shape) > 4:
-                    real = real[:, :, :, :, 0]
-            else:
-                if len(real.shape) > 3:
-                    real = np.transpose(real, [0,3,1,2])
-                    real = np.vstack(real)
             self._stats = self._compute_real_stats(dataset)
             self.params['cosmology']['stats'] = self._stats
 
@@ -1244,19 +1235,20 @@ class UpscaleCosmoGAN(CosmoGAN):
         Compute psd, peak and mass histograms
         on the bigger images
         '''
-            
+        return
+        
         if self.params['generator']['downsampling']:
             pass
-            # Xsel_big = next(self._big_dataset_iter)
+            Xsel_big = next(self._big_dataset_iter)
 
-            # if self._is_3d:
-            #     Xsel_big = Xsel_big[:, :, :, :, :1]
-            # else:
-            #     Xsel_big = Xsel_big[:, :, :, :1]
+            if self._is_3d:
+                Xsel_big = Xsel_big[:, :, :, :, :1]
+            else:
+                Xsel_big = Xsel_big[:, :, :, :1]
 
-            # downsampled = blocks.downsample(Xsel_big, s=self.params['generator']['downsampling'], is_3d=self.is_3d, sess=self._sess)
-            # downsampled = np.expand_dims(downsampled, axis=4)
-            # fake_image_big = self.upscale_image(small=downsampled, sess=self._sess)
+            downsampled = blocks.downsample(Xsel_big, s=self.params['generator']['downsampling'], is_3d=self.is_3d, sess=self._sess)
+            downsampled = np.expand_dims(downsampled, axis=4)
+            fake_image_big = self.upscale_image(small=downsampled, sess=self._sess)
 
         else:
             fake_image_big = self.upscale_image(num_samples=5, sess=self._sess, resolution=(self._big_dataset.resolution // self._big_dataset.scaling))

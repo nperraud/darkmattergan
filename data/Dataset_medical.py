@@ -107,7 +107,7 @@ def grouper(iterable, n, fillvalue=None):
     return itertools.zip_longest(fillvalue=fillvalue, *args)
 
 
-def slice_shift_3d_patch(bbox, spix=32):
+def slice_shift_3d_patch(bbox, spix=32, limit_size=True):
     '''
     cubes: the 3d histograms - [:, :, :, :]
     '''
@@ -125,6 +125,13 @@ def slice_shift_3d_patch(bbox, spix=32):
     nx = (sx // spix) - 1
     ny = (sy // spix) - 1
     nz = (sz // spix) - 1
+    if limit_size:
+        if nx>10:
+            nx=10    
+        if ny>10:
+            ny=10
+        if nz>10:
+            nz=10
     lx = sx - nx*spix
     ly = sy - ny*spix
     lz = sz - nz*spix

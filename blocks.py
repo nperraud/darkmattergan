@@ -106,7 +106,7 @@ def downsample_np(imgs, s, is_3d=False):
     if is_3d:
         return np_downsample_3d(imgs,s)
     else:
-        return np_downsample_2d(imngs,s)
+        return np_downsample_2d(imgs,s)
 
 
 # Testing numpy implementation
