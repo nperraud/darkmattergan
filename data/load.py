@@ -367,6 +367,8 @@ def load_medical_data():
     pathdata = os.path.join(path.medical_path(),'volumedata.tif')
     return np.array(io.imread(pathdata))
 
+def do_nothing(x):
+    return x
 
 def load_medical_dataset(
         shuffle=True,
@@ -390,7 +392,7 @@ def load_medical_dataset(
     images = load_medical_data()
     images = images.reshape([1, *images.shape])
     if scaling>1:
-        images = blocks.downsample_np(images, scaling, True)
+        images = blocks.downsample(images, scaling, True)
 
     # 5) Make a dataset
     if patch:
@@ -400,8 +402,9 @@ def load_medical_dataset(
         if augmentation:
             t = transformation.random_rotate_3d
         else:
-            t = do_noting
-        images = forward_map(images)
+            t = do_nothing
+        if forward_map:
+            images = forward_map(images)
         dataset = Dataset_3d(images, spix=spix,
         shuffle=shuffle, transform=t)
 
