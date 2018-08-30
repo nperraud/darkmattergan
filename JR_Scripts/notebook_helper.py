@@ -303,7 +303,6 @@ def peak_hist_a_vs_b(a, b, params, lim, label_a="Real", label_b="Fake"):
         plt.legend()
 
 
-
 def plot_peak_hists(data_list, labels, colors, lim, params):
     nc = params['time']['num_classes']
     for i in range(params['time']['num_classes']):
@@ -362,6 +361,6 @@ def plot_power_spectral_densities(data_list, labels, colors, params):
         plt.yscale("log")
         plt.xscale("log")
         for j in range(len(data_list)):
-            psd_curve, x = metrics.power_spectrum_batch_phys(data_list[i::nc])
+            psd_curve, x = metrics.power_spectrum_batch_phys(data_list[j][i::nc])
             plt.plot(x, np.mean(psd_curve, axis=0), '-', label=labels[j], c=colors[j])
         plt.legend()
