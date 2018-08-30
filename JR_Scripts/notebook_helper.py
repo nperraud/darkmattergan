@@ -238,6 +238,21 @@ def plot_real_vs_fake_mass_hists(real, fake, lim, params):
         plt.legend()
 
 
+def plot_mass_hists(data_list, labels, colors, lim, params):
+    nc = params['time']['num_classes']
+    for i in range(nc):
+        plt.figure()
+        plt.title("Mass Histograms for {}".format(red[params['time']['classes'][i]]))
+        plt.ylabel("Frequency", labelpad=22, rotation=0)
+        plt.xlabel("Pixel Intensity")
+        plt.yscale("log")
+        plt.xscale("log")
+        for j in range(len(data_list)):
+            hist, bins, _ = metrics.mass_hist(dat=data_list[j][i::nc], lim=lim)
+            plt.plot(bins, hist, '-', label=labels[j], c=colors[j])
+        plt.legend()
+
+
 def get_lim_mass(data):
     _, _, lim_mass = metrics.mass_hist(data)
     lim_mass = list(lim_mass)
@@ -288,6 +303,22 @@ def peak_hist_a_vs_b(a, b, params, lim, label_a="Real", label_b="Fake"):
         plt.legend()
 
 
+
+def plot_peak_hists(data_list, labels, colors, lim, params):
+    nc = params['time']['num_classes']
+    for i in range(params['time']['num_classes']):
+        plt.figure()
+        plt.title("Peak Histograms for ${}$".format(red[params['time']['classes'][i]]))
+        plt.ylabel("Frequency", labelpad=26, rotation=0)
+        plt.xlabel("Peak Intensity")
+        plt.yscale("log")
+        plt.xscale("log")
+        for j in range(len(data_list)):
+            peak_hist, x, _ = metrics.peak_count_hist(data_list[j][i::nc], lim=lim)
+            plt.plot(x, peak_hist, '-', label=labels[j], c=colors[j])
+        plt.legend()
+
+
 def power_spectral_densities(data, params, data_name):
     nc = params['time']['num_classes']
     cmap = get_cmap('viridis', nc + 2)
@@ -310,11 +341,27 @@ def power_spectral_density_a_vs_b(a, b, params, label_a="Real", label_b="Fake"):
     for i in range(nc):
         plt.figure()
         plt.title("Power Spectral Densities for Redshift ${}$".format(red[params['time']['classes'][i]]))
-        plt.xlabel("Wavelength")
+        plt.ylabel("Energy", labelpad=22, rotation=0)
+        plt.xlabel("Frequency")
         plt.yscale("log")
         plt.xscale("log")
         psd_r, x = metrics.power_spectrum_batch_phys(a[i::nc])
         plt.plot(x, np.mean(psd_r, axis=0), '-', label=label_a, c='r')
         psd_f, x = metrics.power_spectrum_batch_phys(b[i::nc])
         plt.plot(x, np.mean(psd_f, axis=0), '-', label=label_b, c='b')
+        plt.legend()
+
+
+def plot_power_spectral_densities(data_list, labels, colors, params):
+    nc = params['time']['num_classes']
+    for i in range(nc):
+        plt.figure()
+        plt.title("Power Spectral Densities for Redshift ${}$".format(red[params['time']['classes'][i]]))
+        plt.ylabel("Energy", labelpad=22, rotation=0)
+        plt.xlabel("Frequency")
+        plt.yscale("log")
+        plt.xscale("log")
+        for j in range(len(data_list)):
+            psd_curve, x = metrics.power_spectrum_batch_phys(data_list[i::nc])
+            plt.plot(x, np.mean(psd_curve, axis=0), '-', label=labels[j], c=colors[j])
         plt.legend()
