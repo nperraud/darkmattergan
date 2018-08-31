@@ -139,7 +139,7 @@ def visual_comparison_fake_real(dset, gan, chpt):
 
 
 def visual_comparison_fake_real_compact(dset, gan, chpt):
-    series = dset.get_samples(1)[0]
+    series = dset.get_samples(100)[np.random.randint(100)]
     series = np.transpose(series, [2, 0, 1])
     img_series = np.array(gen_images_10_time_steps(gan, chpt))
     main_classes, contained_classes = get_main_and_contained_classes(gan.params)
@@ -249,6 +249,34 @@ def plot_mass_hists(data_list, labels, colors, lim, params):
         plt.xscale("log")
         for j in range(len(data_list)):
             hist, bins, _ = metrics.mass_hist(dat=data_list[j][i::nc], lim=lim)
+            plt.plot(bins, hist, '-', label=labels[j], c=colors[j])
+        plt.legend()
+
+
+def plot_mass_hist_diffs(data_list, labels, colors, lim, params):
+    nc = params['time']['num_classes']
+    limpos = (0.1, lim[0])
+    for i in range(nc-1):
+        plt.figure()
+        plt.title("Positive Mass Diff Histograms for {} and {}".format(red[params['time']['classes'][i]],red[params['time']['classes'][i+1]]))
+        plt.ylabel("Frequency", labelpad=22, rotation=0)
+        plt.xlabel("Positive Pixel Intensity Difference")
+        plt.yscale("log")
+        plt.xscale("log")
+        for j in range(len(data_list)):
+            hist, bins, _ = metrics.mass_hist(dat=np.clip(data_list[j][(i+1)::nc]-data_list[j][i::nc], a_min=0), lim=limpos)
+            plt.plot(bins, hist, '-', label=labels[j], c=colors[j])
+        plt.legend()
+    limneg = (0.1, lim[1])
+    for i in range(nc-1):
+        plt.figure()
+        plt.title("Negative Mass Diff Histograms for {} and {}".format(red[params['time']['classes'][i]],red[params['time']['classes'][i+1]]))
+        plt.ylabel("Frequency", labelpad=22, rotation=0)
+        plt.xlabel("Negative Pixel Intensity Difference")
+        plt.yscale("log")
+        plt.xscale("log")
+        for j in range(len(data_list)):
+            hist, bins, _ = metrics.mass_hist(dat=np.clip(data_list[j][i::nc]-data_list[j][(i+1)::nc], a_min=0), lim=limneg)
             plt.plot(bins, hist, '-', label=labels[j], c=colors[j])
         plt.legend()
 
