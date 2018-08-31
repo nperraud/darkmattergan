@@ -264,7 +264,7 @@ def plot_mass_hist_diffs(data_list, labels, colors, lim, params):
         plt.yscale("log")
         plt.xscale("log")
         for j in range(len(data_list)):
-            hist, bins, _ = metrics.mass_hist(dat=np.clip(data_list[j][(i+1)::nc]-data_list[j][i::nc], a_min=0), lim=limpos)
+            hist, bins, _ = metrics.mass_hist(dat=np.clip(data_list[j][(i+1)::nc]-data_list[j][i::nc], a_min=0, a_max=None), lim=limpos)
             plt.plot(bins, hist, '-', label=labels[j], c=colors[j])
         plt.legend()
     limneg = (0.1, lim[1])
@@ -276,7 +276,7 @@ def plot_mass_hist_diffs(data_list, labels, colors, lim, params):
         plt.yscale("log")
         plt.xscale("log")
         for j in range(len(data_list)):
-            hist, bins, _ = metrics.mass_hist(dat=np.clip(data_list[j][i::nc]-data_list[j][(i+1)::nc], a_min=0), lim=limneg)
+            hist, bins, _ = metrics.mass_hist(dat=np.clip(data_list[j][i::nc]-data_list[j][(i+1)::nc], a_min=0, a_max=None), lim=limneg)
             plt.plot(bins, hist, '-', label=labels[j], c=colors[j])
         plt.legend()
 
