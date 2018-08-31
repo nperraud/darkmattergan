@@ -255,7 +255,7 @@ def plot_mass_hists(data_list, labels, colors, lim, params):
 
 def plot_mass_hist_diffs(data_list, labels, colors, lim, params):
     nc = params['time']['num_classes']
-    limpos = (0, lim[0])
+    limpos = (0.001, lim[0])
     for i in range(nc-1):
         plt.figure()
         plt.title("Positive Mass Diff Histograms for {} and {}".format(red[params['time']['classes'][i]],red[params['time']['classes'][i+1]]))
@@ -267,7 +267,7 @@ def plot_mass_hist_diffs(data_list, labels, colors, lim, params):
             hist, bins, _ = metrics.mass_hist(dat=np.clip(data_list[j][(i+1)::nc]-data_list[j][i::nc], a_min=0, a_max=None), lim=limpos)
             plt.plot(bins, hist, '-', label=labels[j], c=colors[j])
         plt.legend()
-    limneg = (0, lim[1])
+    limneg = (0.001, lim[1])
     for i in range(nc-1):
         plt.figure()
         plt.title("Negative Mass Diff Histograms for {} and {}".format(red[params['time']['classes'][i]],red[params['time']['classes'][i+1]]))
