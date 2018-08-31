@@ -75,7 +75,7 @@ backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 cl_str = ''
 for cl_id in cl:
     cl_str = cl_str + str(cl_id)
-time_str = '{}r_Hlr1e5_bs4_v2ad_c{}'.format(cl_str, Mpc)
+time_str = '{}r_Hlr3e5_bs4_v2ad_sf{}'.format(cl_str, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
 bnd = False
@@ -94,7 +94,7 @@ discriminator_net.add_conv_layer(64, stride=1, shape=3)
 discriminator_net.add_full(64)
 
 params_discriminator = discriminator_net.params
-params_discriminator['spectral_norm'] = False
+params_discriminator['spectral_norm'] = True
 params_discriminator['separate_first'] = True
 # params_discriminator['cdf'] = 32
 # params_discriminator['channel_cdf'] = 16
@@ -105,7 +105,7 @@ params_cdf = dict()
 # params_cdf['cdf_in'] = 32
 params_cdf['channel_cdf'] = 32
 params_cdf['cdf_out'] = 64
-params_discriminator['cdf_block'] = params_cdf
+#params_discriminator['cdf_block'] = params_cdf
 params_hist = dict()
 params_hist['full'] = 64
 params_hist['bins'] = 32
@@ -138,8 +138,8 @@ params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 4
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 1e-5
-params_optimization['gen_learning_rate'] = 1e-5
+params_optimization['disc_learning_rate'] = 3e-5
+params_optimization['gen_learning_rate'] = 3e-5
 params_optimization['beta1'] = 0.5
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
