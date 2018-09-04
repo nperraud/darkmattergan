@@ -4,11 +4,13 @@ import utils
 from data import gaussian_synthetic_data
 from data import path
 from data import transformation, fmap
-from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time
+from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time, Dataset
 from data.Dataset_file import Dataset_file_2d, Dataset_file_3d, Dataset_file_2d_patch, Dataset_file_3d_patch, Dataset_file_time
-from data.Dataset_medical import DatasetMedical
+from data import Dataset_medical
 # from data.Dataset_medical import Dataset_medical_2d, Dataset_medical_3d, Dataset_medical_2d_patch, Dataset_medical_3d_patch, Dataset_medical_time
 from skimage import io
+from functools import partial
+
 
 import blocks
 
@@ -396,7 +398,7 @@ def load_medical_dataset(
 
     # 5) Make a dataset
     if patch:
-        dataset = DatasetMedical(images, augmentation=augmentation,
+        dataset = Dataset_medical.DatasetMedical(images, augmentation=augmentation,
         spix=spix, shuffle=shuffle, transform=forward_map)
     else:
         if augmentation:
@@ -405,7 +407,8 @@ def load_medical_dataset(
             t = do_nothing
         if forward_map:
             images = forward_map(images)
-        dataset = Dataset_3d(images, spix=spix,
+        slice_fn = partial(Dataset_medical.slice_3d, spix=spix)
+        dataset = Dataset(images, slice_fn=slice_fn,
         shuffle=shuffle, transform=t)
 
     return dataset

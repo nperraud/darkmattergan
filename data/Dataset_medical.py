@@ -182,23 +182,28 @@ def slice_3d(cubes, spix=64):
     slice each cube in cubes to smaller cubes,
     and return all the smaller cubes
     '''
-    num_slices_dim_1 = cubes.shape[1] // spix
-    num_slices_dim_2 = cubes.shape[2] // spix
-    num_slices_dim_3 = cubes.shape[3] // spix
 
-    # To ensure left over pixels in each dimension are ignored
-    limit_dim_1 = num_slices_dim_1 * spix
-    limit_dim_2 = num_slices_dim_2 * spix
-    limit_dim_3 = num_slices_dim_3 * spix
 
-    cubes = cubes[:, :limit_dim_1, :limit_dim_2, :limit_dim_3]
+    _, sx, sy, sz = cubes.shape
+    nx = (sx // spix) - 1
+    ny = (sy // spix) - 1
+    nz = (sz // spix) - 1
+    lx = sx - nx*spix
+    ly = sy - ny*spix
+    lz = sz - nz*spix
+    
+    # 0) Select a subpart of the images
+    rx = np.random.randint(0, lx)
+    ry = np.random.randint(0, ly)
+    rz = np.random.randint(0, lz)
+    cubes = cubes[:, rx:rx+nx*spix, ry:ry+ny*spix, rz:rz+nz*spix]
 
     # split along first dimension
-    cubes = np.vstack(np.split(cubes, num_slices_dim_1, axis=1))
+    cubes = np.vstack(np.split(cubes, nx, axis=1))
     # split along second dimension
-    cubes = np.vstack(np.split(cubes, num_slices_dim_2, axis=2))
+    cubes = np.vstack(np.split(cubes, ny, axis=2))
     # split along third dimension
-    cubes = np.vstack(np.split(cubes, num_slices_dim_3, axis=3))
+    cubes = np.vstack(np.split(cubes, nz, axis=3))
 
     return cubes
 
