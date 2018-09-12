@@ -115,8 +115,8 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
     for file in os.listdir(rootpath):
         if file.endswith(file_ext) and input_pattern in file:
             queue.append(os.path.join(rootpath, file))
-            if len(queue) == 10:
-                break
+            # if len(queue) == 10:
+            #     break
 
     if len(queue) == 0:
         raise LookupError('No file founds, check path and parameters')

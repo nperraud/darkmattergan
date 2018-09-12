@@ -51,7 +51,7 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, display=True, is_3d=False):
               'Log l1 PSD loss: {}\n'
               'L1 PSD loss: {}'.format(logel2, l2, logel1, l1))
 
-        plt.Figure()
+        plt.figure(figsize=(5,3))
         ax = plt.gca()
         ax.set_xscale("log")
         ax.set_yscale("log")
@@ -68,20 +68,22 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, display=True, is_3d=False):
             x,
             psd_gen,
             color='r',
-            label="Fake $\mathcal{F}(X))^2$",
+            label="Fake",
             **linestyle)
         plot.plot_with_shade(
             ax,
             x,
             psd_real,
             color='b',
-            label="Real $\mathcal{F}(X))^2$",
+            label="Real",
             **linestyle)
         # ax.set_ylim(bottom=0.1)
-        ax.title.set_text("2D Power Spectrum\n")
-        ax.title.set_fontsize(11)
-        ax.tick_params(axis='both', which='major', labelsize=10)
-        ax.legend()
+        ax.title.set_text("Power spectral density")
+        ax.title.set_fontsize(16)
+        ax.set_xlabel('k [h Mpc$^{-1}$]', fontsize=14)
+        ax.set_ylabel('$P(k)$', fontsize=14)
+        ax.tick_params(axis='both', which='major', labelsize=12)
+        ax.legend(fontsize=14, loc=3)
 
     return logel2, l2, logel1, l1
 
@@ -95,25 +97,7 @@ def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
               'L2 Peak Count loss: {}\n'
               'Log l1 Peak Count loss: {}\n'
               'L1 Peak Count loss: {}'.format(logel2, l2, logel1, l1))
-        plt.Figure()
-        ax = plt.gca()
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        linestyle = {
-            "linewidth": 1,
-            "markeredgewidth": 0,
-            "markersize": 3,
-            "marker": "o",
-            "linestyle": "-"
-        }
-        ax.plot(x, y_fake, label="Fake", color='r', **linestyle)
-        ax.plot(x, y_real, label="Real", color='b', **linestyle)
-
-        # ax.set_ylim(bottom=0.1)
-        ax.title.set_text("Peak count\n")
-        ax.title.set_fontsize(11)
-        ax.tick_params(axis='both', which='major', labelsize=10)
-        ax.legend()
+    loglog_cmp_plot(x, y_real, y_fake,title= 'Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count')
     return l2, logel2, l1, logel1
 
 
@@ -126,27 +110,33 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
               'L2 Peak Mass histogram: {}\n'
               'Log l1 Mass histogram loss: {}\n'
               'L1 Mass histogram loss: {}'.format(logel2, l2, logel1, l1))
-        plt.Figure()
-        ax = plt.gca()
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        linestyle = {
-            "linewidth": 1,
-            "markeredgewidth": 0,
-            "markersize": 3,
-            "marker": "o",
-            "linestyle": "-"
-        }
-        ax.plot(x, y_fake, label="Fake", color='r', **linestyle)
-        ax.plot(x, y_real, label="Real", color='b', **linestyle)
-
-        # ax.set_ylim(bottom=0.1)
-        ax.title.set_text("Mass histogram\n")
-        ax.title.set_fontsize(11)
-        ax.tick_params(axis='both', which='major', labelsize=10)
-        ax.legend()
+    loglog_cmp_plot(x, y_real, y_fake,title= 'Mass histogram', xlabel='Number of particles', ylabel='Pixel count')
     return l2, logel2, l1, logel1
 
+def loglog_cmp_plot(x, y_real, y_fake, title='', xlabel='', ylabel=''):
+    fig = plt.figure(figsize=(5,3))
+
+    ax = plt.gca()
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    linestyle = {
+        "linewidth": 1,
+        "markeredgewidth": 0,
+        "markersize": 3,
+        "marker": "o",
+        "linestyle": "-"
+    }
+    ax.plot(x, y_fake, label="Fake", color='r', **linestyle)
+    ax.plot(x, y_real, label="Real", color='b', **linestyle)
+
+    # ax.set_ylim(bottom=0.1)
+    ax.title.set_text(title)
+    ax.title.set_fontsize(16)
+    ax.set_xlabel(xlabel, fontsize=14)
+    ax.set_ylabel(ylabel, fontsize=14)
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    ax.legend(fontsize=14, loc=3)
+    return ax
 
 def equalizing_histogram(real, fake, nbins=1000, bs=2000):
     sh = fake.shape

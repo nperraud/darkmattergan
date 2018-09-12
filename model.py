@@ -1951,6 +1951,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                     rprint('         Batch norm', reuse)
 
                 x = params['activation'](x)
+                rprint('         Non linearity applied', reuse)
 
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
@@ -2003,7 +2004,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                        params['full'][i],
                        '{}_full'.format(i),
                        summary=params['summary'])
-            z = lrelu(z)
+            z = params['activation'](z)
             rprint('     {} Full layer with {} outputs'.format(i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(z.shape), reuse)
 
@@ -2113,8 +2114,8 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
 
-                x = lrelu(x)
-                rprint('         ReLU applied', reuse)
+                x = params['activation'](x)
+                rprint('         Non linearity applied', reuse)
                 
 
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
