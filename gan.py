@@ -908,15 +908,6 @@ class CosmoGAN(GAN):
         if resume:
             self._stats = self.params['cosmology']['stats']
         else:
-            real = self._backward_map(dataset.get_all_data())
-            # This line should be improved, probably going to mess with Jonathan code
-            if self.is_3d:
-                if len(real.shape) > 4:
-                    real = real[:, :, :, :, 0]
-            else:
-                if len(real.shape) > 3:
-                    real = np.transpose(real, [0,3,1,2])
-                    real = np.vstack(real)
             self._stats = self._compute_real_stats(dataset)
             self.params['cosmology']['stats'] = self._stats
 
@@ -1204,37 +1195,37 @@ class UpscaleCosmoGAN(CosmoGAN):
 
         stats = super()._compute_real_stats(dataset)
 
-        # Currently works for 3d only
-        if self.is_3d:
-            real_big = self._backward_map(self._big_dataset.get_all_data())
-            real_big = real_big[:, :, :, :, 0]
+        # # Currently works for 3d only
+        # if self.is_3d:
+        #     real_big = self._backward_map(self._big_dataset.get_all_data())
+        #     real_big = real_big[:, :, :, :, 0]
 
-            # PSD
-            psd_real_big, psd_axis_big = metrics.power_spectrum_batch_phys(
-                X1=real_big, is_3d=self.is_3d)
-            stats['psd_real_big'] = np.mean(psd_real_big, axis=0)
-            stats['psd_axis_big'] = psd_axis_big
-            del psd_real_big
+        #     # PSD
+        #     psd_real_big, psd_axis_big = metrics.power_spectrum_batch_phys(
+        #         X1=real_big, is_3d=self.is_3d)
+        #     stats['psd_real_big'] = np.mean(psd_real_big, axis=0)
+        #     stats['psd_axis_big'] = psd_axis_big
+        #     del psd_real_big
 
-            # PEAK HISTOGRAM
-            peak_hist_real_big, x_peak_big, lim_peak_big = metrics.peak_count_hist(dat=real_big)
-            stats['peak_hist_real_big'] = peak_hist_real_big
-            stats['x_peak_big'] = x_peak_big
-            stats['lim_peak_big'] = lim_peak_big
-            del peak_hist_real_big, x_peak_big, lim_peak_big
+        #     # PEAK HISTOGRAM
+        #     peak_hist_real_big, x_peak_big, lim_peak_big = metrics.peak_count_hist(dat=real_big)
+        #     stats['peak_hist_real_big'] = peak_hist_real_big
+        #     stats['x_peak_big'] = x_peak_big
+        #     stats['lim_peak_big'] = lim_peak_big
+        #     del peak_hist_real_big, x_peak_big, lim_peak_big
 
 
-            # MASS HISTOGRAM
-            mass_hist_real_big, _, lim_mass_big = metrics.mass_hist(dat=real_big)
-            lim_mass_big = list(lim_mass_big)
-            lim_mass_big[1] = lim_mass_big[1]+1
-            mass_hist_real_big, x_mass_big, lim_mass_big = metrics.mass_hist(dat=real_big, lim=lim_mass_big)
-            stats['mass_hist_real_big'] = mass_hist_real_big
-            stats['x_mass_big'] = x_mass_big
-            stats['lim_mass_big'] = lim_mass_big
-            del mass_hist_real_big
+        #     # MASS HISTOGRAM
+        #     mass_hist_real_big, _, lim_mass_big = metrics.mass_hist(dat=real_big)
+        #     lim_mass_big = list(lim_mass_big)
+        #     lim_mass_big[1] = lim_mass_big[1]+1
+        #     mass_hist_real_big, x_mass_big, lim_mass_big = metrics.mass_hist(dat=real_big, lim=lim_mass_big)
+        #     stats['mass_hist_real_big'] = mass_hist_real_big
+        #     stats['x_mass_big'] = x_mass_big
+        #     stats['lim_mass_big'] = lim_mass_big
+        #     del mass_hist_real_big
         
-            del real_big
+        #     del real_big
         
         return stats
 
@@ -1244,8 +1235,10 @@ class UpscaleCosmoGAN(CosmoGAN):
         Compute psd, peak and mass histograms
         on the bigger images
         '''
-            
+        return
+        
         if self.params['generator']['downsampling']:
+            pass
             Xsel_big = next(self._big_dataset_iter)
 
             if self._is_3d:
@@ -1302,10 +1295,10 @@ class UpscaleCosmoGAN(CosmoGAN):
 
     def train(self, dataset, resume=False):
         
-        self._big_dataset = dataset.get_big_dataset()
-        self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(batch_size=self.params['cosmology']['Nstats'],
-                                                                        num_hists_at_once=self.params['num_hists_at_once'],
-                                                                        name='_big_dataset_iter'))
+        # self._big_dataset = dataset.get_big_dataset()
+        # self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(batch_size=self.params['cosmology']['Nstats'],
+        #                                                                 num_hists_at_once=self.params['num_hists_at_once'],
+        #                                                                 name='_big_dataset_iter'))
         super().train(dataset=dataset, resume=resume)
 
 

@@ -4,8 +4,12 @@ import utils
 from data import gaussian_synthetic_data
 from data import path
 from data import transformation, fmap
-from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time
+from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time, Dataset
 from data.Dataset_file import Dataset_file_2d, Dataset_file_3d, Dataset_file_2d_patch, Dataset_file_3d_patch, Dataset_file_time
+from data import Dataset_medical
+# from data.Dataset_medical import Dataset_medical_2d, Dataset_medical_3d, Dataset_medical_2d_patch, Dataset_medical_3d_patch, Dataset_medical_time
+from skimage import io
+from functools import partial
 
 
 import blocks
@@ -111,8 +115,8 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
     for file in os.listdir(rootpath):
         if file.endswith(file_ext) and input_pattern in file:
             queue.append(os.path.join(rootpath, file))
-            if len(queue) == 10:
-                break
+            # if len(queue) == 10:
+            #     break
 
     if len(queue) == 0:
         raise LookupError('No file founds, check path and parameters')
@@ -268,6 +272,8 @@ def load_dataset_file(
 
     return dataset
 
+
+
     
 def load_time_dataset(
         resolution=256,
@@ -307,4 +313,103 @@ def load_time_dataset(
     return dataset
 
 
+
+# def load_medical_dataset(
+#         nsamples=None,
+#         resolution=256,
+#         shuffle=True,
+#         forward_map = None,
+#         spix=32,
+#         augmentation=True,
+#         scaling=1,
+#         is_3d=True,
+#         patch=True):
+
+#     ''' Load a 2D dataset object 
+
+#      Arguments
+#     ---------
+#     * nsamples : desired number of samples, if None => all of them (default None)
+#     * shuffle: shuffle the data (default True)
+#     * foward : foward mapping use None for raw data (default None)
+#     * spix : resolution of the image (default 128)
+#     * augmentation : use data augmentation (default True)
+#     * scaling : downscale the image by a factor (default 1)
+#     * is_3d : load a 3d dataset (default False)
+#     * patch: experimental feature for patchgan
+#     '''
+
+#     if augmentation:
+#         t = transformation.random_rotate_3d
+    
+#     # 5) Make a dataset
+#     if patch:
+#         if is_3d:
+#             dataset = Dataset_medical_3d_patch(resolution=resolution,
+#             forward_map = forward_map, scaling=scaling, 
+#             spix=spix, shuffle=shuffle, transform=t)
+#         else:
+#             dataset = Dataset_medical_2d_patch(resolution=resolution,
+#             forward_map = forward_map, scaling=scaling, 
+#             spix=spix, shuffle=shuffle, transform=t)
+
+#     else:
+#         if is_3d:
+#             dataset = Dataset_medical_3d(resolution=resolution,
+#             forward_map = forward_map, scaling=scaling,
+#             spix=spix, shuffle=shuffle, transform=t)
+#         else:
+#             dataset = Dataset_medical_2d(resolution=resolution,
+#             forward_map = forward_map, scaling=scaling,
+#             spix=spix, shuffle=shuffle, transform=t)
+
+#     return dataset
+
+def load_medical_data():
+    pathdata = os.path.join(path.medical_path(),'volumedata.tif')
+    return np.array(io.imread(pathdata))
+
+def do_nothing(x):
+    return x
+
+def load_medical_dataset(
+        shuffle=True,
+        forward_map=None,
+        spix=32,
+        augmentation=True,
+        scaling=1,
+        patch=True):
+
+    ''' Load a 2D dataset object 
+
+     Arguments
+    ---------
+    * shuffle: shuffle the data (default True)
+    * forward : foward mapping use None for raw data (default None)
+    * spix : resolution of the image (default 128)
+    * augmentation : use data augmentation (default True)
+    * scaling : downscale the image by a factor (default 1)
+    * patch: experimental feature for patchgan
+    '''
+    images = load_medical_data()
+    images = images.reshape([1, *images.shape])
+    if scaling>1:
+        images = blocks.downsample(images, scaling, True)
+
+    # 5) Make a dataset
+    if patch:
+        dataset = Dataset_medical.DatasetMedical(images, augmentation=augmentation,
+        spix=spix, shuffle=shuffle, transform=forward_map)
+    else:
+        if augmentation:
+            t = transformation.random_rotate_3d
+        else:
+            t = do_nothing
+        if forward_map:
+            images = forward_map(images)
+        slice_fn = partial(Dataset_medical.slice_3d, spix=spix)
+        dataset = Dataset(images, slice_fn=slice_fn,
+        shuffle=shuffle, transform=t)
+
+    return dataset
 

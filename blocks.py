@@ -58,58 +58,57 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
 
         return bn
 
-
-def downsample(imgs, s, is_3d=False, sess=None):
-    '''
-    Makes sure that multiple nodes are not created for the same downsampling op.
-    If the downsampling node does not exist in the graph, create. If exists, then reuse it.
-    '''
-    if sess is None:
-        new_sess = tf.Session()
-    else:
-        new_sess = sess
-
-    # name of the ouput tensor after the downsampling operation
-    down_sampler_out_name = 'down_sampler_out_' + ('3d_' if is_3d else '2d_') + str(s) + ':0'
-
-    # Don't create a node for the op if one already exists in the computation graph with the same name
-    try:
-        down_sampler_op = tf.get_default_graph().get_tensor_by_name(down_sampler_out_name)
-
-    except KeyError as e:
-        print('Tensor {} not found, hence creating the Op.'.format(down_sampler_out_name))
-        down_sampler_op = down_sampler(x=None, s=s, is_3d=is_3d)
-
-
-    # name of the input placeholder to the downsapling operation
-    placeholder_name = 'down_sampler_in_' + ('3d_' if is_3d else '2d_') + str(s) + ':0'
-    placeholder = tf.get_default_graph().get_tensor_by_name(placeholder_name)
-
-
-    if is_3d:
-        # 1 extra dim for channels
-        if len(imgs.shape) < 5:
-            imgs = np.expand_dims(imgs, axis=4)
-
-        img_d = new_sess.run(down_sampler_op, feed_dict={placeholder : imgs})
-        ret = np.squeeze(img_d)
-
-    else:
-        if len(imgs.shape) < 4:
-            imgs = np.expand_dims(imgs, axis=3)
+def np_downsample_2d(x, scaling):
+    unique = False
+    if len(x.shape)<2:
+        raise ValueError('Too few dimensions')
+    elif len(x.shape)==2:
+        x = x.reshape([1,*x.shape])
+        unique = True
+    elif len(x.shape)>3:
+        raise ValueError('Too many dimensions')
         
-        img_d = []
-        for i in range(imgs.shape[3]):
-            curr_img = np.expand_dims(imgs[:, :, :, i], axis=3)
-            img_d.append(new_sess.run(down_sampler_op, feed_dict={placeholder: curr_img}))
+    n, sx, sy = x.shape 
+    dsx = np.zeros([n,sx//scaling,sy//scaling])
+    for i in range(scaling):
+        for j in range(scaling):
+            dsx += x[:,i::scaling,j::scaling]
+    dsx /= (scaling**2)
+    if unique:
+        dsx = dsx[0]
+    return dsx
 
-        ret = np.squeeze(np.concatenate(img_d, axis=3))
+def np_downsample_3d(x, scaling):
+    unique = False
+    if len(x.shape)<3:
+        raise ValueError('Too few dimensions')
+    elif len(x.shape)==3:
+        x = x.reshape([1,*x.shape])
+        unique = True
+    elif len(x.shape)>4:
+        raise ValueError('Too many dimensions')
+        
+    n, sx, sy, sz = x.shape 
+    nx = sx//scaling
+    ny = sy//scaling
+    nz = sz//scaling
+    dsx = np.zeros([n,nx,ny,nz])
+    for i in range(scaling):
+        for j in range(scaling):
+            for k in range(scaling):
+                dsx += x[:,i:scaling*nx+i:scaling,j:scaling*ny+j:scaling,k:scaling*nz+k:scaling]
+    dsx /= (scaling**3)
+    if unique:
+        dsx = dsx[0]
+    return dsx
 
-    # If a new session was created, close it. 
-    if sess is None:
-        new_sess.close()
+def downsample(imgs, s, is_3d=False):
+    if is_3d:
+        return np_downsample_3d(imgs,s)
+    else:
+        return np_downsample_2d(imgs,s)
 
-    return ret
+
 
 
 def down_sampler(x=None, s=2, is_3d=False):
@@ -163,30 +162,7 @@ def up_sampler(x, s=2, is_3d=False):
                         padding='SAME')
 
 
-# # Testing up_sampler, down_sampler
-# x = tf.placeholder(tf.float32, shape=[1,256,256,1],name='x')
-# input_img = np.reshape(gen_sample[1], [1,256,256,1])
-# xd = blocks.down_sampler(x, s=2)
-# xdu = blocks.up_sampler(xd, s=2)
-# xdud = blocks.down_sampler(xdu, s=2)
-# xdudu = blocks.up_sampler(xdud, s=2)
-# with tf.Session() as sess:
-#     img_d, img_du = sess.run([xd,xdu], feed_dict={x: input_img})
-#     img_dud, img_dudu = sess.run([xdud,xdudu], feed_dict={x: input_img})
-# img_d = np.squeeze(img_d)
-# img_du = np.squeeze(img_du)
-# img_dud = np.squeeze(img_dud)
-# img_dudu = np.squeeze(img_dudu)
-# img = np.squeeze(input_img)
 
-# img_d2 = np.zeros([128,128])
-
-# for i in range(128):
-#     for j in range(128):
-#         img_d2[i,j] = np.mean(img[2*i:2*(i+1),2*j:2*(j+1)])
-# print(np.linalg.norm(img_d2-img_d,ord='fro'))
-# print(np.linalg.norm(img_dud-img_d,ord='fro'))
-# print(np.linalg.norm(img_dudu-img_du,ord='fro'))
 
 def l2_norm(v, eps=1e-12):
     return v / (tf.reduce_sum(v ** 2) ** 0.5 + eps)

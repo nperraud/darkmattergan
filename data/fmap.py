@@ -5,6 +5,13 @@ import tensorflow as tf
 import numpy as np
 import scipy
 
+
+def medical_forward(x):
+    return (x/256.0)
+
+def medical_backward(y):
+    return np.round(np.clip(y*256.0, 1, 255))
+
 def log_norm_forward_0(x, c=8000.0):
     if not type(x).__module__ == np.__name__:
         x = np.array([x])
