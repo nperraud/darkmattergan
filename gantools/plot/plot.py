@@ -12,8 +12,8 @@ from moviepy.video.io.bindings import mplfig_to_npimage
 from scipy import ndimage
 import matplotlib.gridspec as gridspec
 
-import metrics
-import utils
+from gantools import metric
+from gantools import utils
 import os
 import warnings
 
@@ -214,7 +214,7 @@ def plot_images_psd(images, title, filename=None, sigma_smooth=None):
     for i in range(n):
         # fig.add_subplot(gs[i]).set_xlabel(i)
         images1 = ndimage.gaussian_filter(images, sigma=sigma_smooth[i])
-        ps_real, k = metrics.power_spectrum_batch_phys(X1=images1)
+        ps_real, k = metric.power_spectrum_batch_phys(X1=images1)
 
         # PLOTING THE IMAGE
         ax = plt.subplot(gs[j])

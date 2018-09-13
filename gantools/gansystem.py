@@ -5,14 +5,14 @@ import numpy as np
 import time
 import os
 import pickle
-import utils
-import metrics, blocks
+from gantools import utils
+from gantools import metric, blocks
 import itertools
 import math
-from colorize import colorize
+from gantools.plot import colorize
 
-from plot_summary import PlotSummaryLog
-from default import default_params, default_params_cosmology, default_params_time
+from .plot.plot_summary import PlotSummaryLog
+from .default import default_params, default_params_cosmology, default_params_time
 
 
 class GAN(object):

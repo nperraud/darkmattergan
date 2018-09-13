@@ -1,5 +1,5 @@
-import data.fmap as fmap
-import blocks
+from gantools.data import fmap
+from gantools import blocks
 import numpy as np
 import warnings
 

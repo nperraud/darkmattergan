@@ -6,16 +6,16 @@ This module contains helping functions for the evaluation of the models.
 import tensorflow as tf
 import pickle
 import numpy as np
-import metrics
-import plot
+import gantools.metric as metric
+import gantools.plot as plot
 import matplotlib
 import socket
 if 'nid' in socket.gethostname() or 'lo-' in socket.gethostname():
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import os
-from model import *
-from gan import *
+from gantools.model import *
+from gantools.gansystem import *
 
 
 def load_gan(pathgan, GANtype=CosmoGAN):

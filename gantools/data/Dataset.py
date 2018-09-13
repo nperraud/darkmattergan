@@ -1,6 +1,6 @@
 import itertools
 import numpy as np
-from utils import compose2
+from gantools.utils import compose2
 import functools
 
 
