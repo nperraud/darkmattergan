@@ -1,0 +1,11 @@
+numpy==1.14.5
+tensorflow
+pil
+pynbody
+h5py
+sklearn
+skimage
+pyyalm
+-e tfnntools
+matplotlib
+jupyter
