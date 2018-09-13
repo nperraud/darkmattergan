@@ -9,3 +9,5 @@ pyyaml
 -e tfnntools
 matplotlib
 jupyter
+moviepy
+requests

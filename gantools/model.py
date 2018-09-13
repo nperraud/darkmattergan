@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from blocks import *
+from gantools.blocks import *
 
 
 def rprint(msg, reuse=False):

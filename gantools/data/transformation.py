@@ -1,5 +1,5 @@
 import numpy as np
-from blocks import downsample
+from gantools.blocks import downsample
 
 
 def random_shift_2d(images):

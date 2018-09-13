@@ -7,7 +7,7 @@ The data module contains all the function to preprocess, transform and load the 
  * tranformation : transformation for the data
 """
 
-from data import load
-from data import transformation
-from data import path
-from data import Dataset
+from . import load
+from . import transformation
+from . import path
+from . import Dataset

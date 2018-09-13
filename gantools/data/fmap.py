@@ -76,11 +76,11 @@ def gauss_backward(x, shift=0, clip_max=1e6):
     return np.round(y - 1 - shift)
 
 
-def shifted_log_forward(X, shift=1.0):
+def log_forward(X, shift=1.0):
     return np.log(np.sqrt(X) + np.e**shift) - shift
 
-def shifted_log_backard(Xmap, clip_max=1e7, shift=1.0):
-    Xmap = np.clip(Xmap, 0, shifted_log_forward(clip_max))
+def log_backard(Xmap, clip_max=1e7, shift=1.0):
+    Xmap = np.clip(Xmap, 0, log_forward(clip_max))
     tmp = np.exp(Xmap + shift) - np.e**shift
     return np.round(tmp * tmp)
 
@@ -138,26 +138,26 @@ def andres_backward(y, shift=20., scale=1., real_max=1e8):
     return (shift + 1) * (y_clipped + 1) / (1 - y_clipped)
 
 
-def pre_process(X_raw, k=20., scale=1.):
-    """Map real positive numbers to a [-scale, scale] range.
+# def pre_process(X_raw, k=20., scale=1.):
+#     """Map real positive numbers to a [-scale, scale] range.
 
-    Tensorflow version
-    """
-    k = tf.constant(k, dtype=tf.float32)
-    X = tf.subtract(2.0 * (X_raw / tf.add(X_raw, k)), 1.0) * scale
-    return X
+#     Tensorflow version
+#     """
+#     k = tf.constant(k, dtype=tf.float32)
+#     X = tf.subtract(2.0 * (X_raw / tf.add(X_raw, k)), 1.0) * scale
+#     return X
 
 
-def inv_pre_process(X, k=10., scale=1., real_max=1e8):
-    """Inverse of the function forward map.
+# def inv_pre_process(X, k=10., scale=1., real_max=1e8):
+#     """Inverse of the function forward map.
 
-    Tensorflow version
-    """
-    simple_max = andres_forward(real_max, k, scale)
-    simple_min = andres_forward(0, k, scale)
-    X_clipped = tf.clip_by_value(X, simple_min, simple_max) / scale
-    X_raw = tf.multiply((X_clipped + 1.0) / (1.0 - X_clipped), k)
-    return X_raw
+#     Tensorflow version
+#     """
+#     simple_max = andres_forward(real_max, k, scale)
+#     simple_min = andres_forward(0, k, scale)
+#     X_clipped = tf.clip_by_value(X, simple_min, simple_max) / scale
+#     X_raw = tf.multiply((X_clipped + 1.0) / (1.0 - X_clipped), k)
+#     return X_raw
 
 
 def stat_forward_0(x, c=2e4):

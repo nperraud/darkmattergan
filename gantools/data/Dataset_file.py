@@ -1,10 +1,10 @@
 import itertools
 import numpy as np
 import tensorflow as tf
-import utils, blocks
-from utils import compose2
-from data import path
-from data import transformation, fmap
+from gantools import utils, blocks
+from gantools.utils import compose2
+from gantools.data import path
+from gantools.data import transformation, fmap
 import functools, os
 
 

@@ -1,18 +1,18 @@
 import numpy as np
 import os
-import utils
-from data import gaussian_synthetic_data
-from data import path
-from data import transformation, fmap
-from data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time, Dataset
-from data.Dataset_file import Dataset_file_2d, Dataset_file_3d, Dataset_file_2d_patch, Dataset_file_3d_patch, Dataset_file_time
-from data import Dataset_medical
+from gantools import utils
+from gantools.data import gaussian_synthetic_data
+from gantools.data import path
+from gantools.data import transformation, fmap
+from gantools.data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time, Dataset
+from gantools.data.Dataset_file import Dataset_file_2d, Dataset_file_3d, Dataset_file_2d_patch, Dataset_file_3d_patch, Dataset_file_time
+from gantools.data import Dataset_medical
 # from data.Dataset_medical import Dataset_medical_2d, Dataset_medical_3d, Dataset_medical_2d_patch, Dataset_medical_3d_patch, Dataset_medical_time
 from skimage import io
 from functools import partial
 
 
-import blocks
+from gantools import blocks
 
 
 def load_data_from_dir(dir_path, k=10):
