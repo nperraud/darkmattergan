@@ -14,7 +14,7 @@ Using Generative Adversarial Networks to generate replications of N-Body simulat
 8. tfnntools (provided with this package, install with -e)
 9. matplotlib
 10. jupyter
-11. pyyalm
+11. PyYaml
 
 You can simply install those packages with the following command:
 ```
