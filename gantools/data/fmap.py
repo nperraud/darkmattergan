@@ -7,10 +7,10 @@ import scipy
 
 
 def medical_forward(x):
-    return (x/256.0)
+    return np.clip(((x+1)/257.0), 1/257, 1-1/257)
 
 def medical_backward(y):
-    return np.round(np.clip(y*256.0, 1, 255))
+    return np.round(np.clip(y*257.0-1, 0, 255))
 
 def log_norm_forward_0(x, c=8000.0):
     if not type(x).__module__ == np.__name__:
@@ -63,6 +63,28 @@ def gauss_forward(x, shift=0, a = 1):
         c = 0.0
     return v - c
 
+# def log_norm_forward(x, c=2000):
+#     if not type(x).__module__ == np.__name__:
+#         x = np.array([x])
+#     res = np.zeros(shape=x.shape, dtype=np.float32)
+#     mask = x > c
+#     maski = mask == False
+#     res[maski] = np.log(x[maski] + 1) - np.log(c + 1)
+#     res[mask] = (x[mask] / (c + 1) - 1)
+#     return res
+
+# def log_norm_backward(x, c=2000):
+#     if not type(x).__module__ == np.__name__:
+#         x = np.array([x])
+#     res = np.zeros(shape=x.shape, dtype=np.float32)
+
+#     mask = x > 0
+#     maski = mask == False
+
+#     res[maski] = np.exp(x[maski] + np.log(c + 1)) - 1
+#     res[mask] = (x[mask] + 1) * (c + 1)
+#     return res
+
 
 def gauss_backward(x, shift=0, clip_max=1e6):
     x_max = gauss_forward(clip_max, shift=shift)
@@ -79,7 +101,7 @@ def gauss_backward(x, shift=0, clip_max=1e6):
 def log_forward(X, shift=1.0):
     return np.log(np.sqrt(X) + np.e**shift) - shift
 
-def log_backard(Xmap, clip_max=1e7, shift=1.0):
+def log_backward(Xmap, clip_max=1e7, shift=1.0):
     Xmap = np.clip(Xmap, 0, log_forward(clip_max))
     tmp = np.exp(Xmap + shift) - np.e**shift
     return np.round(tmp * tmp)
@@ -119,7 +141,7 @@ def tanh_backward(X, shift=20, clip_max=1e6):
     return uniform_backward(y)
 
 
-def andres_forward(x, shift=10., scale=1.):
+def andres_forward(x, shift=20., scale=1.):
     """Map real positive numbers to a [-scale, scale] range.
 
     Numpy version
@@ -193,27 +215,7 @@ def stat_backward(x, c=2e4, shift=3):
     x = np.clip(x, 0., np.inf)
     return stat_backward_0(x + stat_forward_0(shift, c=c), c=c) - shift
 
-def log_norm_forward(x, c=2000):
-    if not type(x).__module__ == np.__name__:
-        x = np.array([x])
-    res = np.zeros(shape=x.shape, dtype=np.float32)
-    mask = x > c
-    maski = mask == False
-    res[maski] = np.log(x[maski] + 1) - np.log(c + 1)
-    res[mask] = (x[mask] / (c + 1) - 1)
-    return res
 
-def log_norm_backward(x, c=2000):
-    if not type(x).__module__ == np.__name__:
-        x = np.array([x])
-    res = np.zeros(shape=x.shape, dtype=np.float32)
-
-    mask = x > 0
-    maski = mask == False
-
-    res[maski] = np.exp(x[maski] + np.log(c + 1)) - 1
-    res[mask] = (x[mask] + 1) * (c + 1)
-    return res
 
 forward = stat_forward
 backward = stat_backward

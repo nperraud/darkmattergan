@@ -1,13 +1,13 @@
+if __name__ == '__main__':
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__),'../../'))
+    os.environ["CUDA_VISIBLE_DEVICES"]=""
+
 import unittest
 
 import numpy as np
 import tensorflow as tf
-
-if __name__ == '__main__':
-    import sys
-    sys.path.insert(0, '../')
-    import os
-    os.environ["CUDA_VISIBLE_DEVICES"]=""
+    
 from gantools import blocks
 
 def downsample_old(imgs, s, is_3d=False, sess=None):
