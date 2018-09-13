@@ -8,6 +8,8 @@ Using Generative Adversarial Networks to generate replications of N-Body simulat
 2. Pillow (PIL)
 3. Tensorflow
 4. h5py
+5. scikit-learn
+6. scikit-image
 
 ## Dataset
 

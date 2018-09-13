@@ -9,19 +9,28 @@ import matplotlib.pyplot as plt
 
 # Inspired by Andres
 
+
 class PlotSummary(object):
     def __init__(self, name, cat, collections=None):
         self._name = name
-        self._placeholder = tf.placeholder(tf.uint8, (None, None, None, None))
+        self._cat = cat
+        self._collections = collections
+        self._plot_str = tf.placeholder(tf.string)
+        self._build_graph()
+
+    def _build_graph(self):
+        '''
+        Build the tf graph for creating plot summary
+        '''
+        image = tf.image.decode_png(self._plot_str, channels=4)
+        image = tf.expand_dims(image, 0)
+
         self._summary = tf.summary.image(
-            cat + '/' + name, self._placeholder, collections=collections)
-        self._image = None
+            self._cat + '/' + self._name, image, collections=self._collections)
 
     def produceSummaryToWrite(self, session, *args, **kwargs):
         self.plot(*args, **kwargs)
-        self._fill_from_figure()
-        decoded_image = session.run(self._image)
-        feed_dict = {self._placeholder: decoded_image}
+        feed_dict = {self._plot_str : self._get_plot_str()}
         return session.run(self._summary, feed_dict=feed_dict)
 
     def plot(self):
@@ -36,14 +45,12 @@ class PlotSummary(object):
         # ax.tick_params(axis='both', which='major', labelsize=10)
         # ax.legend()
 
-    def _fill_from_figure(self):
+    def _get_plot_str(self):
         buf = io.BytesIO()
         plt.savefig(buf, format='png')
         plt.close()
         buf.seek(0)
-        image = tf.image.decode_png(buf.getvalue(), channels=4)
-        image = tf.expand_dims(image, 0)
-        self._image = image
+        return buf.getvalue()
 
 
 class PlotSummaryLog(PlotSummary):

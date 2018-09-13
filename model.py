@@ -86,6 +86,7 @@ class WNGanModel(GanModel):
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
 
+
 class CondWGanModel(GanModel):
     def __init__(self, params, X, z, name='CondWGan', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
@@ -280,6 +281,364 @@ class TemporalGanModelv3(GanModel):
         return self._G_loss
 
 
+class TemporalRWGanModelv3GP(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        assert 'time' in params.keys()
+
+        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
+        z_shape = tf.shape(zn)
+        scaling = np.asarray(params['time']['class_weights'])
+        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+        scaling = np.resize(scaling, (gen_bs, 1))
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        zn = tf.multiply(zn, t)
+
+        self.G_c_fake = self.generator(zn, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
+
+        if params['time']['use_diff_stats']:
+            self.disc = self.df_discriminator
+        else:
+            self.disc = self.discriminator
+
+        self.D_real = self.disc(X, reuse=False)
+        self.D_fake = self.disc(self.G_fake, reuse=True)
+
+        D_loss_f = tf.reduce_mean(self.D_fake - self.D_real)
+        D_loss_r = tf.reduce_mean(self.D_real - self.D_fake)
+
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -D_loss_r + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def reshape_time_to_channels_old(self, X):
+        bs = self.params['optimization']['batch_size']
+        nc = self.params['time']['num_classes']
+        idx = np.arange(bs) * nc
+        x = tf.gather(X, idx)
+        #for i in (np.arange(nc - 1) + 1):
+        for i in range(1, nc):
+            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
+        return x
+
+    def reshape_time_to_channels(self, X):
+        nc = self.params['time']['num_classes']
+        lst = []
+        for i in range(nc):
+            lst.append(X[i::nc])
+        return tf.concat(lst, axis=3)
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+    def df_discriminator(self, X, reuse):
+        y = X[:, :, :, 1:] - X[:, :, :, :-1]
+        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
+
+
+class TemporalGanModelv4(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        assert 'time' in params.keys()
+
+        z0 = z[:, 0::2]
+        z1 = z[:, 1::2]
+        zn = tf.nn.l2_normalize(z1, 1) * np.sqrt(params['generator']['latent_dim'] / 2)
+        z_shape = tf.shape(zn)
+        scaling = np.asarray(params['time']['class_weights'])
+        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+        scaling = np.resize(scaling, (gen_bs, 1))
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        zn = tf.multiply(zn, t)
+        zn = tf.expand_dims(zn, -1)
+        z0 = tf.expand_dims(z0, -1)
+        zn = tf.concat([z0, zn], axis=2)
+
+        self.G_c_fake = self.generator(zn, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
+
+        if params['time']['use_diff_stats']:
+            self.disc = self.df_discriminator
+        else:
+            self.disc = self.discriminator
+
+        self.D_real = self.disc(X, reuse=False)
+        self.D_fake = self.disc(self.G_fake, reuse=True)
+
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def reshape_time_to_channels(self, X):
+        nc = self.params['time']['num_classes']
+        lst = []
+        for i in range(nc):
+            lst.append(X[i::nc])
+        return tf.concat(lst, axis=3)
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+    def df_discriminator(self, X, reuse):
+        y = X[:, :, :, 1:] - X[:, :, :, :-1]
+        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
+
+class TemporalGenericGanModel(GanModel):
+    def __init__(self, params, X, z, name='TempGenericGAN', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        assert 'time' in params.keys()
+        assert 'model' in params['time'].keys()
+
+        z = self.prep_latent(z, params['time']['model'])
+
+        self.G_c_fake = self.generator(z, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
+
+        if params['time']['use_diff_stats']:
+            self.disc = self.df_discriminator
+        else:
+            self.disc = self.discriminator
+
+        self.D_real = self.disc(X, reuse=False)
+        self.D_fake = self.disc(self.G_fake, reuse=True)
+
+        gamma_gp = self.params['optimization']['gamma_gp']
+        if self.params['optimization'].get('JS-regularization', False):
+            print("Using JS-Regularization (Roth et al. 2017)")
+            D_gp = js_regularization(self.D_real, X, self.D_fake, self.G_fake,
+                                     params['optimization']['batch_size'])
+            D_gp = (gamma_gp / 2.0) * D_gp
+
+            s_D_real = tf.nn.sigmoid(self.D_real)
+            s_D_fake = tf.nn.sigmoid(self.D_fake)
+
+            self._D_loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real, labels=tf.ones_like(s_D_real))
+                + tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.zeros_like(s_D_fake)))
+
+            self._G_loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.ones_like(s_D_fake)))
+
+            # wgan_summaries(self._D_loss, self._G_loss, s_D_fake, s_D_real)
+        else:
+            D_gp = 0
+            if gamma_gp != 0:
+                D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+
+            if params['time']['model']['relative']:
+                D_loss_f = tf.reduce_mean(self.D_fake - self.D_real)
+                D_loss_r = tf.reduce_mean(self.D_real - self.D_fake)
+
+                self._D_loss = -D_loss_r + D_gp
+                self._G_loss = -D_loss_f
+                wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+            else:
+                D_loss_f = tf.reduce_mean(self.D_fake)
+                D_loss_r = tf.reduce_mean(self.D_real)
+
+                self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+                self._G_loss = -D_loss_f
+                wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def reshape_time_to_channels(self, X):
+        nc = self.params['time']['num_classes']
+        lst = []
+        for i in range(nc):
+            lst.append(X[i::nc])
+        return tf.concat(lst, axis=3)
+
+    def prep_latent(self, z, params):
+        if params['time_encoding'] == 'channel_encoding':
+            ld_width = self.params['image_size'][0]
+            for stride in self.params['generator']['stride']:
+                ld_width = ld_width // stride
+
+            assert ld_width*ld_width < self.params['generator']['latent_dim']
+
+            z_shape = tf.shape(z)
+            z = tf.reshape(z, [z_shape[0], ld_width, ld_width, z_shape[1] // (ld_width*ld_width)])
+            scaling = np.asarray(self.params['time']['class_weights'])
+            gen_bs = self.params['optimization']['batch_size'] * self.params['time']['num_classes']
+            scaling = np.resize(scaling, (gen_bs, 1))
+            default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+            self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+            t = self.y[:z_shape[0]]
+            t = tf.expand_dims(t, axis=-1)
+            t = tf.expand_dims(tf.tile(t, [1, ld_width, ld_width]), axis=-1)
+            z = z[:, :, :, :-1]
+            z = tf.concat([z, t], axis=3)
+            return tf.reshape(z, z_shape)
+
+        if params['time_encoding'] == 'scale_full':
+            zn = tf.nn.l2_normalize(z, 1) * np.sqrt(self.params['generator']['latent_dim'])
+            z_shape = tf.shape(zn)
+            scaling = np.asarray(self.params['time']['class_weights'])
+            gen_bs = self.params['optimization']['batch_size'] * self.params['time']['num_classes']
+            scaling = np.resize(scaling, (gen_bs, 1))
+            default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+            self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+            t = self.y[:z_shape[0]]
+            return tf.multiply(zn, t)
+
+        if params['time_encoding'] == 'scale_half':
+            z0 = z[:, 0::2]
+            z1 = z[:, 1::2]
+            zn = tf.nn.l2_normalize(z1, 1) * np.sqrt(self.params['generator']['latent_dim'] / 2)
+            z_shape = tf.shape(zn)
+            scaling = np.asarray(self.params['time']['class_weights'])
+            gen_bs = self.params['optimization']['batch_size'] * self.params['time']['num_classes']
+            scaling = np.resize(scaling, (gen_bs, 1))
+            default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+            self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+            t = self.y[:z_shape[0]]
+            zn = tf.multiply(zn, t)
+            zn = tf.expand_dims(zn, -1)
+            z0 = tf.expand_dims(z0, -1)
+            return tf.concat([z0, zn], axis=2)
+
+        raise ValueError(' [!] time encoding not defined')
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+    def df_discriminator(self, X, reuse):
+        y = X[:, :, :, 1:] - X[:, :, :, :-1]
+        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
+
+class TemporalGanModelv5(GanModel):
+    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
+        super().__init__(params=params, name=name, is_3d=is_3d)
+        assert 'time' in params.keys()
+
+        ld_width = params['image_size'][0]
+        for stride in params['generator']['stride']:
+            ld_width = ld_width // stride
+
+        assert ld_width*ld_width < params['generator']['latent_dim']
+
+        z_shape = tf.shape(z)
+        z = tf.reshape(z, [z_shape[0], ld_width, ld_width, z_shape[1] // (ld_width*ld_width)])
+        scaling = np.asarray(params['time']['class_weights'])
+        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
+        scaling = np.resize(scaling, (gen_bs, 1))
+        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+        t = self.y[:z_shape[0]]
+        t = tf.expand_dims(t, axis=-1)
+        t = tf.expand_dims(tf.tile(t, [1, ld_width, ld_width]), axis=-1)
+        z = z[:, :, :, :-1]
+        z = tf.concat([z, t], axis=3)
+        z = tf.reshape(z, z_shape)
+
+        self.G_c_fake = self.generator(z, reuse=False)
+        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
+
+        if params['time']['use_diff_stats']:
+            self.disc = self.df_discriminator
+        else:
+            self.disc = self.discriminator
+
+        self.D_real = self.disc(X, reuse=False)
+        self.D_fake = self.disc(self.G_fake, reuse=True)
+
+        D_loss_f = tf.reduce_mean(self.D_fake)
+        D_loss_r = tf.reduce_mean(self.D_real)
+
+        gamma_gp = self.params['optimization']['gamma_gp']
+        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
+        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
+        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
+        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
+        self._G_loss = -D_loss_f
+        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
+
+    def reshape_time_to_channels_old(self, X):
+        bs = self.params['optimization']['batch_size']
+        nc = self.params['time']['num_classes']
+        idx = np.arange(bs) * nc
+        x = tf.gather(X, idx)
+        #for i in (np.arange(nc - 1) + 1):
+        for i in range(1, nc):
+            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
+        return x
+
+    def reshape_time_to_channels(self, X):
+        nc = self.params['time']['num_classes']
+        lst = []
+        for i in range(nc):
+            lst.append(X[i::nc])
+        return tf.concat(lst, axis=3)
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse)
+
+    def df_discriminator(self, X, reuse):
+        y = X[:, :, :, 1:] - X[:, :, :, :-1]
+        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
 class TemporalGanModelv3E(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
@@ -357,7 +716,7 @@ class TemporalGanModelv3E(GanModel):
         return True
 
 
-class TemporalGanModelv4(GanModel):
+class TemporalGanModelv4old(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
         assert 'time' in params.keys()
@@ -536,7 +895,6 @@ class LapGanModelTanh(GanModel):
 
     def discriminator(self, X, Xsu, reuse):
         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
-
 
 
 class Gan12Model(GanModel):
@@ -978,7 +1336,7 @@ class upscale_WGAN_pixel_CNN(GanModel):
         super().__init__(params=params, name=name, is_3d=is_3d)
 
         # A) Get downsampling factor
-        self.downsampling = params['generator'].get('downsampling', None)
+        self.downsampling = params['generator']['downsampling']
 
         if self.is_3d:
             self.__init_3d(params, X, z)
@@ -1054,6 +1412,7 @@ class upscale_WGAN_pixel_CNN(GanModel):
             D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
         else:
             D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+
 
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
@@ -1218,8 +1577,6 @@ class LapPatchWGANDirect(GanModel):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
 
 
-
-
 # class GanUpSampler(object):
 #     def __init__(self, name='gan_upsampler'):
 #         self.name = name
@@ -1245,6 +1602,7 @@ def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r):
     tf.summary.scalar("Disc/Loss_r", D_loss_r, collections=["Training"])
     tf.summary.scalar("Gen/Loss", G_loss, collections=["Training"])
 
+
 def fisher_gan_regularization(D_real, D_fake, rho=1):
     with tf.variable_scope("discriminator", reuse=False):
         phi = tf.get_variable('lambda', shape=[],
@@ -1262,6 +1620,7 @@ def fisher_gan_regularization(D_real, D_fake, rho=1):
     tf.summary.scalar("Disc/constraint", reg_term, collections=["Training"])
     tf.summary.scalar("Disc/reg_term", reg_term, collections=["Training"])
     return reg_term
+
 
 def wgan_regularization(gamma, discriminator, list_fake, list_real):
     if not gamma:
@@ -1294,12 +1653,38 @@ def wgan_regularization(gamma, discriminator, list_fake, list_real):
         tf.summary.scalar("Disc/NormGradientPen", norm_gradient_pen, collections=["Training"])
     return D_gp
 
+
+#Roth et al. 2017, see https://github.com/rothk/Stabilizing_GANs
+def js_regularization(D1_logits, D1_arg, D2_logits, D2_arg, batch_size):
+    #print("In shapes: {}, {}, {}, {}".format(D1_logits.shape, D1_arg.shape, D2_logits.shape, D2_arg.shape))
+    D1 = tf.nn.sigmoid(D1_logits)
+    D2 = tf.nn.sigmoid(D2_logits)
+    bs = tf.shape(D1)[0]
+    grad_D1_logits = tf.gradients(D1_logits, D1_arg)[0]
+    #print(grad_D1_logits.shape)
+    grad_D2_logits = tf.gradients(D2_logits, D2_arg)[0]
+    grad_D1_logits_norm = tf.norm(tf.reshape(grad_D1_logits, [bs,-1]), axis=1, keep_dims=True)
+    grad_D2_logits_norm = tf.norm(tf.reshape(grad_D2_logits, [bs,-1]), axis=1, keep_dims=True)
+
+    #set keep_dims=True/False such that grad_D_logits_norm.shape == D.shape
+    print("Shapes: {}=?={} and {}=?={}".format(grad_D1_logits_norm.shape, D1.shape,
+                                               grad_D2_logits_norm.shape, D2.shape))
+    #assert grad_D1_logits_norm.shape == D1.shape
+    #assert grad_D2_logits_norm.shape == D2.shape
+
+    reg_D1 = tf.multiply(tf.square(1.0-D1), tf.square(grad_D1_logits_norm))
+    reg_D2 = tf.multiply(tf.square(D2), tf.square(grad_D2_logits_norm))
+    disc_regularizer = tf.reduce_mean(reg_D1 + reg_D2)
+    return disc_regularizer
+
+
 def get_conv(is_3d=False):
     if is_3d:
         conv = conv3d
     else:
         conv = conv2d
     return conv
+
 
 def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d=False):
     if is_3d:
@@ -1321,6 +1706,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d
 
     return out_tensor
 
+
 def apply_non_lin(non_lin, x, reuse):
     if non_lin:
         if type(non_lin)==str:
@@ -1332,6 +1718,65 @@ def apply_non_lin(non_lin, x, reuse):
             rprint('    Costum non linearity: {}'.format(non_lin), reuse)
 
     return x
+
+
+def legacy_cdf_block(x, params, reuse):
+    cdf = tf_cdf(x, params['cdf'])
+    rprint('    Cdf layer: {}'.format(params['cdf']), reuse)
+    rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+    if params['channel_cdf']:
+        lst = []
+        for i in range(x.shape[-1]):
+            lst.append(tf_cdf(x, params['channel_cdf'],
+                              name="cdf_weight_channel_{}".format(i)))
+            rprint('        Channel Cdf layer: {}'.format(params['cdf']), reuse)
+        lst.append(cdf)
+        cdf = tf.concat(lst, axis=1)
+        rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+    cdf = linear(cdf, 2 * params['cdf'], 'cdf_full', summary=params['summary'])
+    cdf = params['activation'](cdf)
+    rprint('     CDF Full layer with {} outputs'.format(2 * params['cdf']), reuse)
+    rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
+    return cdf
+
+
+def cdf_block(x, params, reuse):
+    assert ('cdf_block' in params.keys())
+    block_params = params['cdf_block']
+    assert ('cdf_in' in block_params.keys() or 'channel_cdf' in block_params.keys())
+    use_first = block_params.get('use_first_channel', False)
+    cdf = None
+    if block_params.get('cdf_in', None):
+        cdf = tf_cdf(x, block_params['cdf_in'], use_first_channel=use_first)
+        rprint('    Cdf layer: {}'.format(block_params['cdf_in']), reuse)
+        rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+    if block_params.get('channel_cdf', None):
+        lst = []
+        for i in range(x.shape[-1]):
+            lst.append(tf_cdf(x[:,:,:,i], block_params['channel_cdf'], use_first_channel=False,
+                              name="cdf_weight_channel_{}".format(i)))
+            rprint('        Channel Cdf layer: {}'.format(block_params['channel_cdf']), reuse)
+        if block_params.get('cdf_in', None):
+            lst.append(cdf)
+        cdf = tf.concat(lst, axis=1)
+        rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
+    out_dim = block_params.get('cdf_out', 2 * block_params.get('cdf_in',8))
+    cdf = linear(cdf, out_dim, 'cdf_full', summary=params['summary'])
+    cdf = params['activation'](cdf)
+    rprint('     CDF Full layer with {} outputs'.format(out_dim), reuse)
+    rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
+    return cdf
+
+
+def histogram_block(x, params, reuse):
+    hist = learned_histogram(x, params['histogram'])
+    out_dim = params['histogram'].get('full', 32)
+    hist = linear(hist, out_dim, 'hist_full', summary=params['summary'])
+    hist = params['activation'](hist)
+    rprint('     Histogram full layer with {} outputs'.format(out_dim), reuse)
+    rprint('         Size of the histogram variables: {}'.format(hist.shape), reuse)
+    return hist
+
 
 def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     conv = get_conv(params['is_3d'])
@@ -1354,23 +1799,16 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             non_lin_f = getattr(tf, params['non_lin'])
             x = non_lin_f(x)
             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+
+
         if params['cdf']:
-            cdf = tf_cdf(x, params['cdf'])
-            rprint('    Cdf layer: {}'.format(params['cdf']), reuse)
-            rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
-            if params['channel_cdf']:
-                lst = []
-                for i in range(x.shape[-1]):
-                    lst.append(tf_cdf(x, params['channel_cdf'],
-                                      name="cdf_weight_channel_{}".format(i)))
-                    rprint('        Channel Cdf layer: {}'.format(params['cdf']), reuse)
-                lst.append(cdf)
-                cdf = tf.concat(lst, axis=1)
-                rprint('         Size of the cdf variables: {}'.format(cdf.shape), reuse)
-            cdf = linear(cdf, 2 * params['cdf'], 'cdf_full', summary=params['summary'])
-            cdf = lrelu(cdf)
-            rprint('     CDF Full layer with {} outputs'.format(2*params['cdf']), reuse)
-            rprint('         Size of the CDF variables: {}'.format(cdf.shape), reuse)
+            cdf = legacy_cdf_block(x, params, reuse)
+        if params['cdf_block']:
+            assert(not params['cdf'])
+            cdf = cdf_block(x, params, reuse)
+        if params.get('histogram', None):
+            print('generating histogram block')
+            hist = histogram_block(x, params, reuse)
         if params['moment']:
             rprint('    Covariance layer with {} shape'.format(params['moment']), reuse)
             cov = tf_covmat(x, params['moment'])
@@ -1379,24 +1817,39 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             rprint('        Reshape output {} shape'.format(cov.shape), reuse)
             nel = np.prod(params['moment'])**2
             cov = linear(cov, nel, 'cov_full', summary=params['summary'])
-            cov = lrelu(cov)
+            cov = params['activation'](cov)
             rprint('     Covariance Full layer with {} outputs'.format(nel), reuse)
             rprint('         Size of the CDF variables: {}'.format(cov.shape), reuse)
             
+
         for i in range(nconv):
-            x = conv(x,
-                     nf_out=params['nfilter'][i],
-                     shape=params['shape'][i],
-                     stride=params['stride'][i],
-                     name='{}_conv'.format(i),
-                     summary=params['summary'])
-            rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+            if params['inception']:
+                x = inception_conv(in_tensor=x, 
+                                    n_filters=params['nfilter'][i], 
+                                    stride=params['stride'][i], 
+                                    summary=params['summary'], 
+                                    num=i,
+                                    is_3d=params['is_3d'], 
+                                    merge=(i == (nconv-1))
+                                    )
+                rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+            else:
+                x = conv(x,
+                         nf_out=params['nfilter'][i],
+                         shape=params['shape'][i],
+                         stride=params['stride'][i],
+                         name='{}_conv'.format(i),
+                         summary=params['summary'])
+                rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+
             if params['batch_norm'][i]:
                 x = batch_norm(x, name='{}_bn'.format(i), train=True)
                 rprint('         Batch norm', reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
-            x = lrelu(x)
+            x = params['activation'](x)
 
         x = reshape2d(x, name='img2vec')
         rprint('     Reshape to {}'.format(x.shape), reuse)
@@ -1404,9 +1857,12 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         if z is not None:
             x = tf.concat([x, z], axis=1)
             rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
-        if params['cdf']:
+        if params['cdf'] or params['cdf_block']:
             x = tf.concat([x, cdf], axis=1)
-            rprint('     Contenate with CDF variables to {}'.format(x.shape), reuse)           
+            rprint('     Contenate with CDF variables to {}'.format(x.shape), reuse)
+        if params.get('histogram', None):
+            x = tf.concat([x, hist], axis=1)
+            rprint('     Contenate with Histogram variables to {}'.format(x.shape), reuse)
         if params['moment']:
             x = tf.concat([x, cov], axis=1)
             rprint('     Contenate with covairance variables to {}'.format(x.shape), reuse)           
@@ -1416,7 +1872,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                        params['full'][i],
                        '{}_full'.format(i+nconv),
                        summary=params['summary'])
-            x = lrelu(x)
+            x = params['activation'](x)
             rprint('     {} Full layer with {} outputs'.format(nconv+i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
         if params['minibatch_reg']:
@@ -1427,8 +1883,6 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
     return x
-
-
 
 
 def generator(x, params, y=None, reuse=True, scope="generator"):
@@ -1447,7 +1901,7 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
                        params['full'][i],
                        '{}_full'.format(i),
                        summary=params['summary'])
-            x = lrelu(x)
+            x = params['activation'](x)
             rprint('     {} Full layer with {} outputs'.format(i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
@@ -1465,23 +1919,43 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
-            x = deconv(in_tensor=x, 
-                       bs=bs, 
-                       sx=sx,
-                       n_filters=params['nfilter'][i],
-                       shape=params['shape'][i],
-                       stride=params['stride'][i],
-                       summary=params['summary'],
-                       conv_num=i,
-                       is_3d=params['is_3d'])
 
-            rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
+            if params['inception']:
+                x = inception_deconv(in_tensor=x, 
+                                    bs=bs, 
+                                    sx=sx, 
+                                    n_filters=params['nfilter'][i], 
+                                    stride=params['stride'][i], 
+                                    summary=params['summary'], 
+                                    num=i, 
+                                    is_3d=params['is_3d'], 
+                                    merge=(i == (nconv-1))
+                                    )
+                rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+       
+            else:       
+                x = deconv(in_tensor=x, 
+                           bs=bs, 
+                           sx=sx,
+                           n_filters=params['nfilter'][i],
+                           shape=params['shape'][i],
+                           stride=params['stride'][i],
+                           summary=params['summary'],
+                           conv_num=i,
+                           is_3d=params['is_3d']
+                           )
+                rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
+
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
-                x = lrelu(x)
+
+                x = params['activation'](x)
+                rprint('         Non linearity applied', reuse)
+
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
+
         if len(params['one_pixel_mapping']):
             x = one_pixel_mapping(x,
                                   params['one_pixel_mapping'],
@@ -1506,13 +1980,20 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
 
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
+
+    conv = get_conv(params['is_3d'])
     nconv = len(params['stride'])
     nfull = len(params['full'])
 
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n'+''.join(['-']*50), reuse)
+        
         if X is not None:
             rprint('     The input X is of size {}'.format(X.shape), reuse)
+
+            if params['downsampling']:
+                X = up_sampler(X, s=params['downsampling'], is_3d=True)
+                rprint('     The input X is upsampled to size {}'.format(X.shape), reuse)
 
         rprint('     The input z is of size {}'.format(z.shape), reuse)
         if y is not None:
@@ -1524,7 +2005,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                        params['full'][i],
                        '{}_full'.format(i),
                        summary=params['summary'])
-            z = lrelu(z)
+            z = params['activation'](z)
             rprint('     {} Full layer with {} outputs'.format(i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(z.shape), reuse)
 
@@ -1554,7 +2035,10 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                 x = tf.concat([X, z], axis=4)
             else:
                 x = tf.concat([X, z], axis=3)
-            rprint('     Concat x and z to {}'.format(x.shape), reuse)
+            rprint('     Concat X and z to {}'.format(x.shape), reuse)
+
+        conv_over_deconv = np.all(np.array(params['stride']) == 1) # If true use conv, else deconv
+        print("     conv_over_deconv=", conv_over_deconv)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
@@ -1568,23 +2052,73 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                     x = tf.concat([x, y], axis=3)
                 rprint('     Concat x and y to {}'.format(x.shape), reuse) 
 
-            x = deconv(in_tensor=x, 
-                       bs=bs, 
-                       sx=sx,
-                       n_filters=params['nfilter'][i],
-                       shape=params['shape'][i],
-                       stride=params['stride'][i],
-                       summary=params['summary'],
-                       conv_num=i,
-                       is_3d=params['is_3d'])
-            rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
 
+            if params['residual'] and (i%2 != 0) and (i < nconv-2): # save odd layer inputs for residual connections
+                residue = x
+
+            if params['inception']:
+                if conv_over_deconv:
+                    x = inception_conv(in_tensor=x, 
+                                    n_filters=params['nfilter'][i], 
+                                    stride=params['stride'][i], 
+                                    summary=params['summary'], 
+                                    num=i,
+                                    is_3d=params['is_3d'], 
+                                    merge= (True if params['residual'] else (i == (nconv-1)) )
+                                    )
+                    rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+                else:
+                    x = inception_deconv(in_tensor=x, 
+                                        bs=bs, 
+                                        sx=sx, 
+                                        n_filters=params['nfilter'][i], 
+                                        stride=params['stride'][i], 
+                                        summary=params['summary'], 
+                                        num=i, 
+                                        is_3d=params['is_3d'], 
+                                        merge= (True if params['residual'] else (i == (nconv-1)) )
+                                        )
+                    rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+            else:
+                if conv_over_deconv:
+                    x = conv(x,
+                         nf_out=params['nfilter'][i],
+                         shape=params['shape'][i],
+                         stride=params['stride'][i],
+                         name='{}_conv'.format(i),
+                         summary=params['summary'])
+                    rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+                else:
+                    x = deconv(in_tensor=x, 
+                               bs=bs, 
+                               sx=sx,
+                               n_filters=params['nfilter'][i],
+                               shape=params['shape'][i],
+                               stride=params['stride'][i],
+                               summary=params['summary'],
+                               conv_num=i,
+                               is_3d=params['is_3d']
+                               )
+                    rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+            # residual connections before ReLU of every even layer, except 0th and last layer
+            if params['residual'] and (i != 0) and (i != nconv-1) and (i%2 == 0):
+                x = x + residue
+                rprint('         Residual connection', reuse)
+
+            # Batch Norm and ReLU
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
 
-                x = lrelu(x)
+                x = params['activation'](x)
+                rprint('         Non linearity applied', reuse)
+                
+
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if len(params['one_pixel_mapping']):
@@ -1594,8 +2128,10 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                                   reuse=reuse)
 
         x = apply_non_lin(params['non_lin'], x, reuse)
+
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
+
     return x
 
 

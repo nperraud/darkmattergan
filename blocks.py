@@ -41,6 +41,10 @@ def lrelu(x, leak=0.2, name="lrelu"):
     return tf.maximum(x, leak * x, name=name)
 
 
+def selu(x, name="selu"):
+    return tf.nn.selu(x, name=name)
+
+
 def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
     with tf.variable_scope(name):
         bn = tf.contrib.layers.batch_norm(
@@ -54,42 +58,84 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
 
         return bn
 
+def np_downsample_2d(x, scaling):
+    unique = False
+    if len(x.shape)<2:
+        raise ValueError('Too few dimensions')
+    elif len(x.shape)==2:
+        x = x.reshape([1,*x.shape])
+        unique = True
+    elif len(x.shape)>3:
+        raise ValueError('Too many dimensions')
+        
+    n, sx, sy = x.shape 
+    dsx = np.zeros([n,sx//scaling,sy//scaling])
+    for i in range(scaling):
+        for j in range(scaling):
+            dsx += x[:,i::scaling,j::scaling]
+    dsx /= (scaling**2)
+    if unique:
+        dsx = dsx[0]
+    return dsx
+
+def np_downsample_3d(x, scaling):
+    unique = False
+    if len(x.shape)<3:
+        raise ValueError('Too few dimensions')
+    elif len(x.shape)==3:
+        x = x.reshape([1,*x.shape])
+        unique = True
+    elif len(x.shape)>4:
+        raise ValueError('Too many dimensions')
+        
+    n, sx, sy, sz = x.shape 
+    nx = sx//scaling
+    ny = sy//scaling
+    nz = sz//scaling
+    dsx = np.zeros([n,nx,ny,nz])
+    for i in range(scaling):
+        for j in range(scaling):
+            for k in range(scaling):
+                dsx += x[:,i:scaling*nx+i:scaling,j:scaling*ny+j:scaling,k:scaling*nz+k:scaling]
+    dsx /= (scaling**3)
+    if unique:
+        dsx = dsx[0]
+    return dsx
 
 def downsample(imgs, s, is_3d=False):
-    # To be rewritten in numpy
     if is_3d:
-        # 1 extra dim for channels
-        imgs = np.expand_dims(imgs, axis=4)
-
-        x = tf.placeholder(tf.float32, shape=imgs.shape, name='x')
-        xd = down_sampler(x, s=s, is_3d=True)
-        with tf.Session() as sess:
-            img_d = sess.run(xd, feed_dict={x: imgs})
-
-        return np.squeeze(img_d)
-
+        return np_downsample_3d(imgs,s)
     else:
-        if len(imgs.shape) < 4:
-            imgs = np.expand_dims(imgs, axis=3)
-       
-        x = tf.placeholder(tf.float32, shape=[*imgs.shape[:3], 1], name='x')
-        xd = down_sampler(x, s=s, is_3d=False)
-        with tf.Session() as sess:
-            img_d = []
-            for i in range(imgs.shape[3]):
-                curr_img = np.expand_dims(imgs[:, :, :, i], axis=3)
-                img_d.append(sess.run(xd, feed_dict={x: curr_img}))
-        return np.squeeze(np.concatenate(img_d, axis=3))
+        return np_downsample_2d(imgs,s)
 
 
 
-def down_sampler(x, s=2, is_3d=False):
+
+def down_sampler(x=None, s=2, is_3d=False):
+    '''
+    Op to downsample 2D or 3D images by factor 's'.
+    This method works for both inputs: tensor or placeholder
+    '''
+
+    # The input to the downsampling operation is a placeholder.
+    if x is None:
+        placeholder_name = 'down_sampler_in_' + ('3d_' if is_3d else '2d_') + str(s)
+        down_sampler_x = tf.placeholder(dtype=tf.float32, name=placeholder_name)
+        op_name = 'down_sampler_out_' + ('3d_' if is_3d else '2d_') + str(s)
+    
+    # The input to the downsampling operation is the input tensor x.
+    else: 
+        down_sampler_x = x
+        op_name = None
+
+
     if is_3d:
         filt = tf.constant(1 / (s * s * s), dtype=tf.float32, shape=[s, s, s, 1, 1])
-        return tf.nn.conv3d(x, filt, strides=[1, s, s, s, 1], padding='SAME')
+        return tf.nn.conv3d(down_sampler_x, filt, strides=[1, s, s, s, 1], padding='SAME', name=op_name)
+
     else:
         filt = tf.constant(1 / (s * s), dtype=tf.float32, shape=[s, s, 1, 1])
-        return tf.nn.conv2d(x, filt, strides=[1, s, s, 1], padding='SAME')
+        return tf.nn.conv2d(down_sampler_x, filt, strides=[1, s, s, 1], padding='SAME', name=op_name)
 
 
 def up_sampler(x, s=2, is_3d=False):
@@ -116,33 +162,41 @@ def up_sampler(x, s=2, is_3d=False):
                         padding='SAME')
 
 
-# # Testing up_sampler, down_sampler
-# x = tf.placeholder(tf.float32, shape=[1,256,256,1],name='x')
-# input_img = np.reshape(gen_sample[1], [1,256,256,1])
-# xd = blocks.down_sampler(x, s=2)
-# xdu = blocks.up_sampler(xd, s=2)
-# xdud = blocks.down_sampler(xdu, s=2)
-# xdudu = blocks.up_sampler(xdud, s=2)
-# with tf.Session() as sess:
-#     img_d, img_du = sess.run([xd,xdu], feed_dict={x: input_img})
-#     img_dud, img_dudu = sess.run([xdud,xdudu], feed_dict={x: input_img})
-# img_d = np.squeeze(img_d)
-# img_du = np.squeeze(img_du)
-# img_dud = np.squeeze(img_dud)
-# img_dudu = np.squeeze(img_dudu)
-# img = np.squeeze(input_img)
-
-# img_d2 = np.zeros([128,128])
-
-# for i in range(128):
-#     for j in range(128):
-#         img_d2[i,j] = np.mean(img[2*i:2*(i+1),2*j:2*(j+1)])
-# print(np.linalg.norm(img_d2-img_d,ord='fro'))
-# print(np.linalg.norm(img_dud-img_d,ord='fro'))
-# print(np.linalg.norm(img_dudu-img_du,ord='fro'))
 
 
-def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
+def l2_norm(v, eps=1e-12):
+    return v / (tf.reduce_sum(v ** 2) ** 0.5 + eps)
+
+
+def spectral_norm(w, iteration=1):
+    w_shape = w.shape.as_list()
+    w = tf.reshape(w, [-1, w_shape[-1]])
+
+    u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.truncated_normal_initializer(), trainable=False)
+
+    u_hat = u
+    v_hat = None
+    for i in range(iteration):
+        """
+        power iteration
+        Usually iteration = 1 will be enough
+        """
+        v_ = tf.matmul(u_hat, tf.transpose(w))
+        v_hat = l2_norm(v_)
+
+        u_ = tf.matmul(v_hat, w)
+        u_hat = l2_norm(u_)
+
+    sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))
+    w_norm = w / sigma
+
+    with tf.control_dependencies([u.assign(u_hat)]):
+        w_norm = tf.reshape(w_norm, w_shape)
+
+    return w_norm
+
+
+def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="conv2d", summary=True):
     '''Convolutional layer for square images'''
 
     weights_initializer = tf.contrib.layers.xavier_initializer()
@@ -153,6 +207,8 @@ def conv2d(imgs, nf_out, shape=[5, 5], stride=2, name="conv2d", summary=True):
             'w', [shape[0], shape[1],
                   imgs.get_shape()[-1], nf_out],
             initializer=weights_initializer)
+        if use_spectral_norm:
+            w = spectral_norm(w)
         conv = tf.nn.conv2d(
             imgs, w, strides=[1, stride, stride, 1], padding='SAME')
 
@@ -171,9 +227,13 @@ def conv3d(imgs,
            nf_out,
            shape=[5, 5, 5],
            stride=2,
+           use_spectral_norm=False,
            name="conv3d",
            summary=True):
     '''Convolutional layer for square images'''
+
+    if use_spectral_norm:
+        print("Warning spectral norm for conv3d set to True but may not be implemented!")
 
     weights_initializer = tf.contrib.layers.xavier_initializer()
     const = tf.constant_initializer(0.0)
@@ -278,6 +338,97 @@ def deconv3d(imgs,
         return deconv
 
 
+def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, is_3d=False, merge=False):
+    if is_3d:
+        output_shape = [bs, sx, sx, sx, n_filters]
+        deconv = deconv3d
+        shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
+        concat_axis = 4
+    else:
+        output_shape = [bs, sx, sx, n_filters]
+        deconv = deconv2d
+        shape = [[1, 1], [3, 3], [5, 5]]
+        concat_axis = 3
+
+    tensor_1 = deconv(in_tensor,
+                          output_shape=output_shape,
+                          shape=shape[0],
+                          stride=stride,
+                          name='{}_deconv_1_by_1'.format(num),
+                          summary=summary)
+
+    tensor_3 = deconv(in_tensor,
+                          output_shape=output_shape,
+                          shape=shape[1],
+                          stride=stride,
+                          name='{}_deconv_3_by_3'.format(num),
+                          summary=summary)
+
+    tensor_5 = deconv(in_tensor,
+                          output_shape=output_shape,
+                          shape=shape[2],
+                          stride=stride,
+                          name='{}_deconv_5_by_5'.format(num),
+                          summary=summary)
+
+    out_tensor = tf.concat([tensor_1, tensor_3, tensor_5], axis=concat_axis)
+
+    if merge:
+        # do 1x1 convolution to reduce the number of output channels from (3 x n_filters) to n_filters
+        out_tensor = deconv(out_tensor,
+                          output_shape=output_shape,
+                          shape=shape[0],
+                          stride=1,
+                          name='{}_deconv_1_by_1_merge'.format(num),
+                          summary=summary)
+
+    return out_tensor
+
+def inception_conv(in_tensor, n_filters, stride, summary, num, is_3d=False, merge=False):
+    if is_3d:
+        conv = conv3d
+        shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
+        concat_axis = 4
+    else:
+        conv = conv2d
+        shape = [[1, 1], [3, 3], [5, 5]]
+        concat_axis = 3
+
+    tensor_1 = conv(in_tensor,
+                    nf_out=n_filters,
+                    shape=shape[0],
+                    stride=stride,
+                    name='{}_conv_1_by_1'.format(num),
+                    summary=summary)
+
+    tensor_3 = conv(in_tensor,
+                    nf_out=n_filters,
+                    shape=shape[1],
+                    stride=stride,
+                    name='{}_conv_3_by_3'.format(num),
+                    summary=summary)
+
+    tensor_5 = conv(in_tensor,
+                 nf_out=n_filters,
+                 shape=shape[2],
+                 stride=stride,
+                 name='{}_conv_5_by_5'.format(num),
+                 summary=summary)
+
+    out_tensor = tf.concat([tensor_1, tensor_3, tensor_5], axis=concat_axis)
+
+    if merge:
+        # do 1x1 convolution to reduce the number of output channels from (3 x n_filters) to n_filters
+        out_tensor = conv(out_tensor,
+                        nf_out=n_filters,
+                        shape=shape[0],
+                        stride=1,
+                        name='{}_conv_1_by_1_merge'.format(num),
+                        summary=summary)
+
+    return out_tensor
+
+
 def linear(input_, output_size, scope=None, summary=True):
     shape = input_.get_shape().as_list()
 
@@ -373,3 +524,36 @@ def tf_covmat(x, shape):
     c = 1/tf.cast(nx, tf.float32)*tf.matmul(tf.transpose(conv_vec,perm=[0,2,1]), conv_vec)
     return c
 
+
+def learned_histogram(x, params):
+    """A learned histogram layer.
+
+    The center and width of each bin is optimized.
+    One histogram is learned per feature map.
+    """
+    # Shape of x: #samples x #nodes x #features.
+    bins = params.get('bins', 20)
+    initial_range = params.get('initial_range', 2)
+    is_3d = params.get('is_3d', False)
+    if is_3d:
+        x = tf.reshape(x, [tf.shape(x)[0], x.shape[1] * x.shape[2] * x.shape[3], x.shape[4]])
+    else:
+        x = tf.reshape(x, [tf.shape(x)[0], x.shape[1] * x.shape[2], x.shape[3]])
+    n_features = int(x.get_shape()[2])
+    centers = tf.linspace(float(0), initial_range, bins, name='range')
+    centers = tf.expand_dims(centers, axis=1)
+    centers = tf.tile(centers, [1, n_features])  # One histogram per feature channel.
+    centers = tf.Variable(
+        tf.reshape(tf.transpose(centers), shape=[1, 1, n_features, bins]),
+        name='centers', dtype=tf.float32)
+    # width = bins * initial_range / 4  # 50% overlap between bins.
+    width = 1 / initial_range  # 50% overlap between bins.
+    widths = tf.get_variable(
+        name='widths', shape=[1, 1, n_features, bins], dtype=tf.float32,
+        initializer=tf.initializers.constant(value=width, dtype=tf.float32))
+    x = tf.expand_dims(x, axis=3)
+    # All are rank-4 tensors: samples, nodes, features, bins.
+    widths = tf.abs(widths)
+    dist = tf.abs(x - centers)
+    hist = tf.reduce_mean(tf.nn.relu(1 - dist * widths), axis=1)
+    return tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])

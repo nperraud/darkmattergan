@@ -8,9 +8,9 @@ matplotlib.use('Agg')
 
 import os
 # import skimage.measure
-from model import TemporalGanModelv3, TemporalGanModelv4, TemporalGanModelv5
+from model import TemporalGanModelv3, TemporalGanModelv4, TemporalGanModelv5, TemporalRWGanModelv3GP
 from gan import TimeCosmoGAN
-import utils
+import utils, blocks
 from data import fmap, path, Dataset
 import tensorflow as tf
 import numpy as np
@@ -29,9 +29,13 @@ def save_dict(params):
 
 
 # Parameters
-ns = 32
+ns = 64
+model_idx = 2
+divisor = 3
 try_resume = False
-Mpch = 500
+Mpc_orig = 500
+Mpc = Mpc_orig // (512 // ns)
+cl = int(sys.argv[1])
 
 shift = 3
 bandwidth = 20000
@@ -39,46 +43,51 @@ forward = functools.partial(fmap.stat_forward, shift=shift, c=bandwidth)
 backward = functools.partial(fmap.stat_backward, shift=shift, c=bandwidth)
 
 #time_str = '0r-24-6r_0811_16x8chCDF-Mom{}'.format(Mpch)
-time_str = '2r_CDF{}'.format(Mpch)
+time_str = '{}r_CDF{}'.format(cl, Mpc)
 global_path = '/scratch/snx3000/rosenthj/results/'
 
-name = 'TWGANv5:v2{}_6-5_'.format(ns)
+name = 'TWGANv{}:{}d{}_lap_selu-sn6-5_4Mom'.format(model_idx, Mpc, divisor)
 
-bn = False
+bnd = False
 
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [16, 128, 256, 128, 64]
-params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [3, 3], [3, 3]]
-params_discriminator['batch_norm'] = [bn] * len(params_discriminator['nfilter'])
+params_discriminator['stride'] = [2, 2, 2, 2, 1, 1]
+params_discriminator['nfilter'] = [16, 128, 256, 256, 128, 64]
+params_discriminator['shape'] = [[5, 5],[5, 5],[5, 5], [5, 5], [3, 3], [3, 3]]
+params_discriminator['batch_norm'] = [bnd] * len(params_discriminator['nfilter'])
 params_discriminator['full'] = [64]
-params_discriminator['cdf'] = 16
+params_discriminator['cdf'] = 32
+params_discriminator['spectral_norm'] = True
 #params_discriminator['channel_cdf'] = 8
-#params_discriminator['moment'] = [5,5]
+params_discriminator['moment'] = [5,5]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 
+bng = False
+
 params_generator = dict()
-params_generator['stride'] = [2, 2, 2, 1, 1, 1]
-params_generator['nfilter'] = [64, 256, 256, 128, 64, 1]
+params_generator['stride'] = [2, 2, 2, 2, 1, 1, 1]
+params_generator['nfilter'] = [64, 256, 512, 256, 128, 64, 1]
 params_generator['latent_dim'] = utils.get_latent_dim(ns, params_generator)
-params_generator['shape'] = [[3, 3], [3, 3], [3, 3], [5, 5], [5, 5], [5, 5]]
-params_generator['batch_norm'] = [bn] * (len(params_generator['nfilter']) - 1)
+params_generator['shape'] = [[3, 3], [3, 3], [3, 3],[5,5], [5, 5], [5, 5], [5, 5]]
+params_generator['batch_norm'] = [bng] * (len(params_generator['nfilter']) - 1)
 params_generator['full'] = []
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
+params_generator['activation'] = blocks.selu
 
 params_optimization = dict()
 params_optimization['gamma_gp'] = 10
 params_optimization['batch_size'] = 16
 params_optimization['gen_optimizer'] = 'adam' # rmsprop / adam / sgd
 params_optimization['disc_optimizer'] = 'adam' # rmsprop / adam /sgd
-params_optimization['disc_learning_rate'] = 1e-5
-params_optimization['gen_learning_rate'] = 1e-5
+params_optimization['disc_learning_rate'] = 1e-6
+params_optimization['gen_learning_rate'] = 1e-6
 params_optimization['beta1'] = 0.9
 params_optimization['beta2'] = 0.99
 params_optimization['epsilon'] = 1e-8
 params_optimization['epoch'] = 1000
+params_optimization['n_critic'] = 5
 
 params_cosmology = dict()
 params_cosmology['clip_max_real'] = True
@@ -90,9 +99,9 @@ params_cosmology['Nstats'] = 1000
 
 params_time = dict()
 params_time['num_classes'] = 1
-params_time['classes'] = [2]
+params_time['classes'] = [cl]
 params_time['class_weights'] = [1.0]
-params_time['model_idx'] = 2
+params_time['model_idx'] = model_idx
 params_time['use_diff_stats'] = False
 
 params_optimization['batch_size_gen'] = params_optimization['batch_size'] * params_time['num_classes']
@@ -106,13 +115,13 @@ params['time'] = params_time
 
 params['normalize'] = False
 params['image_size'] = [ns, ns]
-params['prior_distribution'] = 'gaussian'
-params['sum_every'] = 200
-params['viz_every'] = 200
-params['save_every'] = 5000
+params['prior_distribution'] = 'laplacian'
+params['sum_every'] = 400
+params['viz_every'] = 400
+params['save_every'] = 10000
 params['name'] = name
-params['summary_dir'] = global_path + 'summaries_32_C2_v5/' + params['name'] + '_' + time_str +'_summary/'
-params['save_dir'] = global_path + 'models_32_C2/' + params['name'] + '_' + time_str + '_checkpoints/'
+params['summary_dir'] = global_path + 'summaries_{}x{}/'.format(ns,ns) + params['name'] + '_' + time_str +'_summary/'
+params['save_dir'] = global_path + 'models_{}x{}/'.format(ns,ns) + params['name'] + '_' + time_str + '_checkpoints/'
 
 print("All params")
 print(params)
@@ -137,16 +146,18 @@ if params_time['model_idx'] == 3:
     model = TemporalGanModelv4
 if params_time['model_idx'] == 4:
     model = TemporalGanModelv5
+if params_time['model_idx'] == 5:
+    model = TemporalRWGanModelv3GP
 
 # Build the model
 twgan = TimeCosmoGAN(params, model)
 
 img_list = []
 
-filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_All.h5'.format(Mpch)
+filename = '/scratch/snx3000/rosenthj/data/nbody_{}Mpc_All.h5'.format(Mpc_orig)
 for box_idx in params['time']['classes']:
     images = utils.load_hdf5(filename=filename, dataset_name=str(box_idx), mode='r')
-    images = forward(images)
+    images = forward(images / divisor)
     #while images.shape[1] > ns:
     #    images = skimage.measure.block_reduce(images, (1,2,2), np.sum)
     img_list.append(images)
