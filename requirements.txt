@@ -1,11 +1,11 @@
 numpy==1.14.5
 tensorflow-gpu
-pil
+pillow
 pynbody
 h5py
 sklearn
-skimage
-pyyalm
+scikit-image
+pyyaml
 -e tfnntools
 matplotlib
 jupyter
