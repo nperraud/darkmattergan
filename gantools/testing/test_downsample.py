@@ -1,17 +1,14 @@
 import unittest
 
 import numpy as np
-
-import sys
-sys.path.insert(0, '../')
-
-import blocks
-import numpy
 import tensorflow as tf
+
 if __name__ == '__main__':
+    import sys
+    sys.path.insert(0, '../')
     import os
     os.environ["CUDA_VISIBLE_DEVICES"]=""
-
+from gantools import blocks
 
 def downsample_old(imgs, s, is_3d=False, sess=None):
     '''
