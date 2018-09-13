@@ -10,6 +10,20 @@ Using Generative Adversarial Networks to generate replications of N-Body simulat
 4. h5py
 5. scikit-learn
 6. scikit-image
+7. numpy
+8. tfnntools (provided with this package, install with -e)
+9. matplotlib
+10. jupyter
+11. pyyalm
+
+You can simply install those packages with the following command:
+```
+pip install -r requirements.txt
+```
+or if you have no gpu:
+```
+pip install -r requirements_nogpu.txt
+```
 
 ## Dataset
 
