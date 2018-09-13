@@ -5,7 +5,7 @@ import numpy as np
 import sys
 sys.path.insert(0, '../')
 
-import metrics
+from gantools import metric
 
 
 def wasserstein_distance_jonathan(x_og, y, w):
@@ -29,7 +29,7 @@ class TestMetric(unittest.TestCase):
         x = x / np.sum(np.abs(x))
         y = y / np.sum(np.abs(y))
 
-        a = metrics.wasserstein_distance(x, y, w)
+        a = metric.wasserstein_distance(x, y, w)
         b = wasserstein_distance_jonathan(x, y, w)
 
         np.testing.assert_almost_equal(a, b)
@@ -41,7 +41,7 @@ class TestMetric(unittest.TestCase):
         x = x / np.sum(np.abs(x))
         y = y / np.sum(np.abs(y))
 
-        a = metrics.wasserstein_distance(x, y, w)
+        a = metric.wasserstein_distance(x, y, w)
         b = wasserstein_distance_jonathan(x, y, w)
 
         np.testing.assert_almost_equal(a, b)

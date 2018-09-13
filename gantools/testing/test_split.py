@@ -5,8 +5,8 @@ import numpy as np
 import sys
 sys.path.insert(0, '../')
 
-import data
-from data.Dataset import slice_2d_patch, slice_2d
+from gantools import data
+from gantools.data.Dataset import slice_2d_patch, slice_2d
 
 
 class TestSlice2d(unittest.TestCase):
