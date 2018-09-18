@@ -8,6 +8,9 @@ from gantools.testing import test_downsample
 from gantools.testing import test_metric
 from gantools.testing import test_split
 from gantools.testing import test_fmap
+from gantools.testing import test_gansystem
+from gantools.testing import test_models
+from gantools.testing import test_utils
 
 loader = unittest.TestLoader()
 
@@ -16,6 +19,9 @@ suites.append(loader.loadTestsFromModule(test_downsample))
 suites.append(loader.loadTestsFromModule(test_metric))
 suites.append(loader.loadTestsFromModule(test_split))
 suites.append(loader.loadTestsFromModule(test_fmap))
+suites.append(loader.loadTestsFromModule(test_gansystem))
+suites.append(loader.loadTestsFromModule(test_utils))
+suites.append(loader.loadTestsFromModule(test_models))
 suite = unittest.TestSuite(suites)
 
 

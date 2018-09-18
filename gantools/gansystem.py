@@ -10,9 +10,191 @@ from gantools import metric, blocks
 import itertools
 import math
 from gantools.plot import colorize
-
+from copy import deepcopy
 from .plot.plot_summary import PlotSummaryLog
 from .default import default_params, default_params_cosmology, default_params_time
+
+from tfnntools.nnsystem import NNSystem
+from gantools.model import WGAN
+
+class GANsystem(NNSystem):
+    """General GAN System class.
+
+    This class contains all the method to train an use a GAN. Note that the
+    model, i.e. the architecture of the network is not handled by this class.
+    """
+    def default_params(self):
+
+
+        # Global parameters
+        # -----------------
+        d_param = super().default_params()
+
+         # Optimization parameters
+        # -----------------------
+        d_opt = dict()
+        d_opt['optimizer'] = "rmsprop"
+        d_opt['learning_rate'] = 3e-5
+        d_opt['kwargs'] = dict()
+        d_param['optimization'] = dict()
+        d_param['optimization']['discriminator'] = deepcopy(d_opt)
+        d_param['optimization']['generator'] = deepcopy(d_opt)
+        d_param['optimization']['encoder'] = deepcopy(d_opt)
+        d_param['optimization']['n_critic'] = 5
+        d_param['optimization']['epoch'] = 10
+        d_param['optimization']['batch_size'] = 8
+
+        return d_param
+
+
+    def __init__(self,  model=WGAN, params={}, name=None):
+        """Build the GAN network.
+
+        Input arguments
+        ---------------
+        * params : structure of parameters
+        * model  : model class for the architecture of the network
+
+        Please refer to the module `model` for details about
+        the requirements of the class model.
+        """
+        
+        super().__init__(model=model, params=params, name=name)
+  
+
+    def _add_optimizer(self):
+
+        if self._net.has_encoder:
+            varsuffixes = ['discriminator', 'generator', 'encoder']
+        else:            
+            varsuffixes = ['discriminator', 'generator']
+
+        losses = self._net.loss
+        t_vars = tf.trainable_variables()
+        self._optimize = [] 
+
+        # global_step = tf.Variable(0, name="global_step", trainable=False)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            for index, varsuffix in enumerate(varsuffixes):
+                s_vars = [var for var in t_vars if varsuffix in var.name]
+                params = self.params['optimization'][varsuffix]
+                optimizer = self.build_optmizer(params)
+                grads_and_vars = optimizer.compute_gradients(losses[index], var_list=s_vars)
+                self._optimize.append(optimizer.apply_gradients(grads_and_vars))
+
+                # Summaries
+                grad_norms = [tf.nn.l2_loss(g[0])*2 for g in grads_and_vars]
+                grad_norm = [tf.reduce_sum(grads) for grads in grad_norms]
+                final_grad = tf.sqrt(tf.reduce_sum(grad_norm))
+                tf.summary.scalar(varsuffix+"/Gradient_Norm", final_grad, collections=["train"])
+                if self.params['optimization'][varsuffix]['optimizer'] == 'adam':
+                    beta1_power, beta2_power = optimizer._get_beta_accumulators()
+                    learning_rate = self.params['optimization'][varsuffix]['learning_rate']
+                    optim_learning_rate = learning_rate*(tf.sqrt(1 - beta2_power) /(1 - beta1_power))
+                    tf.summary.scalar('/ADAM_learning_rate', optim_learning_rate, collections=["train"])
+
+    @staticmethod
+    def build_optmizer(params):
+
+        learning_rate = params['learning_rate']
+        optimizer = params['optimizer']
+        kwargs = params['kwargs']
+
+        if optimizer == "adam":
+            optimizer = tf.train.AdamOptimizer(
+                learning_rate=learning_rate,
+                **kwargs)
+        elif optimizer == "rmsprop":
+            optimizer = tf.train.RMSPropOptimizer(
+                learning_rate=learning_rate, **kwargs)
+        elif optimizer == "sgd":
+            optimizer = tf.train.GradientDescentOptimizer(
+                learning_rate=learning_rate, **kwargs)
+        else:
+            raise Exception(" [!] Choose optimizer between [adam,rmsprop,sgd]")
+
+        return optimizer
+
+    def _run_optimization(self, feed_dict):
+        # Update discriminator
+        for _ in range(self.params['optimization']['n_critic']):
+            _, loss_d = self._sess.run([self._optimize[0], self.net.loss[0]], feed_dict=feed_dict)
+            # Small hack: redraw a new latent variable
+            feed_dict[self.net.z] = self.net.sample_latent(self.params['optimization']['batch_size'])
+        # Update Encoder
+        if self.net.has_encoder:
+            _, loss_e = self._sess.run(
+                self._optimize[2], self.net.loss[2],
+                feed_dict=feed_dict)
+        # Update generator
+        return self._sess.run([self._optimize[1], self.net.loss[0]], feed_dict=feed_dict)[1]
+
+
+    def _train_log(self, feed_dict):
+        super()._train_log(feed_dict)
+        summary = self._sess.run(self.net.summary, feed_dict=feed_dict)
+        self._summary_writer.add_summary(summary, self._counter)
+
+
+    def generate(self, N=None, sess=None, checkpoint=None, **kwargs):
+        """Generate new samples.
+
+        The user can chose between different options depending on the model.
+
+        **kwargs contains all possible optional arguments defined in the model.
+
+        Arguments
+        ---------
+        * N : number of sample (Default None)
+        * sess : tensorflow Session (Default None)
+        * checkpoint : number of the checkpoint (Default None)
+        * kwargs : keywords arguments that are defined in the model
+        """
+        if N is None and len(kwargs)==0:
+            raise ValueError("Please Specify N or variable for the models")
+        dict_latent = dict()
+        if N:
+            dict_latent['z'] =self.net.sample_latent(N)
+        if sess is not None:
+            self._sess = sess
+        else:
+            self._sess = tf.Session()
+        res = self.load(checkpoint=checkpoint)
+        if res:
+            print("Checkpoint succesfully loaded!")
+        samples = self._generate_sample_safe(**dict_latent, **kwargs)
+        if sess is None:
+            self._sess.close()
+        return samples
+
+    # TODO: move this to the nnsystem class
+    def _special_vstack(self, gi):
+        if type(gi[0]) is np.ndarray:
+            return np.vstack(gi)
+        else:
+            s = []
+            for j in range(len(gi[0])):
+                s.append(np.vstack([el[j] for el in gi]))
+            return tuple(s)
+
+    # TODO: move this to the nnsystem class
+    def _generate_sample_safe(self, **kwargs):
+        gen_images = []
+        N = len(kwargs['z'])
+        sind = 0
+        bs = self.params['optimization']['batch_size']
+        if N > bs:
+            nb = (N - 1) // bs
+            for i in range(nb):
+                feed_dict = self._get_dict(index=slice(sind, sind + bs), **kwargs)
+                gi = self._sess.run(self._net.outputs, feed_dict=feed_dict)
+                gen_images.append(gi)
+                sind = sind + bs
+        feed_dict = self._get_dict(index=slice(sind, N), **kwargs)
+        gi = self._sess.run(self._net.outputs, feed_dict=feed_dict)
+        gen_images.append(gi)
+        return self._special_vstack(gen_images)
 
 
 class GAN(object):
