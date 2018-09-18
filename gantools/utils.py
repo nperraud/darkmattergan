@@ -177,6 +177,45 @@ def tile_cube_slices(cubes):
 
     return np.array(tiles)
 
+def get_closest_divisor(x):
+    t = np.int(np.round(np.sqrt(x)))
+    while np.mod(x, t):
+        t += 1
+    return t
+
+def tf_cube_slices(cubes):
+    """Takes stack of images as (?, w, h, num_images) and tiles them into a grid."""
+
+    if len(cubes.shape) > 5:
+        raise ValueError('To many dimensions')
+    if len(cubes.shape) < 4:
+        raise ValueError('To few dimensions')
+    if len(cubes.shape) == 5:
+        assert (cubes.shape[4] == 1)
+        cubes = tf.squeeze(cubes, axis=[4])
+    num_images = int(cubes.shape[3])
+    num_rows = get_closest_divisor(num_images)
+    # split last axis (num_images) into list of (h, w)
+    cubes = tf.unstack(cubes, num=num_images, axis=-1)
+    # tile all images horizontally into single row
+    cubes = tf.concat(cubes, axis=2)
+    # split into desired number of rows
+    cubes = tf.split(cubes, num_rows, axis=2)
+    # tile rows vertically
+    cubes = tf.concat(cubes, axis=1)
+    return cubes
+
+def tf_make_grid(t, num_images, num_rows=2):
+    '''takes stack of images as (?, w, h, num_images) and tiles them into a grid'''
+    if len(t.shape)>5:
+        raise ValueError('')
+    t = tf.squeeze(t) # remove single batch, TODO make more flexible to work with higher batch size
+    t = tf.unstack(t, num=num_images, axis=-1) # split last axis (num_images) into list of (h, w)
+    t = tf.concat(t, axis=1) # tile all images horizontally into single row
+    t = tf.split(t, num_rows, axis=1) # split into desired number of rows
+    t = tf.concat(t, axis=0) # tile rows vertically
+    return t
+
 
 def get_3d_hists_dir_paths(path_3d_hists):
     dir_paths = []
@@ -299,6 +338,16 @@ def compose2(first,second):
 def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
+def in_ipynb():
+    """Test if the code is executed from ipython notebook"""
+    try:
+        cfg = get_ipython().config 
+        if cfg['IPKernelApp']['parent_appname'] == 'ipython-notebook':
+            return True
+        else:
+            return False
+    except NameError:
+        return False
 
 def print_params_to_py_style_output_helper(name, params):
     print("\n# {} Params".format(name.title()))

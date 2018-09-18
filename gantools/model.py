@@ -1,11 +1,204 @@
 import tensorflow as tf
 import numpy as np
-from gantools.blocks import *
+# The next import should be changed
+from gantools.blocks import * 
+from gantools import utils
+from tfnntools.model import BaseNet, rprint
+from gantools.plot import colorize
+
+class BaseGAN(BaseNet):
+    """Abstract class for the model."""
+    def __init__(self, params={}, name='BaseGAN'):
+        self.G_fake = None
+        self.D_real = None
+        self.D_fake = None
+        self._D_loss = None
+        self._G_loss = None
+        self._summary = None
+        super().__init__(params=params, name=name)
+        self._loss = (self.D_loss, self.G_loss)
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def D_loss(self):
+        return self._D_loss
+
+    @property
+    def G_loss(self):
+        return self._G_loss
+
+    @property
+    def summary(self):
+        return self._summary
+
+    @property
+    def has_encoder(self):
+        return False
+
+    def sample_latent(self, N):
+        raise NotImplementedError("This is a an abstract class.")
 
 
-def rprint(msg, reuse=False):
-    if not reuse:
-        print(msg)
+class WGAN(BaseGAN):
+    def default_params(self):
+        d_params = super().default_params()
+        d_params['shape'] = [16, 16, 1] # Shape of the image
+        d_params['prior_distribution'] = 'gaussian' # prior distribution
+        d_params['gamma_gp'] = 10 
+
+        bn = False
+
+        d_params['generator'] = dict()
+        d_params['generator']['latent_dim'] = 100
+        d_params['generator']['full'] = [2 * 8 * 8]
+        d_params['generator']['nfilter'] = [2, 32, 32, 1]
+        d_params['generator']['batch_norm'] = [bn, bn, bn]
+        d_params['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
+        d_params['generator']['stride'] = [1, 2, 1, 1]
+        d_params['generator']['summary'] = True
+        d_params['generator']['is_3d'] = False # Is the image 3D?
+        d_params['generator']['inception'] = False # Use inception module
+        d_params['generator']['activation'] = lrelu # leaky relu
+        d_params['generator']['one_pixel_mapping'] = [] # One pixel mapping
+        d_params['generator']['non_lin'] = tf.nn.relu # non linearity at the end of the generator
+
+        d_params['discriminator'] = dict()
+        d_params['discriminator']['full'] = [32]
+        d_params['discriminator']['nfilter'] = [16, 32, 32, 32]
+        d_params['discriminator']['batch_norm'] = [bn, bn, bn, bn]
+        d_params['discriminator']['shape'] = [[5, 5], [5, 5], [5, 5], [3, 3]]
+        d_params['discriminator']['stride'] = [2, 2, 2, 1]
+        d_params['discriminator']['summary'] = True
+        d_params['discriminator']['is_3d'] = False # Is the image 3D?
+        d_params['discriminator']['inception'] = False # Use inception module
+        d_params['discriminator']['activation'] = lrelu # leaky relu
+        d_params['discriminator']['one_pixel_mapping'] = [] # One pixel mapping
+        d_params['discriminator']['non_lin'] = None # non linearity at the beginning of the discriminator
+        d_params['discriminator']['cdf'] = None # cdf
+        d_params['discriminator']['cdf_block'] = None # non linearity at the beginning of the discriminator
+        d_params['discriminator']['moment'] = None # non linearity at the beginning of the discriminator
+        d_params['discriminator']['minibatch_reg'] = False # Use minibatch regularization
+
+
+        return d_params
+
+    def __init__(self, params, name='wgan'):
+        super().__init__(params=params, name=name)
+        self._summary = tf.summary.merge(tf.get_collection("model"))
+
+
+    def _build_net(self):
+        shape = self._params['shape']
+        self.X_real = tf.placeholder(tf.float32, shape=[None, *shape], name='Xreal')
+        self.z = tf.placeholder(
+            tf.float32,
+            shape=[None, self.params['generator']['latent_dim']],
+            name='z')
+        self.X_fake = self.generator(self.z, reuse=False)
+        self._D_fake = self.discriminator(self.X_fake, reuse=False)
+        self._D_real = self.discriminator(self.X_real, reuse=True)
+        self._D_loss_f = tf.reduce_mean(self._D_fake)
+        self._D_loss_r = tf.reduce_mean(self._D_real)
+        gamma_gp = self.params['gamma_gp']
+        self._D_gp = self.wgan_regularization(gamma_gp, [self.X_fake], [self.X_real])
+        self._D_loss = -(self._D_loss_r - self._D_loss_f) + self._D_gp
+        self._G_loss = -self._D_loss_f
+        self._inputs = (self.z)
+        self._outputs = (self.X_fake)
+
+
+    def _add_summary(self):
+        tf.summary.histogram('Prior/z', self.z, collections=['model'])
+        self._build_image_summary()
+        self.wgan_summaries()
+
+    def generator(self, z, reuse):
+        return generator(z, self.params['generator'], reuse=reuse)
+
+    def discriminator(self, X, reuse):
+        return discriminator(X, self.params['discriminator'], reuse=reuse) 
+
+    def sample_latent(self, bs=1):
+        latent_dim = self.params['generator']['latent_dim']
+        return utils.sample_latent(bs, latent_dim, self._params['prior_distribution'])
+
+    def wgan_regularization(self, gamma, list_fake, list_real):
+        if not gamma:
+            # I am not sure this part or the code is still useful
+            t_vars = tf.trainable_variables()
+            d_vars = [var for var in t_vars if 'discriminator' in var.name]
+            D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
+            D_gp = tf.constant(0, dtype=tf.float32)
+            print(" [!] Using weight clipping")
+        else:
+            D_clip = tf.constant(0, dtype=tf.float32)
+            # calculate `x_hat`
+            assert(len(list_fake) == len(list_real))
+            bs = tf.shape(list_fake[0])[0]
+            eps = tf.random_uniform(shape=[bs], minval=0, maxval=1)
+
+            x_hat = []
+            for fake, real in zip(list_fake, list_real):
+                singledim = [1]* (len(fake.shape.as_list())-1)
+                eps = tf.reshape(eps, shape=[bs,*singledim])
+                x_hat.append(eps * real + (1.0 - eps) * fake)
+
+            D_x_hat = self.discriminator(*x_hat, reuse=True)
+
+            # gradient penalty
+            gradients = tf.gradients(D_x_hat, x_hat)
+            norm_gradient_pen = tf.norm(gradients[0], ord=2)
+            D_gp = gamma * tf.square(norm_gradient_pen - 1.0)
+            tf.summary.scalar("Disc/GradPen", D_gp, collections=["train"])
+            tf.summary.scalar("Disc/NormGradientPen", norm_gradient_pen, collections=["train"])
+        return D_gp
+
+    def wgan_summaries(self):
+        tf.summary.scalar("Disc/Neg_Loss", -self._D_loss, collections=["train"])
+        tf.summary.scalar("Disc/Neg_Critic", self._D_loss_f - self._D_loss_r, collections=["train"])
+        tf.summary.scalar("Disc/Loss_f", self._D_loss_f, collections=["train"])
+        tf.summary.scalar("Disc/Loss_r", self._D_loss_r, collections=["train"])
+        tf.summary.scalar("Gen/Loss", self._G_loss, collections=["train"])
+   
+    def _build_image_summary(self):
+        vmin = tf.reduce_min(self.X_real)
+        vmax = tf.reduce_max(self.X_real)
+        if self.params['generator']['is_3d']:
+            X_real = utils.tf_cube_slices(self.X_real)
+            X_fake = utils.tf_cube_slices(self.X_fake)
+        else:
+            X_real = self.X_real
+            X_fake = self.X_real
+        tf.summary.image(
+            "images/Real_Image",
+            colorize(X_real, vmin, vmax),
+            max_outputs=4,
+            collections=['model'])
+        tf.summary.image(
+            "images/Fake_Image",
+            colorize(X_fake, vmin, vmax),
+            max_outputs=4,
+            collections=['model'])
+
+    def assert_image(self, x):
+        if self.params['discriminator']['is_3d']:
+            dim = 4
+        else:
+            dim = 3
+        if len(x.shape) < dim:
+            raise ValueError('The size of the data is wrong')
+        elif len(x.shape) < (dim +1):
+            x = np.expand_dims(x, dim)
+        return x
+
+    def batch2dict(self, batch):
+        d = dict()
+        d['X_real'] = self.assert_image(batch)
+        d['z'] = self.sample_latent(len(batch))
+        return d
 
 
 class GanModel(object):
@@ -49,8 +242,6 @@ class WGanModel(GanModel):
         D_loss_r = tf.reduce_mean(self.D_real)
         gamma_gp = self.params['optimization']['gamma_gp']
         D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
-        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
         
@@ -1906,13 +2097,17 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         bs = tf.shape(x)[0]  # Batch size
-        # nb pixel
-        sx = np.int(
-            np.sqrt(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0]))
+
 
         if params['is_3d']:
+            # nb pixel
+            sx = np.int(np.round((np.prod(x.shape.as_list()[1:]) // params['nfilter'][0])**(1/3)))
+
             x = tf.reshape(x, [bs, sx, sx, sx, params['nfilter'][0]], name='vec2img')
         else:
+            # nb pixel
+            sx = np.int(np.round(
+                np.sqrt(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0])))
             x = tf.reshape(x, [bs, sx, sx, params['nfilter'][0]], name='vec2img')
 
         rprint('     Reshape to {}'.format(x.shape), reuse)
@@ -2176,57 +2371,6 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
         rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint(''.join(['-']*50)+'\n', reuse)
-    return x
-
-
-def generator12(x, img, params, reuse=True, scope="generator12"):
-
-    assert(len(params['stride']) ==
-           len(params['nfilter']) ==
-           len(params['batch_norm'])+1)
-    nconv = len(params['stride'])
-    nfull = len(params['full'])
-
-    params_border = params['border']
-    assert(len(params_border['stride']) == len(params_border['nfilter'])
-           == len(params_border['batch_norm']))
-    nconv_border = len(params_border['stride'])
-    with tf.variable_scope(scope, reuse=reuse):
-        rprint('Border block \n'+''.join(['-']*50), reuse)
-
-        rprint('     BORDER:  The input is of size {}'.format(img.shape), reuse)
-        imgt = img
-        for i in range(nconv_border):
-            imgt = conv2d(imgt,
-                          nf_out=params_border['nfilter'][i],
-                          shape=params_border['shape'][i],
-                          stride=params_border['stride'][i],
-                          name='{}_conv'.format(i),
-                          summary=params['summary'])
-            rprint('     BORDER: {} Conv layer with {} channels'.format(i, params_border['nfilter'][i]), reuse)
-            if params_border['batch_norm'][i]:
-                imgt = batch_norm(imgt, name='{}_border_bn'.format(i), train=True)
-                rprint('         Batch norm', reuse)
-            rprint('         BORDER:  Size of the conv variables: {}'.format(imgt.shape), reuse)
-        imgt = reshape2d(imgt, name='border_conv2vec')
-        
-        st = img.shape.as_list()
-        wf = params_border['width_full']
-        border = reshape2d(tf.slice(img, [0, st[1]-wf, 0, 0], [-1, wf, st[2], st[3]]), name='border2vec')
-        rprint('     BORDER:  Size of the border variables: {}'.format(border.shape), reuse)
-        rprint('     BORDER:  Size of the conv variables: {}'.format(imgt.shape), reuse)
-        rprint('     Latent:  Size of the Z variables: {}'.format(x.shape), reuse)
-
-        x = tf.concat([x, imgt, border], axis=1)
-        rprint(''.join(['-']*50)+'\n', reuse)
-
-        x = generator(x, params, reuse=reuse, scope="generator")
-
-        x = tf.concat([img, x], axis=1)
-
-        rprint('     After concatenation: output is of size {}'.format(x.shape), reuse)
-
         rprint(''.join(['-']*50)+'\n', reuse)
     return x
 

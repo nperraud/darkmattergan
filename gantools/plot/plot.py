@@ -1,7 +1,4 @@
-import matplotlib
-import socket
-if 'nid' in socket.gethostname() or 'lo-' in socket.gethostname():
-    matplotlib.use('Agg')
+
 from matplotlib import pyplot as plt
 from PIL import Image
 import numpy as np
