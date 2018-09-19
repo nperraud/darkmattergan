@@ -58,7 +58,6 @@ class GANsystem(NNSystem):
         Please refer to the module `model` for details about
         the requirements of the class model.
         """
-        
         super().__init__(model=model, params=params, name=name)
   
 
@@ -116,7 +115,7 @@ class GANsystem(NNSystem):
 
         return optimizer
 
-    def _run_optimization(self, feed_dict):
+    def _run_optimization(self, feed_dict, idx):
         # Update discriminator
         for _ in range(self.params['optimization']['n_critic']):
             _, loss_d = self._sess.run([self._optimize[0], self.net.loss[0]], feed_dict=feed_dict)
@@ -128,14 +127,48 @@ class GANsystem(NNSystem):
                 self._optimize[2], self.net.loss[2],
                 feed_dict=feed_dict)
         # Update generator
-        return self._sess.run([self._optimize[1], self.net.loss[0]], feed_dict=feed_dict)[1]
-
+        curr_loss = self._sess.run([self._optimize[1], *self.net.loss], feed_dict=feed_dict)[1:]
+        if idx == 0:
+            self._epoch_loss_disc = 0
+            self._epoch_loss_gen = 0
+        self._epoch_loss_disc += curr_loss[0]
+        self._epoch_loss_gen += curr_loss[1]
+        return curr_loss
 
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
+
+        X_real, X_fake = self._sess.run([self.net.X_real, self.net.X_fake], feed_dict=feed_dict)
+        feed_dict = self.net.compute_summaries(X_real, X_fake, feed_dict)
+
+
         summary = self._sess.run(self.net.summary, feed_dict=feed_dict)
         self._summary_writer.add_summary(summary, self._counter)
 
+    def _print_log(self, idx, curr_loss):
+        current_time = time.time()
+        batch_size = self.params['optimization']['batch_size']
+        print(" * Epoch: [{:2d}] [{:4d}/{:4d}] "
+              "Counter:{:2d}\t"
+              "({:4.1f} min\t"
+              "{:4.3f} examples/sec\t"
+              "{:4.2f} sec/batch)\n"
+              "   Disc batch loss:{:.8f}\t"
+              "Disc epoch loss:{:.8f}\n"
+              "   Gen batch loss:{:.8f}\t"
+              "Gen epoch loss:{:.8f}".format(
+                  self._epoch, 
+                  idx, 
+                  self._n_batch,
+                  self._counter,
+                  (current_time - self._time['start_time']) / 60,
+                  self._params['print_every'] * batch_size / (current_time - self._time['prev_iter_time']),
+                  (current_time - self._time['prev_iter_time']) / self._params['print_every'],
+                  curr_loss[0],
+                  self._epoch_loss_disc/(idx+1),
+                  curr_loss[1],
+                  self._epoch_loss_gen/(idx+1)))
+        self._time['prev_iter_time'] = current_time
 
     def generate(self, N=None, sess=None, checkpoint=None, **kwargs):
         """Generate new samples.

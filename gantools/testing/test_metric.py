@@ -1,12 +1,13 @@
 if __name__ == '__main__':
     import sys, os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__),'../../'))
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 
 import unittest
 
 import numpy as np
-
+from gantools.metric import ganlist
 from gantools import metric
+from scipy import stats
 
 
 def wasserstein_distance_jonathan(x_og, y, w):
@@ -46,6 +47,32 @@ class TestMetric(unittest.TestCase):
         b = wasserstein_distance_jonathan(x, y, w)
 
         np.testing.assert_almost_equal(a, b)
+
+    def test_gan_stat_list(self):
+        l = ganlist.gan_stat_list()
+        x = np.random.randn(100, 20, 50) + 7
+        for s in l:
+            s(x)
+        _, limx, meanx, varx, skewx, kurtx = stats.describe(x.flatten())
+        minx, maxx = limx
+        np.testing.assert_almost_equal(meanx, l[0](x))
+        np.testing.assert_almost_equal(varx, l[1](x), decimal=3)
+        np.testing.assert_almost_equal(minx, l[2](x))
+        np.testing.assert_almost_equal(maxx, l[3](x))
+        np.testing.assert_almost_equal(kurtx, l[4](x))
+        np.testing.assert_almost_equal(skewx, l[5](x))
+
+    def test_gan_metric_list(self):
+        metric_list = ganlist.gan_metric_list()
+        x = np.random.randn(100, 20, 50) + 7
+        y = 2 * np.random.randn(100, 20, 50) + 8
+        for m in metric_list:
+            m(x, y)
+            assert (m(y, y) == 0)
+            assert (m(x, x) == 0)
+        x = np.ones(20)
+        y = 2 * np.ones(20)
+        assert (metric_list[0](x, y) == 1)
 
 
 if __name__ == '__main__':

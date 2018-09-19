@@ -4,56 +4,85 @@ from .core import StatisticalMetric, Statistic
 import numpy as np
 from scipy import stats
 
-def gan_stat_list():
-	"""Return a list of statistic for a GAN."""
 
-	stat_list = []
+def gan_stat_list(subname=''):
+    """Return a list of statistic for a GAN."""
+    stat_list = []
 
-	# While the code of the first statistic might not be optimal, 
-	# it is likely to be negligible compared to all the rest.
+    # While the code of the first statistic might not be optimal,
+    # it is likely to be negligible compared to all the rest.
 
-	# Mean
-	def mean(x):
-		return np.mean(np.flatten(x))
-	stat_list.append(Statistic(mean,'mean', 'descriptives'))
+    # The order the statistic is important. If it is changed, the test cases
+    # need to be adapted accordingly.
 
-	# var
-	def var(x):
-		return np.var(np.flatten(x))
-	stat_list.append(Statistic(var,'var', 'descriptives'))
+    if not (subname == ''):
+        subname = '_' + subname
 
-	# min
-	def min(x):
-		return np.min(np.flatten(x))
-	stat_list.append(Statistic(min, 'min', 'descriptives'))
+    # Mean
+    def mean(x):
+        return np.mean(x.flatten())
 
-	# max
-	def max(x):
-		return np.min(np.flatten(x))
-	stat_list.append(Statistic(max, 'max', 'descriptives'))
+    stat_list.append(Statistic(mean, 'mean'+subname, 'descriptives'))
 
-	# kurtosis
-	def kurtosis(x):
-		return stats.kurtosis(np.flatten(x))
-	stat_list.append(Statistic(kurtosis, 'kurtosis', 'descriptives'))	
+    # var
+    def var(x):
+        return np.var(x.flatten())
 
-	# skewness
-	def skewness(x):
-		return stats.skew(np.flatten(x))
-	stat_list.append(Statistic(skewness, 'kurtosis','descriptives'))
+    stat_list.append(Statistic(var, 'var'+subname, 'descriptives'))
 
-	# median
-	def median(x):
-		return stats.median(np.flatten(x))
-	stat_list.append(Statistic(median, 'median','descriptives'))
+    # min
+    def min(x):
+        return np.min(x.flatten())
 
+    stat_list.append(Statistic(min, 'min'+subname, 'descriptives'))
 
+    # max
+    def max(x):
+        return np.max(x.flatten())
+
+    stat_list.append(Statistic(max, 'max'+subname, 'descriptives'))
+
+    # kurtosis
+    def kurtosis(x):
+        return stats.kurtosis(x.flatten())
+
+    stat_list.append(Statistic(kurtosis, 'kurtosis'+subname, 'descriptives'))
+
+    # skewness
+    def skewness(x):
+        return stats.skew(x.flatten())
+
+    stat_list.append(Statistic(skewness, 'kurtosis'+subname, 'descriptives'))
+
+    # median
+    def median(x):
+        return np.median(x.flatten())
+
+    stat_list.append(Statistic(median, 'median'+subname, 'descriptives'))
+
+    return stat_list
 
 
 def gan_metric_list():
-	"""Return a metric list for a GAN."""
+    """Return a metric list for a GAN."""
 
-	stat_list = gan_stat_list()
+    stat_list = gan_stat_list()
+    metric_list = [StatisticalMetric(statistic=stat) for stat in stat_list]
+    return metric_list
 
-	metric_list = []
-	
+
+def cosmo_stat_list():
+    # mass_hist
+    # peak_hist
+    # psd
+
+    # Peak stats?
+
+    pass
+
+
+def cosmo_metric_list():
+    #cosmo_stat
+    # gan_stat
+    # wasserstein
+    pass
