@@ -6,7 +6,7 @@ This module contains helping functions for the evaluation of the models.
 import tensorflow as tf
 import pickle
 import numpy as np
-import gantools.metric as metric
+from gantools.metric import stats
 import gantools.plot as plot
 import matplotlib
 import socket
@@ -18,13 +18,13 @@ from gantools.model import *
 from gantools.gansystem import *
 
 
-def load_gan(pathgan, GANtype=CosmoGAN):
-    """Load GAN object from path."""
-    with open(os.path.join(pathgan, 'params.pkl'), 'rb') as f:
-        params = pickle.load(f)
-    params['save_dir'] = pathgan
-    obj = GANtype(params)
-    return obj
+# def load_gan(pathgan, GANtype=CosmoGAN):
+#     """Load GAN object from path."""
+#     with open(os.path.join(pathgan, 'params.pkl'), 'rb') as f:
+#         params = pickle.load(f)
+#     params['save_dir'] = pathgan
+#     obj = GANtype(params)
+#     return obj
 
 
 def generate_samples(obj, N=None, checkpoint=None, **kwards):
@@ -38,12 +38,12 @@ def generate_samples(obj, N=None, checkpoint=None, **kwards):
 
 def compute_and_plot_psd(raw_images, gen_sample_raw, display=True, is_3d=False):
     """Compute and plot PSD from raw images."""
-    psd_real, x = metrics.power_spectrum_batch_phys(X1=raw_images, is_3d=is_3d)
+    psd_real, x = stats.power_spectrum_batch_phys(X1=raw_images, is_3d=is_3d)
     psd_real_mean = np.mean(psd_real, axis=0)
 
-    psd_gen, x = metrics.power_spectrum_batch_phys(X1=gen_sample_raw, is_3d=is_3d)
+    psd_gen, x = stats.power_spectrum_batch_phys(X1=gen_sample_raw, is_3d=is_3d)
     psd_gen_mean = np.mean(psd_gen, axis=0)
-    l2, logel2, l1, logel1 = metrics.diff_vec(psd_real_mean, psd_gen_mean)
+    l2, logel2, l1, logel1 = stats.diff_vec(psd_real_mean, psd_gen_mean)
 
     if display:
         print('Log l2 PSD loss: {}\n'
@@ -90,8 +90,8 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, display=True, is_3d=False):
 
 def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
     """Compute and plot peak count histogram from raw images."""
-    y_real, y_fake, x = metrics.peak_count_hist_real_fake(raw_images, gen_sample_raw)
-    l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
+    y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw)
+    l2, logel2, l1, logel1 = stats.diff_vec(y_real, y_fake)
     if display:
         print('Log l2 Peak Count loss: {}\n'
               'L2 Peak Count loss: {}\n'
@@ -103,8 +103,8 @@ def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
 
 def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
     """Compute and plot mass histogram from raw images."""
-    y_real, y_fake, x = metrics.mass_hist_real_fake(raw_images, gen_sample_raw)
-    l2, logel2, l1, logel1 = metrics.diff_vec(y_real, y_fake)
+    y_real, y_fake, x = stats.mass_hist_real_fake(raw_images, gen_sample_raw)
+    l2, logel2, l1, logel1 = stats.diff_vec(y_real, y_fake)
     if display:
         print('Log l2 Mass histogram loss: {}\n'
               'L2 Peak Mass histogram: {}\n'

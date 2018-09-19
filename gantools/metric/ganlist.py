@@ -1,8 +1,46 @@
 """List of metrics for the GAN models."""
 
-from .core import StatisticalMetric, Statistic
+from .core import StatisticalMetric, Statistic, StatisticalMetricLim
 import numpy as np
 from scipy import stats
+from .stats import mass_hist
+from .stats import peak_count_hist as peak_hist
+from .stats import power_spectrum_batch_phys as psd
+
+
+def mean(x):
+    """Compute the mean."""
+    return np.mean(x.flatten())
+
+
+def var(x):
+    """Compute the variance."""
+    return np.var(x.flatten())
+
+
+def min(x):
+    """Compute the minmum."""
+    return np.min(x.flatten())
+
+
+def max(x):
+    """Compute the maximum."""
+    return np.max(x.flatten())
+
+
+def kurtosis(x):
+    """Compute the kurtosis."""
+    return stats.kurtosis(x.flatten())
+
+
+def skewness(x):
+    """Compute the skewness."""
+    return stats.skew(x.flatten())
+
+
+def median(x):
+    """Compute the median."""
+    return np.median(x.flatten())
 
 
 def gan_stat_list(subname=''):
@@ -18,46 +56,12 @@ def gan_stat_list(subname=''):
     if not (subname == ''):
         subname = '_' + subname
 
-    # Mean
-    def mean(x):
-        return np.mean(x.flatten())
-
     stat_list.append(Statistic(mean, 'mean'+subname, 'descriptives'))
-
-    # var
-    def var(x):
-        return np.var(x.flatten())
-
     stat_list.append(Statistic(var, 'var'+subname, 'descriptives'))
-
-    # min
-    def min(x):
-        return np.min(x.flatten())
-
     stat_list.append(Statistic(min, 'min'+subname, 'descriptives'))
-
-    # max
-    def max(x):
-        return np.max(x.flatten())
-
-    stat_list.append(Statistic(max, 'max'+subname, 'descriptives'))
-
-    # kurtosis
-    def kurtosis(x):
-        return stats.kurtosis(x.flatten())
-
+    stat_list.append(Statistic(max, 'max'+subname, 'descriptives'))    
     stat_list.append(Statistic(kurtosis, 'kurtosis'+subname, 'descriptives'))
-
-    # skewness
-    def skewness(x):
-        return stats.skew(x.flatten())
-
     stat_list.append(Statistic(skewness, 'kurtosis'+subname, 'descriptives'))
-
-    # median
-    def median(x):
-        return np.median(x.flatten())
-
     stat_list.append(Statistic(median, 'median'+subname, 'descriptives'))
 
     return stat_list
@@ -71,18 +75,20 @@ def gan_metric_list():
     return metric_list
 
 
-def cosmo_stat_list():
-    # mass_hist
-    # peak_hist
-    # psd
-
-    # Peak stats?
-
-    pass
+def psd_mean(*args,**kwargs):
+    s = psd(*args, **kwargs)
+    return (np.mean(s[0], axis=0), *s[1:])
 
 
 def cosmo_metric_list():
-    #cosmo_stat
-    # gan_stat
-    # wasserstein
-    pass
+    metric_list = []
+    metric_list.append(StatisticalMetricLim(Statistic(mass_hist, 'mass_histogram', 'cosmology'), log=True))
+    metric_list.append(StatisticalMetricLim(Statistic(peak_hist, 'peak_histogram', 'cosmology'), log=True))
+    metric_list.append(StatisticalMetric(Statistic(psd_mean, 'psd', 'cosmology'), log=True))
+
+    # TODO: wasserstein
+
+    return metric_list
+
+
+
