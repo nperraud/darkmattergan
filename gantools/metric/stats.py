@@ -1,11 +1,10 @@
-"""This module contains the different metric functions."""
+"""This module contains the different statistic functions."""
 
 import numpy as np
-from scipy import stats
-import power_spectrum_phys as ps
+from gantools.metric import power_spectrum_phys as ps
 import scipy.ndimage.filters as filters
 import itertools
-import utils
+from gantools import utils
 import functools
 import multiprocessing as mp
 
@@ -179,15 +178,6 @@ def peak_count(X, neighborhood_size=5, threshold=0):
     return np.extract(maxima, X)
 
 
-def describe(X):
-    """Descriptive statistics"""
-    if len(X.shape) > 1:
-        X = X.reshape(-1)
-
-    _, range, mean, var, skew, kurt = stats.describe(X)
-
-    return mean, var, range[0], range[1], np.median(X)
-
 
 def chi2_distance(peaksA, peaksB, eps=1e-10, **kwargs):
     histA, _ = np.histogram(peaksA, **kwargs)
@@ -222,16 +212,6 @@ def distance_chi2_peaks(im1, im2, bins=100, range=[0, 2e5], **kwargs):
                             **kwargs), im2)))
     return np.mean(np.array(distance))
 
-
-def distance_rms(im1, im2):
-    im1 = np.squeeze(im1)
-    im2 = np.squeeze(im2)
-    distance = []
-    for x in im1:
-        for y in im2:
-            distance.append(np.linalg.norm(x - y, 2))
-
-    return np.mean(np.array(distance))
 
 
 def psd_metric(gen_sample_raw, real_sample_raw):

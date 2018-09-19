@@ -1,10 +1,5 @@
 import io
 import tensorflow as tf
-import numpy as np
-import matplotlib
-import socket
-if 'nid' in socket.gethostname() or 'lo-' in socket.gethostname():
-    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # Inspired by Andres
@@ -28,9 +23,16 @@ class PlotSummary(object):
         self._summary = tf.summary.image(
             self._cat + '/' + self._name, image, collections=self._collections)
 
-    def produceSummaryToWrite(self, session, *args, **kwargs):
+    def get_placeholder(self):
+        return self._plot_str
+
+    def compute_summary(self, *args, feed_dict={}, **kwargs):
         self.plot(*args, **kwargs)
-        feed_dict = {self._plot_str : self._get_plot_str()}
+        feed_dict[self._plot_str] = self._get_plot_str()
+        return feed_dict
+
+    def produceSummaryToWrite(self, session, *args, **kwargs):
+        feed_dict = self.compute_summary( *args, **kwargs)
         return session.run(self._summary, feed_dict=feed_dict)
 
     def plot(self):
@@ -77,17 +79,3 @@ class PlotSummaryLog(PlotSummary):
         # self._fill_from_figure()
 
 
-if __name__ == '__main__':
-    print('Testing the plot module')
-    obj = PlotSummary('Objname', 'ObjCat')
-    with tf.Session() as sess:
-        test = obj.produceSummaryToWrite(sess)
-    print('Test 1 done!')
-    N = 10
-    x = np.linspace(1, N, N)
-    y1 = np.random.rand(N)
-    y2 = np.random.rand(N)
-    obj = PlotSummaryLog('Objname', 'ObjCat')
-    with tf.Session() as sess:
-        test = obj.produceSummaryToWrite(sess, x, y1, y2)
-    print('Test 2 done!')

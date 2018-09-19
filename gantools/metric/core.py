@@ -2,41 +2,58 @@
 
 import numpy as np
 import tensorflow as tf
+from gantools.plot.plot_summary import PlotSummary, PlotSummaryLog
 
-class Statistic(object):
-    """Base class for a statistic."""
+class TFsummaryHelper(object):
+    """Helper class for tensorflow summaries."""
 
-    def __init__(self, func, name, group=''):
+    def __init__(self, name, group=''):
         """Create a statistical object.
 
         Arguments
         ---------
         * name: name of the statistic (preferably unique)
-        * func: function to compute the statistic
+        * group: group for the statistic
         """
         self._name = name
         self._group = group
-        self._func = func
-
-    def __call__(self, dat):
-        """Compute the statistic."""
-        return self._func(dat)
+        self._stype = None
 
     def add_summary(self, stype=0, collections=None):
         """Add a tensorflow summary.
 
-        stype: summary type. 0 scalar,
+        stype: summary type. 
+               * 0 scalar
+               * 1 image
+               * 2 histogram
+               * 3 curves
         """
-        name = self.group+'/'+self.name
-        self._placeholder = tf.placeholder(tf.float32, name=name)
-        if stype==0:
-            tf.summary.scalar(name, self._placeholder, collections=collections)
-        else:
-            ValueError('Wrong summary type')
 
-    def compute_summary(self, dat, feed_dict={}):
-        feed_dict[self._placeholder] = self(dat)
-        return feed_dict
+        name = self.group + '/' + self.name
+        self._stype = stype
+        if stype == 0:
+            self._placeholder = tf.placeholder(tf.float32, name=name)
+            tf.summary.scalar(name, self._placeholder, collections=[collections])
+        elif stype == 1:
+            self._placeholder = tf.placeholder(
+                tf.float32, shape=[None, None], name=name)
+            tf.summary.image(name, self._placeholder, collections=[collections])
+        elif stype == 2:
+            self._placeholder = tf.placeholder(tf.float32, shape=[None], name=name)
+            tf.summary.histogram(name, self._placeholder, collections=[collections])
+        elif stype == 3:
+            self._placeholder = tf.placeholder(tf.float32, name=name)
+            tf.summary.scalar(name, self._placeholder, collections=[collections])
+            if self._log:
+                self._plot_summary = PlotSummaryLog(
+                    self.name, self.group, collections=[collections])
+            else:
+                raise NotImplementedError()
+        else:
+            raise ValueError('Wrong summary type')
+
+    def compute_summary(self, *args, **kwargs):
+        raise NotImplementedError("This is an abstract class.")
 
     @property
     def group(self):
@@ -46,7 +63,29 @@ class Statistic(object):
     def name(self):
         return self._name
 
-class Metric(object):
+class Statistic(TFsummaryHelper):
+    """Base class for a statistic."""
+
+    def __init__(self, func, name, group=''):
+        """Create a statistical object.
+
+        Arguments
+        ---------
+        * func: function to compute the statistic
+        """
+        super().__init__(name=name, group=group)
+        self._func = func
+
+    def compute_summary(self, dat, feed_dict={}):
+        feed_dict[self._placeholder] = self(dat)
+        return feed_dict
+
+    def __call__(self, *args, **kwargs):
+        """Compute the statistic."""
+        return self._func(*args, **kwargs)
+
+
+class Metric(TFsummaryHelper):
     """Base metric class."""
 
     def __init__(self, name, group='', recompute_real=True):
@@ -57,8 +96,7 @@ class Metric(object):
         * name: name of the statistic (preferably unique)
         * recompute_real: recompute the real statistic (default True)
         """
-        self._name = name
-        self._group = group
+        super().__init__(name=name, group=group)
         self._preprocessed = False
         self._recompute_real = recompute_real
 
@@ -83,15 +121,6 @@ class Metric(object):
         """Compute the metric."""
         raise NotImplementedError("This is an abstract class.")
 
-    def add_summary(self, collections=None):
-        """Add a tensorflow summary.
-
-        stype: summary type. 0 scalar,
-        """
-        name = self.group+'/'+self.name
-        self._placeholder = tf.placeholder(tf.float32, name=name)
-        tf.summary.scalar(name, self._placeholder, collections=collections)
-
     def compute_summary(self, fake, real, feed_dict={}):
         feed_dict[self._placeholder] = self(fake, real)
         return feed_dict
@@ -100,15 +129,6 @@ class Metric(object):
     def preprocessed(self):
         """Return True if the preprocessing been done."""
         return self._preprocessed
-
-    @property
-    def group(self):
-        return self._group
-    
-    @property
-    def name(self):
-        return self._name
-    
 
 
 class StatisticalMetric(Metric):
@@ -131,31 +151,44 @@ class StatisticalMetric(Metric):
         super().__init__(name, statistic.group, recompute_real)
         self._order = order
         self._log = log
-        self._statistic = statistic
+        self.statistic = statistic
         self._saved_stat = None
 
     def preprocess(self, real):
         """Compute the statistic on the real data."""
         super().preprocess(real)
         self._saved_real_stat = self.statistic(real)
-        if self._log:
-            self._saved_real_stat = np.log(self._saved_real_stat)
 
-    def statistic(self, dat):
-        """Compute the statistics on some data."""
-        return self._statistic(dat)
+    def _compute_stats(self, fake, real=None):
+        self._saved_fake_stat = self.statistic(fake)
 
     def _compute(self, fake, real):
         # The real is not vatiable is not used as the stat over real is
         # computed only once
+        self._compute_stats(fake, real)
+        fake_stat = self._saved_fake_stat
         real_stat = self._saved_real_stat
-        fake_stat = self.statistic(fake)
+        if isinstance(real_stat, tuple):
+            rs = real_stat[0]
+            fs = fake_stat[0]
+        else:
+            rs = real_stat
+            fs = fake_stat
         if self._log:
-            fake_stat = np.log(fake_stat)
-            # The log for the real is done in preprocess
-        self._saved_fake_stat = fake_stat
-        return (np.sum((real_stat - fake_stat)**self._order))**(1/self._order)
+            rs = 10*np.log10(rs + 1e-2)
+            fs = 10*np.log10(fs + 1e-2)
+        diff = np.mean((rs - fs)**self._order)
+        return diff
 
+    def compute_summary(self, fake, real, feed_dict={}):
+        super().compute_summary(fake, real, feed_dict)
+        if self._stype == 3:
+            feedict = self._plot_summary.compute_summary(
+                self._saved_real_stat[1],
+                self._saved_real_stat[0],
+                self._saved_fake_stat[0],
+                feed_dict=feed_dict)
+        return feed_dict
 
     @property
     def real_stat(self):
@@ -170,4 +203,20 @@ class StatisticalMetric(Metric):
             return self._saved_fake_stat
         else:
             raise ValueError("The statistic has not been computed yet")
-    
+
+
+class StatisticalMetricLim(StatisticalMetric):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._lim = None
+
+    def preprocess(self, real):
+        """Compute the statistic on the real data."""
+        super().preprocess(real)
+        self._lim = self._saved_real_stat[2]
+
+    def _compute_stats(self, fake, real=None):
+        self._saved_fake_stat = self.statistic(fake, lim=self._lim)
+
+
+

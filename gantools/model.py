@@ -83,7 +83,6 @@ class WGAN(BaseGAN):
         d_params['discriminator']['moment'] = None # non linearity at the beginning of the discriminator
         d_params['discriminator']['minibatch_reg'] = False # Use minibatch regularization
 
-
         return d_params
 
     def __init__(self, params, name='wgan'):
@@ -115,7 +114,7 @@ class WGAN(BaseGAN):
         tf.summary.histogram('Prior/z', self.z, collections=['model'])
         self._build_image_summary()
         self._build_stat_summary()
-        self.wgan_summaries()
+        self._wgan_summaries()
 
     def generator(self, z, reuse):
         return generator(z, self.params['generator'], reuse=reuse)
@@ -158,7 +157,7 @@ class WGAN(BaseGAN):
             tf.summary.scalar("Disc/NormGradientPen", norm_gradient_pen, collections=["train"])
         return D_gp
 
-    def wgan_summaries(self):
+    def _wgan_summaries(self):
         tf.summary.scalar("Disc/Neg_Loss", -self._D_loss, collections=["train"])
         tf.summary.scalar("Disc/Neg_Critic", self._D_loss_f - self._D_loss_r, collections=["train"])
         tf.summary.scalar("Disc/Loss_f", self._D_loss_f, collections=["train"])
@@ -168,19 +167,21 @@ class WGAN(BaseGAN):
     def _build_stat_summary(self):
         self._stat_list_real = ganlist.gan_stat_list('real')
         self._stat_list_fake = ganlist.gan_stat_list('fake')
+
         for stat in self._stat_list_real:
             stat.add_summary(stype=0, collections="model")
+
         for stat in self._stat_list_fake:
             stat.add_summary(stype=0, collections="model")
 
         self._metric_list = ganlist.gan_metric_list()
         for met in self._metric_list:
-            met.add_summary(collections="model")
+            met.add_summary(stype=0, collections="model")
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         for stat in self._stat_list_real:
             feed_dict = stat.compute_summary(X_real, feed_dict)
-        for stat in self._stat_list_real:
+        for stat in self._stat_list_fake:
             feed_dict = stat.compute_summary(X_fake, feed_dict)
         for met in self._metric_list:
             feed_dict = met.compute_summary(X_fake, X_real, feed_dict)
@@ -222,6 +223,20 @@ class WGAN(BaseGAN):
         d['X_real'] = self.assert_image(batch)
         d['z'] = self.sample_latent(len(batch))
         return d
+
+
+class CosmoWGAN(WGAN):
+    def _build_stat_summary(self):
+        super()._build_stat_summary()
+        self._cosmo_metric_list = ganlist.cosmo_metric_list()
+        for met in self._cosmo_metric_list:
+            met.add_summary(stype=3, collections="model")
+
+    def compute_summaries(self, X_real, X_fake, feed_dict={}):
+        feed_dict = super().compute_summaries(X_real, X_fake, feed_dict)
+        for met in self._cosmo_metric_list:
+            feed_dict = met.compute_summary(X_fake, X_real, feed_dict)
+        return feed_dict
 
 
 class GanModel(object):

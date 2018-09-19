@@ -11,6 +11,7 @@ from gantools.testing import test_fmap
 from gantools.testing import test_gansystem
 from gantools.testing import test_models
 from gantools.testing import test_utils
+from gantools.testing import test_plots
 
 loader = unittest.TestLoader()
 
@@ -22,6 +23,7 @@ suites.append(loader.loadTestsFromModule(test_fmap))
 suites.append(loader.loadTestsFromModule(test_gansystem))
 suites.append(loader.loadTestsFromModule(test_utils))
 suites.append(loader.loadTestsFromModule(test_models))
+suites.append(loader.loadTestsFromModule(test_plots))
 suite = unittest.TestSuite(suites)
 
 

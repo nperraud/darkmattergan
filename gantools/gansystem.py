@@ -141,7 +141,6 @@ class GANsystem(NNSystem):
         X_real, X_fake = self._sess.run([self.net.X_real, self.net.X_fake], feed_dict=feed_dict)
         feed_dict = self.net.compute_summaries(X_real, X_fake, feed_dict)
 
-
         summary = self._sess.run(self.net.summary, feed_dict=feed_dict)
         self._summary_writer.add_summary(summary, self._counter)
 
@@ -158,7 +157,7 @@ class GANsystem(NNSystem):
               "   Gen batch loss:{:.8f}\t"
               "Gen epoch loss:{:.8f}".format(
                   self._epoch, 
-                  idx, 
+                  idx+1, 
                   self._n_batch,
                   self._counter,
                   (current_time - self._time['start_time']) / 60,
