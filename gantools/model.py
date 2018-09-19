@@ -5,6 +5,7 @@ from gantools.blocks import *
 from gantools import utils
 from tfnntools.model import BaseNet, rprint
 from gantools.plot import colorize
+from gantools.metric import ganlist
 
 class BaseGAN(BaseNet):
     """Abstract class for the model."""
@@ -113,6 +114,7 @@ class WGAN(BaseGAN):
     def _add_summary(self):
         tf.summary.histogram('Prior/z', self.z, collections=['model'])
         self._build_image_summary()
+        self._build_stat_summary()
         self.wgan_summaries()
 
     def generator(self, z, reuse):
@@ -163,6 +165,27 @@ class WGAN(BaseGAN):
         tf.summary.scalar("Disc/Loss_r", self._D_loss_r, collections=["train"])
         tf.summary.scalar("Gen/Loss", self._G_loss, collections=["train"])
    
+    def _build_stat_summary(self):
+        self._stat_list_real = ganlist.gan_stat_list('real')
+        self._stat_list_fake = ganlist.gan_stat_list('fake')
+        for stat in self._stat_list_real:
+            stat.add_summary(stype=0, collections="model")
+        for stat in self._stat_list_fake:
+            stat.add_summary(stype=0, collections="model")
+
+        self._metric_list = ganlist.gan_metric_list()
+        for met in self._metric_list:
+            met.add_summary(collections="model")
+
+    def compute_summaries(self, X_real, X_fake, feed_dict={}):
+        for stat in self._stat_list_real:
+            feed_dict = stat.compute_summary(X_real, feed_dict)
+        for stat in self._stat_list_real:
+            feed_dict = stat.compute_summary(X_fake, feed_dict)
+        for met in self._metric_list:
+            feed_dict = met.compute_summary(X_fake, X_real, feed_dict)
+        return feed_dict
+
     def _build_image_summary(self):
         vmin = tf.reduce_min(self.X_real)
         vmax = tf.reduce_max(self.X_real)
@@ -171,7 +194,7 @@ class WGAN(BaseGAN):
             X_fake = utils.tf_cube_slices(self.X_fake)
         else:
             X_real = self.X_real
-            X_fake = self.X_real
+            X_fake = self.X_fake
         tf.summary.image(
             "images/Real_Image",
             colorize(X_real, vmin, vmax),

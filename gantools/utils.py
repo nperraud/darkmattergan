@@ -339,13 +339,13 @@ def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
 def in_ipynb():
-    """Test if the code is executed from ipython notebook"""
+    """Test if the code is executed from ipython notebook.
+
+    This function is not sure to be working properly.
+    """
     try:
         cfg = get_ipython().config 
-        if cfg['IPKernelApp']['parent_appname'] == 'ipython-notebook':
-            return True
-        else:
-            return False
+        return True
     except NameError:
         return False
 

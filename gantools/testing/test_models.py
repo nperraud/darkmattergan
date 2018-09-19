@@ -24,8 +24,8 @@ class TestGANmodels(unittest.TestCase):
         params['save_every'] = 5
         params['print_every'] = 3
         params['net'] = dict()
-        params['net']['shape'] = [16, 16, 1] # Shape of the image
-        params['net']['generator']=dict()
+        params['net']['shape'] = [16, 16, 1]  # Shape of the image
+        params['net']['generator'] = dict()
         params['net']['generator']['latent_dim'] = 100
         params['net']['generator']['full'] = [2 * 8 * 8]
         params['net']['generator']['nfilter'] = [2, 32, 32, 1]
@@ -37,19 +37,20 @@ class TestGANmodels(unittest.TestCase):
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32, 32, 32]
         params['net']['discriminator']['batch_norm'] = [bn, bn, bn, bn]
-        params['net']['discriminator']['shape'] = [[5, 5], [5, 5], [5, 5], [3, 3]]
+        params['net']['discriminator']['shape'] = [[5, 5], [5, 5], [5, 5],
+                                                   [3, 3]]
         params['net']['discriminator']['stride'] = [2, 2, 2, 1]
         params['net']['discriminator']['is_3d'] = False
 
-        X = np.random.rand(101,16,16)
+        X = np.random.rand(101, 16, 16)
         dataset = Dataset(X)
         wgan = GANsystem(WGAN, params)
         wgan.train(dataset)
         img = wgan.generate(2)
-        assert(len(img)==2)
-        assert(img.shape[1:]==(16,16,1))
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (16, 16, 1))
         img = wgan.generate(500)
-        assert(len(img)==500)
+        assert (len(img) == 500)
 
     def test_3d(self):
         bn = False
@@ -60,33 +61,35 @@ class TestGANmodels(unittest.TestCase):
         params['save_every'] = 5
         params['print_every'] = 3
         params['net'] = dict()
-        params['net']['shape'] = [8, 8, 8, 1] # Shape of the image
-        params['net']['generator']=dict()
+        params['net']['shape'] = [8, 8, 8, 1]  # Shape of the image
+        params['net']['generator'] = dict()
         params['net']['generator']['latent_dim'] = 100
-        params['net']['generator']['full'] = [2 * 4 * 4 *4]
+        params['net']['generator']['full'] = [2 * 4 * 4 * 4]
         params['net']['generator']['nfilter'] = [2, 32, 1]
         params['net']['generator']['batch_norm'] = [bn, bn]
-        params['net']['generator']['shape'] = [[3, 3, 3], [3, 3, 3], [5, 5, 5]]
+        params['net']['generator']['shape'] = [[3, 3, 3], [3, 3, 3],
+                                               [5, 5, 5]]
         params['net']['generator']['stride'] = [1, 2, 1]
         params['net']['generator']['is_3d'] = True
         params['net']['discriminator'] = dict()
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32, 32]
         params['net']['discriminator']['batch_norm'] = [bn, bn, bn]
-        params['net']['discriminator']['shape'] = [[5, 5, 5], [3, 3, 3], [3, 3, 3]]
+        params['net']['discriminator']['shape'] = [[5, 5, 5], [3, 3, 3],
+                                                   [3, 3, 3]]
         params['net']['discriminator']['stride'] = [2, 2, 2]
         params['net']['discriminator']['is_3d'] = True
 
-
-        X = np.random.rand(101,8,8,8)
+        X = np.random.rand(101, 8, 8, 8)
         dataset = Dataset(X)
         wgan = GANsystem(WGAN, params)
         wgan.train(dataset)
         img = wgan.generate(2)
-        assert(len(img)==2)
-        assert(img.shape[1:]==(8,8,8,1))
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (8, 8, 8, 1))
         img = wgan.generate(500)
-        assert(len(img)==500)
+        assert (len(img) == 500)
+
 
 if __name__ == '__main__':
     unittest.main()
