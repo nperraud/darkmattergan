@@ -63,41 +63,84 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
 
         return bn
 
+def np_downsample_2d(x, scaling):
+    unique = False
+    if len(x.shape)<2:
+        raise ValueError('Too few dimensions')
+    elif len(x.shape)==2:
+        x = x.reshape([1,*x.shape])
+        unique = True
+    elif len(x.shape)>3:
+        raise ValueError('Too many dimensions')
+        
+    n, sx, sy = x.shape 
+    dsx = np.zeros([n,sx//scaling,sy//scaling])
+    for i in range(scaling):
+        for j in range(scaling):
+            dsx += x[:,i::scaling,j::scaling]
+    dsx /= (scaling**2)
+    if unique:
+        dsx = dsx[0]
+    return dsx
+
+def np_downsample_3d(x, scaling):
+    unique = False
+    if len(x.shape)<3:
+        raise ValueError('Too few dimensions')
+    elif len(x.shape)==3:
+        x = x.reshape([1,*x.shape])
+        unique = True
+    elif len(x.shape)>4:
+        raise ValueError('Too many dimensions')
+        
+    n, sx, sy, sz = x.shape 
+    nx = sx//scaling
+    ny = sy//scaling
+    nz = sz//scaling
+    dsx = np.zeros([n,nx,ny,nz])
+    for i in range(scaling):
+        for j in range(scaling):
+            for k in range(scaling):
+                dsx += x[:,i:scaling*nx+i:scaling,j:scaling*ny+j:scaling,k:scaling*nz+k:scaling]
+    dsx /= (scaling**3)
+    if unique:
+        dsx = dsx[0]
+    return dsx
 
 def downsample(imgs, s, is_3d=False):
-    # To be rewritten in numpy
     if is_3d:
-        # 1 extra dim for channels
-        imgs = np.expand_dims(imgs, axis=4)
-
-        x = tf.placeholder(tf.float32, shape=imgs.shape, name='x')
-        xd = down_sampler(x, s=s, is_3d=True)
-        with tf.Session() as sess:
-            img_d = sess.run(xd, feed_dict={x: imgs})
-
-        return np.squeeze(img_d)
-
+        return np_downsample_3d(imgs,s)
     else:
-        if len(imgs.shape) < 4:
-            imgs = np.expand_dims(imgs, axis=3)
-       
-        x = tf.placeholder(tf.float32, shape=[*imgs.shape[:3], 1], name='x')
-        xd = down_sampler(x, s=s, is_3d=False)
-        with tf.Session() as sess:
-            img_d = []
-            for i in range(imgs.shape[3]):
-                curr_img = np.expand_dims(imgs[:, :, :, i], axis=3)
-                img_d.append(sess.run(xd, feed_dict={x: curr_img}))
-        return np.squeeze(np.concatenate(img_d, axis=3))
+        return np_downsample_2d(imgs,s)
 
 
-def down_sampler(x, s=2, is_3d=False):
+
+
+def down_sampler(x=None, s=2, is_3d=False):
+    '''
+    Op to downsample 2D or 3D images by factor 's'.
+    This method works for both inputs: tensor or placeholder
+    '''
+
+    # The input to the downsampling operation is a placeholder.
+    if x is None:
+        placeholder_name = 'down_sampler_in_' + ('3d_' if is_3d else '2d_') + str(s)
+        down_sampler_x = tf.placeholder(dtype=tf.float32, name=placeholder_name)
+        op_name = 'down_sampler_out_' + ('3d_' if is_3d else '2d_') + str(s)
+    
+    # The input to the downsampling operation is the input tensor x.
+    else: 
+        down_sampler_x = x
+        op_name = None
+
+
     if is_3d:
         filt = tf.constant(1 / (s * s * s), dtype=tf.float32, shape=[s, s, s, 1, 1])
-        return tf.nn.conv3d(x, filt, strides=[1, s, s, s, 1], padding='SAME')
+        return tf.nn.conv3d(down_sampler_x, filt, strides=[1, s, s, s, 1], padding='SAME', name=op_name)
+
     else:
         filt = tf.constant(1 / (s * s), dtype=tf.float32, shape=[s, s, 1, 1])
-        return tf.nn.conv2d(x, filt, strides=[1, s, s, 1], padding='SAME')
+        return tf.nn.conv2d(down_sampler_x, filt, strides=[1, s, s, 1], padding='SAME', name=op_name)
 
 
 def up_sampler(x, s=2, is_3d=False):
@@ -124,30 +167,7 @@ def up_sampler(x, s=2, is_3d=False):
                         padding='SAME')
 
 
-# # Testing up_sampler, down_sampler
-# x = tf.placeholder(tf.float32, shape=[1,256,256,1],name='x')
-# input_img = np.reshape(gen_sample[1], [1,256,256,1])
-# xd = blocks.down_sampler(x, s=2)
-# xdu = blocks.up_sampler(xd, s=2)
-# xdud = blocks.down_sampler(xdu, s=2)
-# xdudu = blocks.up_sampler(xdud, s=2)
-# with tf.Session() as sess:
-#     img_d, img_du = sess.run([xd,xdu], feed_dict={x: input_img})
-#     img_dud, img_dudu = sess.run([xdud,xdudu], feed_dict={x: input_img})
-# img_d = np.squeeze(img_d)
-# img_du = np.squeeze(img_du)
-# img_dud = np.squeeze(img_dud)
-# img_dudu = np.squeeze(img_dudu)
-# img = np.squeeze(input_img)
 
-# img_d2 = np.zeros([128,128])
-
-# for i in range(128):
-#     for j in range(128):
-#         img_d2[i,j] = np.mean(img[2*i:2*(i+1),2*j:2*(j+1)])
-# print(np.linalg.norm(img_d2-img_d,ord='fro'))
-# print(np.linalg.norm(img_dud-img_d,ord='fro'))
-# print(np.linalg.norm(img_dudu-img_du,ord='fro'))
 
 def l2_norm(v, eps=1e-12):
     return v / (tf.reduce_sum(v ** 2) ** 0.5 + eps)
@@ -321,6 +341,97 @@ def deconv3d(imgs,
             # we put it in metrics so we don't store it too often
             tf.summary.histogram("Weights_sum", w, collections=["metrics"])
         return deconv
+
+
+def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, is_3d=False, merge=False):
+    if is_3d:
+        output_shape = [bs, sx, sx, sx, n_filters]
+        deconv = deconv3d
+        shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
+        concat_axis = 4
+    else:
+        output_shape = [bs, sx, sx, n_filters]
+        deconv = deconv2d
+        shape = [[1, 1], [3, 3], [5, 5]]
+        concat_axis = 3
+
+    tensor_1 = deconv(in_tensor,
+                          output_shape=output_shape,
+                          shape=shape[0],
+                          stride=stride,
+                          name='{}_deconv_1_by_1'.format(num),
+                          summary=summary)
+
+    tensor_3 = deconv(in_tensor,
+                          output_shape=output_shape,
+                          shape=shape[1],
+                          stride=stride,
+                          name='{}_deconv_3_by_3'.format(num),
+                          summary=summary)
+
+    tensor_5 = deconv(in_tensor,
+                          output_shape=output_shape,
+                          shape=shape[2],
+                          stride=stride,
+                          name='{}_deconv_5_by_5'.format(num),
+                          summary=summary)
+
+    out_tensor = tf.concat([tensor_1, tensor_3, tensor_5], axis=concat_axis)
+
+    if merge:
+        # do 1x1 convolution to reduce the number of output channels from (3 x n_filters) to n_filters
+        out_tensor = deconv(out_tensor,
+                          output_shape=output_shape,
+                          shape=shape[0],
+                          stride=1,
+                          name='{}_deconv_1_by_1_merge'.format(num),
+                          summary=summary)
+
+    return out_tensor
+
+def inception_conv(in_tensor, n_filters, stride, summary, num, is_3d=False, merge=False):
+    if is_3d:
+        conv = conv3d
+        shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
+        concat_axis = 4
+    else:
+        conv = conv2d
+        shape = [[1, 1], [3, 3], [5, 5]]
+        concat_axis = 3
+
+    tensor_1 = conv(in_tensor,
+                    nf_out=n_filters,
+                    shape=shape[0],
+                    stride=stride,
+                    name='{}_conv_1_by_1'.format(num),
+                    summary=summary)
+
+    tensor_3 = conv(in_tensor,
+                    nf_out=n_filters,
+                    shape=shape[1],
+                    stride=stride,
+                    name='{}_conv_3_by_3'.format(num),
+                    summary=summary)
+
+    tensor_5 = conv(in_tensor,
+                 nf_out=n_filters,
+                 shape=shape[2],
+                 stride=stride,
+                 name='{}_conv_5_by_5'.format(num),
+                 summary=summary)
+
+    out_tensor = tf.concat([tensor_1, tensor_3, tensor_5], axis=concat_axis)
+
+    if merge:
+        # do 1x1 convolution to reduce the number of output channels from (3 x n_filters) to n_filters
+        out_tensor = conv(out_tensor,
+                        nf_out=n_filters,
+                        shape=shape[0],
+                        stride=1,
+                        name='{}_conv_1_by_1_merge'.format(num),
+                        summary=summary)
+
+    return out_tensor
 
 
 def linear(input_, output_size, scope=None, summary=True):

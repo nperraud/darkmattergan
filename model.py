@@ -924,7 +924,7 @@ class upscale_WGAN_pixel_CNN(GanModel):
         super().__init__(params=params, name=name, is_3d=is_3d)
 
         # A) Get downsampling factor
-        self.downsampling = params['generator'].get('downsampling', None)
+        self.downsampling = params['generator']['downsampling']
 
         if self.is_3d:
             self.__init_3d(params, X, z)
@@ -1000,6 +1000,7 @@ class upscale_WGAN_pixel_CNN(GanModel):
             D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
         else:
             D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
+
 
         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
         self._G_loss = -D_loss_f
@@ -1390,6 +1391,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             non_lin_f = getattr(tf, params['non_lin'])
             x = non_lin_f(x)
             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
+
+
         if params['cdf']:
             cdf = legacy_cdf_block(x, params, reuse)
         if params['cdf_block']:
@@ -1409,9 +1412,19 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             cov = params['activation'](cov)
             rprint('     Covariance Full layer with {} outputs'.format(nel), reuse)
             rprint('         Size of the CDF variables: {}'.format(cov.shape), reuse)
-            
+
         for i in range(nconv):
-            if params.get('separate_first', False) and i == 0:
+            if params['inception']:
+                x = inception_conv(in_tensor=x, 
+                                    n_filters=params['nfilter'][i], 
+                                    stride=params['stride'][i], 
+                                    summary=params['summary'], 
+                                    num=i,
+                                    is_3d=params['is_3d'], 
+                                    merge=(i == (nconv-1))
+                                    )
+                rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+            elif params.get('separate_first', False) and i == 0:
                 n_out = params['nfilter'][i] // (int(x.shape[3]) + 1)
                 lst = []
                 for j in range(x.shape[3]):
@@ -1432,13 +1445,14 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                 x = tf.concat(lst, axis=3)
             else:
                 x = conv(x,
-                     nf_out=params['nfilter'][i],
-                     shape=params['shape'][i],
-                     stride=params['stride'][i],
-                     use_spectral_norm=params['spectral_norm'],
-                     name='{}_conv'.format(i),
-                     summary=params['summary'])
-            rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+                         nf_out=params['nfilter'][i],
+                         shape=params['shape'][i],
+                         stride=params['stride'][i],
+                         use_spectral_norm=params['spectral_norm'],
+                         name='{}_conv'.format(i),
+                         summary=params['summary'])
+                rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
             if params['batch_norm'][i]:
                 x = batch_norm(x, name='{}_bn'.format(i), train=True)
                 rprint('         Batch norm', reuse)
@@ -1479,13 +1493,6 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         rprint(''.join(['-']*50)+'\n', reuse)
     return x
 
-
-def add_late_channel_encoding(x, t):
-    t = tf.expand_dims(t, axis=-1)
-    t = tf.expand_dims(tf.tile(t, [1, x.shape[1], x.shape[2]]), axis=-1)
-    return tf.concat([x,t], axis=-1)
-
-
 def generator(x, params, y=None, reuse=True, scope="generator"):
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
@@ -1519,27 +1526,44 @@ def generator(x, params, y=None, reuse=True, scope="generator"):
         rprint('     Reshape to {}'.format(x.shape), reuse)
 
         for i in range(nconv):
-            # if params.get("late_channel_encoding", -1) == i:
-            #    x = add_late_channel_encoding(x, y)
-            #    print("Added channel encoding")
             sx = sx * params['stride'][i]
-            x = deconv(in_tensor=x, 
-                       bs=bs, 
-                       sx=sx,
-                       n_filters=params['nfilter'][i],
-                       shape=params['shape'][i],
-                       stride=params['stride'][i],
-                       summary=params['summary'],
-                       conv_num=i,
-                       is_3d=params['is_3d'])
 
-            rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
+            if params['inception']:
+                x = inception_deconv(in_tensor=x, 
+                                    bs=bs, 
+                                    sx=sx, 
+                                    n_filters=params['nfilter'][i], 
+                                    stride=params['stride'][i], 
+                                    summary=params['summary'], 
+                                    num=i, 
+                                    is_3d=params['is_3d'], 
+                                    merge=(i == (nconv-1))
+                                    )
+                rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+       
+            else:       
+                x = deconv(in_tensor=x, 
+                           bs=bs, 
+                           sx=sx,
+                           n_filters=params['nfilter'][i],
+                           shape=params['shape'][i],
+                           stride=params['stride'][i],
+                           summary=params['summary'],
+                           conv_num=i,
+                           is_3d=params['is_3d']
+                           )
+                rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
+
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
+
                 x = params['activation'](x)
+                rprint('         Non linearity applied', reuse)
+
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
+
         if len(params['one_pixel_mapping']):
             x = one_pixel_mapping(x,
                                   params['one_pixel_mapping'],
@@ -1564,13 +1588,20 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
 
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
+
+    conv = get_conv(params['is_3d'])
     nconv = len(params['stride'])
     nfull = len(params['full'])
 
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n'+''.join(['-']*50), reuse)
+        
         if X is not None:
             rprint('     The input X is of size {}'.format(X.shape), reuse)
+
+            if params['downsampling']:
+                X = up_sampler(X, s=params['downsampling'], is_3d=True)
+                rprint('     The input X is upsampled to size {}'.format(X.shape), reuse)
 
         rprint('     The input z is of size {}'.format(z.shape), reuse)
         if y is not None:
@@ -1582,7 +1613,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                        params['full'][i],
                        '{}_full'.format(i),
                        summary=params['summary'])
-            z = lrelu(z)
+            z = params['activation'](z)
             rprint('     {} Full layer with {} outputs'.format(i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(z.shape), reuse)
 
@@ -1612,7 +1643,10 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                 x = tf.concat([X, z], axis=4)
             else:
                 x = tf.concat([X, z], axis=3)
-            rprint('     Concat x and z to {}'.format(x.shape), reuse)
+            rprint('     Concat X and z to {}'.format(x.shape), reuse)
+
+        conv_over_deconv = np.all(np.array(params['stride']) == 1) # If true use conv, else deconv
+        print("     conv_over_deconv=", conv_over_deconv)
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
@@ -1626,23 +1660,73 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                     x = tf.concat([x, y], axis=3)
                 rprint('     Concat x and y to {}'.format(x.shape), reuse) 
 
-            x = deconv(in_tensor=x, 
-                       bs=bs, 
-                       sx=sx,
-                       n_filters=params['nfilter'][i],
-                       shape=params['shape'][i],
-                       stride=params['stride'][i],
-                       summary=params['summary'],
-                       conv_num=i,
-                       is_3d=params['is_3d'])
-            rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
 
+            if params['residual'] and (i%2 != 0) and (i < nconv-2): # save odd layer inputs for residual connections
+                residue = x
+
+            if params['inception']:
+                if conv_over_deconv:
+                    x = inception_conv(in_tensor=x, 
+                                    n_filters=params['nfilter'][i], 
+                                    stride=params['stride'][i], 
+                                    summary=params['summary'], 
+                                    num=i,
+                                    is_3d=params['is_3d'], 
+                                    merge= (True if params['residual'] else (i == (nconv-1)) )
+                                    )
+                    rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+                else:
+                    x = inception_deconv(in_tensor=x, 
+                                        bs=bs, 
+                                        sx=sx, 
+                                        n_filters=params['nfilter'][i], 
+                                        stride=params['stride'][i], 
+                                        summary=params['summary'], 
+                                        num=i, 
+                                        is_3d=params['is_3d'], 
+                                        merge= (True if params['residual'] else (i == (nconv-1)) )
+                                        )
+                    rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+            else:
+                if conv_over_deconv:
+                    x = conv(x,
+                         nf_out=params['nfilter'][i],
+                         shape=params['shape'][i],
+                         stride=params['stride'][i],
+                         name='{}_conv'.format(i),
+                         summary=params['summary'])
+                    rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+                else:
+                    x = deconv(in_tensor=x, 
+                               bs=bs, 
+                               sx=sx,
+                               n_filters=params['nfilter'][i],
+                               shape=params['shape'][i],
+                               stride=params['stride'][i],
+                               summary=params['summary'],
+                               conv_num=i,
+                               is_3d=params['is_3d']
+                               )
+                    rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+
+            # residual connections before ReLU of every even layer, except 0th and last layer
+            if params['residual'] and (i != 0) and (i != nconv-1) and (i%2 == 0):
+                x = x + residue
+                rprint('         Residual connection', reuse)
+
+            # Batch Norm and ReLU
             if i < nconv-1:
                 if params['batch_norm'][i]:
                     x = batch_norm(x, name='{}_bn'.format(i), train=True)
                     rprint('         Batch norm', reuse)
 
-                x = lrelu(x)
+                x = params['activation'](x)
+                rprint('         Non linearity applied', reuse)
+                
+
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
         if len(params['one_pixel_mapping']):
@@ -1652,8 +1736,10 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                                   reuse=reuse)
 
         x = apply_non_lin(params['non_lin'], x, reuse)
+
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
+
     return x
 
 

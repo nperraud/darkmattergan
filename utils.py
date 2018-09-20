@@ -237,9 +237,9 @@ def get_latent_dim(out_width, generator_params, is3d=False):
     return w * w * generator_params['nfilter'][0]
 
 
-def save_hdf5(data, filename, dataset_name='data', mode='w'):
+def save_hdf5(data, filename, dataset_name='data', mode='w', dtype='float32'):
     h5f = h5py.File(filename, mode)
-    h5f.create_dataset(dataset_name, data=data, dtype='float32')
+    h5f.create_dataset(dataset_name, data=data, dtype=dtype)
     h5f.close()
 
 

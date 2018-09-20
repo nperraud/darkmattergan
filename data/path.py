@@ -16,7 +16,7 @@ def root_path():
     else:
         # This should be done in a different way
         utils_module_path = os.path.dirname(__file__)
-        rootpath = utils_module_path + '/../../data/'
+        rootpath = utils_module_path + '/../../pre_processed_data/'
     return rootpath
 
 
@@ -28,4 +28,18 @@ def celeba_path():
         rootpath = '/scratch/snx3000/nperraud/celeba/'
     else:
         raise NotImplementedError()
+    return rootpath
+
+
+def medical_path():
+    '''Return the root path of the electron microscopy dataset.'''
+    hostname = socket.gethostname()
+    # Check if we are on pizdaint
+    if 'nid' in hostname:
+        rootpath = '/scratch/snx3000/nperraud/pre_processed_medical_data/'
+    elif 'omenx' in hostname:
+        rootpath = '/store/nati/datasets/pre_processed_medical_data/'        
+    else:
+        utils_module_path = os.path.dirname(__file__)
+        rootpath =utils_module_path + '/../../pre_processed_medical_data/'
     return rootpath

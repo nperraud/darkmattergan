@@ -53,10 +53,12 @@ class Dataset(object):
         ''' Get the `N` first samples '''
         return self._data_process(self._X)[self._p[:N]]
 
-    def iter(self, batch_size=1):
-        return self.__iter__(batch_size)
+    # TODO: kwargs to be removed
+    def iter(self, batch_size=1, **kwargs):
+        return self.__iter__(batch_size, **kwargs)
 
-    def __iter__(self, batch_size=1):
+    # TODO: kwargs to be removed
+    def __iter__(self, batch_size=1, **kwargs):
 
         if batch_size > self.N:
             raise ValueError(
@@ -233,18 +235,23 @@ def slice_3d(cubes, spix=64):
     slice each cube in cubes to smaller cubes,
     and return all the smaller cubes
     '''
-    num_slices = cubes.shape[1] // spix
+    num_slices_dim_1 = cubes.shape[1] // spix
+    num_slices_dim_2 = cubes.shape[2] // spix
+    num_slices_dim_3 = cubes.shape[3] // spix
 
     # To ensure left over pixels in each dimension are ignored
-    limit = num_slices * spix
-    cubes = cubes[:, :limit, :limit, :limit]
+    limit_dim_1 = num_slices_dim_1 * spix
+    limit_dim_2 = num_slices_dim_2 * spix
+    limit_dim_3 = num_slices_dim_3 * spix
+
+    cubes = cubes[:, :limit_dim_1, :limit_dim_2, :limit_dim_3]
 
     # split along first dimension
-    cubes = np.vstack(np.split(cubes, num_slices, axis=1))
+    cubes = np.vstack(np.split(cubes, num_slices_dim_1, axis=1))
     # split along second dimension
-    cubes = np.vstack(np.split(cubes, num_slices, axis=2))
+    cubes = np.vstack(np.split(cubes, num_slices_dim_2, axis=2))
     # split along third dimension
-    cubes = np.vstack(np.split(cubes, num_slices, axis=3))
+    cubes = np.vstack(np.split(cubes, num_slices_dim_3, axis=3))
 
     return cubes
 
