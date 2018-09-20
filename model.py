@@ -22,6 +22,9 @@ class GanModel(object):
         self._D_loss = None
         self._G_loss = None
 
+    def add_model_specific_inputs(self, feed_dict, phase="generate", step=0):
+        return feed_dict
+
     @property
     def D_loss(self):
         return self._D_loss
@@ -111,103 +114,7 @@ class CondWGanModel(GanModel):
         return discriminator(X, self.params['discriminator'], z=self.y, reuse=reuse)
 
 
-class TemporalGanModel(GanModel):
-    def __init__(self, params, X, z, name='TempWGanV1', is_3d=False):
-        super().__init__(params=params, name=name, is_3d=is_3d)
-        zn = tf.nn.l2_normalize(z, 1)
-        z_shape = tf.shape(zn)
-        scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
-        scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
-        y = tf.constant(scaling, dtype=tf.float32, name='y')
-        y = y[:z_shape[0]]
-        zn = tf.multiply(zn, y)
-
-        self.G_fake = self.generator(zn, reuse=False)
-        self.D_real = self.discriminator(X, reuse=False)
-        self.D_fake = self.discriminator(self.G_fake, reuse=True)
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
-        gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
-        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
-        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
-        self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], z=self.y, reuse=reuse)
-
-    @property
-    def D_loss(self):
-        return self._D_loss
-
-    @property
-    def G_loss(self):
-        return self._G_loss
-
-
-class TempGanModelv2(GanModel):
-    def __init__(self, params, X, z, name='TempWGanV2', is_3d=False):
-        super().__init__(params=params, name=name, is_3d=is_3d)
-        zn = tf.nn.l2_normalize(z, 1)
-        z_shape = tf.shape(zn)
-        scaling = (np.arange(params['num_classes']) + 1) / params['num_classes']
-        scaling = np.resize(scaling, (params['optimization']['batch_size'], 1))
-        y = tf.constant(scaling, dtype=tf.float32, name='y')
-        y = y[:z_shape[0]]
-        zn = tf.multiply(zn, y)
-
-        self.G_fake = self.generator(zn, reuse=False)
-
-        self.D_real = self.discriminator(X, reuse=False)
-        self.D_c_real = self.c_discriminator(X, reuse=False)
-
-        self.D_fake = self.discriminator(self.G_fake, reuse=True)
-        self.D_c_fake = self.c_discriminator(self.G_fake, reuse=True)
-
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
-
-        D_c_loss_f = tf.reduce_mean(self.D_c_fake)
-        D_c_loss_r = tf.reduce_mean(self.D_c_real)
-
-        gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        D_c_gp = wgan_regularization(gamma_gp, self.c_discriminator, [self.G_fake], [X])
-
-        self._D_loss = D_loss_f - D_loss_r + D_c_loss_f - D_c_loss_r + D_gp + D_c_gp
-        self._G_loss = -D_loss_f -D_c_loss_f
-
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], z=self.y, reuse=reuse)
-
-    def c_discriminator(self, X, reuse):
-        bs = self.params['optimization']['batch_size']
-        nc = self.params['num_classes']
-        seq = np.repeat(np.arange(bs // nc) * nc, nc - 1) + np.tile(np.arange(nc - 1), bs // nc)
-        x1 = tf.gather(X, seq)
-        x2 = tf.gather(X, seq + 1)
-        x = tf.concat([x1,x2], axis=3)
-        return discriminator(x, self.params['discriminator'], reuse=reuse, scope="consistency_discriminator")
-
-    @property
-    def D_loss(self):
-        return self._D_loss
-
-    @property
-    def G_loss(self):
-        return self._G_loss
-
-
+# Legacy model class required by certain old models
 class TemporalGanModelv3(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
@@ -245,16 +152,6 @@ class TemporalGanModelv3(GanModel):
         self._G_loss = -D_loss_f
         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
 
-    def reshape_time_to_channels_old(self, X):
-        bs = self.params['optimization']['batch_size']
-        nc = self.params['time']['num_classes']
-        idx = np.arange(bs) * nc
-        x = tf.gather(X, idx)
-        #for i in (np.arange(nc - 1) + 1):
-        for i in range(1, nc):
-            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
-        return x
-
     def reshape_time_to_channels(self, X):
         nc = self.params['time']['num_classes']
         lst = []
@@ -281,148 +178,9 @@ class TemporalGanModelv3(GanModel):
         return self._G_loss
 
 
-class TemporalRWGanModelv3GP(GanModel):
-    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
-        super().__init__(params=params, name=name, is_3d=is_3d)
-        assert 'time' in params.keys()
-
-        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
-        z_shape = tf.shape(zn)
-        scaling = np.asarray(params['time']['class_weights'])
-        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
-        scaling = np.resize(scaling, (gen_bs, 1))
-        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
-        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
-        t = self.y[:z_shape[0]]
-        zn = tf.multiply(zn, t)
-
-        self.G_c_fake = self.generator(zn, reuse=False)
-        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
-
-        if params['time']['use_diff_stats']:
-            self.disc = self.df_discriminator
-        else:
-            self.disc = self.discriminator
-
-        self.D_real = self.disc(X, reuse=False)
-        self.D_fake = self.disc(self.G_fake, reuse=True)
-
-        D_loss_f = tf.reduce_mean(self.D_fake - self.D_real)
-        D_loss_r = tf.reduce_mean(self.D_real - self.D_fake)
-
-        gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
-        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
-        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
-        self._D_loss = -D_loss_r + D_gp
-        self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-
-    def reshape_time_to_channels_old(self, X):
-        bs = self.params['optimization']['batch_size']
-        nc = self.params['time']['num_classes']
-        idx = np.arange(bs) * nc
-        x = tf.gather(X, idx)
-        #for i in (np.arange(nc - 1) + 1):
-        for i in range(1, nc):
-            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
-        return x
-
-    def reshape_time_to_channels(self, X):
-        nc = self.params['time']['num_classes']
-        lst = []
-        for i in range(nc):
-            lst.append(X[i::nc])
-        return tf.concat(lst, axis=3)
-
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse)
-
-    def df_discriminator(self, X, reuse):
-        y = X[:, :, :, 1:] - X[:, :, :, :-1]
-        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
-
-    @property
-    def D_loss(self):
-        return self._D_loss
-
-    @property
-    def G_loss(self):
-        return self._G_loss
-
-
-
-class TemporalGanModelv4(GanModel):
-    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
-        super().__init__(params=params, name=name, is_3d=is_3d)
-        assert 'time' in params.keys()
-
-        z0 = z[:, 0::2]
-        z1 = z[:, 1::2]
-        zn = tf.nn.l2_normalize(z1, 1) * np.sqrt(params['generator']['latent_dim'] / 2)
-        z_shape = tf.shape(zn)
-        scaling = np.asarray(params['time']['class_weights'])
-        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
-        scaling = np.resize(scaling, (gen_bs, 1))
-        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
-        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
-        t = self.y[:z_shape[0]]
-        zn = tf.multiply(zn, t)
-        zn = tf.expand_dims(zn, -1)
-        z0 = tf.expand_dims(z0, -1)
-        zn = tf.concat([z0, zn], axis=2)
-
-        self.G_c_fake = self.generator(zn, reuse=False)
-        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
-
-        if params['time']['use_diff_stats']:
-            self.disc = self.df_discriminator
-        else:
-            self.disc = self.discriminator
-
-        self.D_real = self.disc(X, reuse=False)
-        self.D_fake = self.disc(self.G_fake, reuse=True)
-
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
-
-        gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
-        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
-        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
-        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
-        self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-
-    def reshape_time_to_channels(self, X):
-        nc = self.params['time']['num_classes']
-        lst = []
-        for i in range(nc):
-            lst.append(X[i::nc])
-        return tf.concat(lst, axis=3)
-
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse)
-
-    def df_discriminator(self, X, reuse):
-        y = X[:, :, :, 1:] - X[:, :, :, :-1]
-        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
-
-    @property
-    def D_loss(self):
-        return self._D_loss
-
-    @property
-    def G_loss(self):
-        return self._G_loss
-
-
+# Generic Continuous Conditional GAN class.
+# Depending on parameters difference formats for the continuous conditional GAN
+# may be changed, such as the encoding format for the latent variables.
 class TemporalGenericGanModel(GanModel):
     def __init__(self, params, X, z, name='TempGenericGAN', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
@@ -433,6 +191,24 @@ class TemporalGenericGanModel(GanModel):
 
         self.G_c_fake = self.generator(z, reuse=False)
         self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
+
+        if False: #'encoder' in params.keys():
+            channel_images = self.reshape_channels_to_images(X)
+            channel_images = self.generator(self.encoder(channel_images, reuse=False),reuse=True)
+            self.reconstructed = self.reshape_time_to_channels(channel_images)
+            self._E_loss = tf.losses.mean_squared_error(X, self.reconstructed)
+
+        if 'encoder' in params.keys():
+            z_recon = self.encoder(self.G_c_fake, reuse=False)
+            self._E_loss = tf.losses.mean_squared_error(z, z_recon)
+            channel_images = self.reshape_channels_to_images(X)
+            channel_images = self.generator(self.encoder(channel_images, reuse=True),reuse=True)
+            self.reconstructed = self.reshape_time_to_channels(channel_images)
+            tf.summary.scalar("Enc/Loss", self._E_loss, collections=["Training"])
+            reconstruction_loss = tf.losses.mean_squared_error(X, self.reconstructed)
+            tf.summary.scalar("Enc/Reconstruction_Loss", reconstruction_loss, collections=["Training"])
+        else:
+            self._E_loss = None
 
         if params['time']['use_diff_stats']:
             self.disc = self.df_discriminator
@@ -447,19 +223,30 @@ class TemporalGenericGanModel(GanModel):
             print("Using JS-Regularization (Roth et al. 2017)")
             D_gp = js_regularization(self.D_real, X, self.D_fake, self.G_fake,
                                      params['optimization']['batch_size'])
-            D_gp = (gamma_gp / 2.0) * D_gp
+            global_step = tf.train.get_global_step()
+            alpha = self.params['optimization'].get('alpha', None)
+            if alpha:
+                print("Using annealing")
+                T = self.params['optimization']['max_T']
+                alpha = tf.constant(alpha, dtype=tf.float32)
+                alpha = tf.pow(alpha, tf.cast(tf.minimum(global_step, T) / T, tf.float32))
+                D_gp = D_gp * gamma_gp * alpha
+            else:
+                print("Not using annealing")
+                D_gp = gamma_gp * D_gp
 
             s_D_real = tf.nn.sigmoid(self.D_real)
             s_D_fake = tf.nn.sigmoid(self.D_fake)
 
             self._D_loss = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real, labels=tf.ones_like(s_D_real))
-                + tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.zeros_like(s_D_fake)))
+                + tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.zeros_like(s_D_fake))) \
+                + D_gp
 
             self._G_loss = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=tf.ones_like(s_D_fake)))
 
-            # wgan_summaries(self._D_loss, self._G_loss, s_D_fake, s_D_real)
+            js_gan_summaries(s_D_fake, s_D_real)
         else:
             D_gp = 0
             if gamma_gp != 0:
@@ -486,6 +273,11 @@ class TemporalGenericGanModel(GanModel):
         for i in range(nc):
             lst.append(X[i::nc])
         return tf.concat(lst, axis=3)
+
+    def reshape_channels_to_images(self, x):
+        x = tf.transpose(x, [0, 3, 1, 2])
+        x = tf.reshape(x, [tf.shape(x)[0] * x.shape[1], x.shape[2], x.shape[3]])
+        return tf.expand_dims(x, axis=-1)
 
     def prep_latent(self, z, params):
         if params['time_encoding'] == 'channel_encoding':
@@ -536,6 +328,15 @@ class TemporalGenericGanModel(GanModel):
             z0 = tf.expand_dims(z0, -1)
             return tf.concat([z0, zn], axis=2)
 
+        if params['time_encoding'] == 'late_time_encoding':
+            scaling = np.asarray(self.params['time']['class_weights'])
+            gen_bs = self.params['optimization']['batch_size'] * self.params['time']['num_classes']
+            scaling = np.resize(scaling, (gen_bs, 1))
+            default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
+            self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
+            z_shape = tf.shape(z)
+            self.t = self.y[:z_shape[0]]
+            return z
         raise ValueError(' [!] time encoding not defined')
 
     def generator(self, z, reuse):
@@ -544,160 +345,12 @@ class TemporalGenericGanModel(GanModel):
     def discriminator(self, X, reuse):
         return discriminator(X, self.params['discriminator'], reuse=reuse)
 
-    def df_discriminator(self, X, reuse):
-        y = X[:, :, :, 1:] - X[:, :, :, :-1]
-        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
-
-    @property
-    def D_loss(self):
-        return self._D_loss
-
-    @property
-    def G_loss(self):
-        return self._G_loss
-
-
-class TemporalGanModelv5(GanModel):
-    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
-        super().__init__(params=params, name=name, is_3d=is_3d)
-        assert 'time' in params.keys()
-
-        ld_width = params['image_size'][0]
-        for stride in params['generator']['stride']:
-            ld_width = ld_width // stride
-
-        assert ld_width*ld_width < params['generator']['latent_dim']
-
-        z_shape = tf.shape(z)
-        z = tf.reshape(z, [z_shape[0], ld_width, ld_width, z_shape[1] // (ld_width*ld_width)])
-        scaling = np.asarray(params['time']['class_weights'])
-        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
-        scaling = np.resize(scaling, (gen_bs, 1))
-        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
-        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
-        t = self.y[:z_shape[0]]
-        t = tf.expand_dims(t, axis=-1)
-        t = tf.expand_dims(tf.tile(t, [1, ld_width, ld_width]), axis=-1)
-        z = z[:, :, :, :-1]
-        z = tf.concat([z, t], axis=3)
-        z = tf.reshape(z, z_shape)
-
-        self.G_c_fake = self.generator(z, reuse=False)
-        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
-
-        if params['time']['use_diff_stats']:
-            self.disc = self.df_discriminator
-        else:
-            self.disc = self.discriminator
-
-        self.D_real = self.disc(X, reuse=False)
-        self.D_fake = self.disc(self.G_fake, reuse=True)
-
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
-
-        gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.disc, [self.G_fake], [X])
-        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
-        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
-        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
-        self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-
-    def reshape_time_to_channels_old(self, X):
-        bs = self.params['optimization']['batch_size']
-        nc = self.params['time']['num_classes']
-        idx = np.arange(bs) * nc
-        x = tf.gather(X, idx)
-        #for i in (np.arange(nc - 1) + 1):
-        for i in range(1, nc):
-            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
-        return x
-
-    def reshape_time_to_channels(self, X):
-        nc = self.params['time']['num_classes']
-        lst = []
-        for i in range(nc):
-            lst.append(X[i::nc])
-        return tf.concat(lst, axis=3)
-
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse)
-
-    def df_discriminator(self, X, reuse):
-        y = X[:, :, :, 1:] - X[:, :, :, :-1]
-        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
-
-    @property
-    def D_loss(self):
-        return self._D_loss
-
-    @property
-    def G_loss(self):
-        return self._G_loss
-
-class TemporalGanModelv3E(GanModel):
-    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
-        super().__init__(params=params, name=name, is_3d=is_3d)
-        assert 'time' in params.keys()
-
-        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
-        z_shape = tf.shape(zn)
-        scaling = np.asarray(params['time']['class_weights'])
-        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
-        scaling = np.resize(scaling, (gen_bs, 1))
-        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
-        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
-        t = self.y[:z_shape[0]]
-        zn = tf.multiply(zn, t)
-
-        self.G_c_fake = self.generator(zn, reuse=False)
-        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
-
-        self.D_real = self.discriminator(X, reuse=False)
-        self.D_fake = self.discriminator(self.G_fake, reuse=True)
-
-        enc = self.encoder(self.G_c_fake, reuse=False)
-        # Perhaps something should be added to the loss,
-        # as we know how it should be encoding time?
-        self._E_loss = tf.reduce_mean(tf.square(enc - zn))
-
-        # This should make it easy to compare images with their encoded and decoded counterparts
-        width = self.params['image_size'][0]
-        self.single_images = tf.placeholder(tf.float32, shape=[None, width, width, 1])
-        self.encoded_images = self.encoder(self.single_images, reuse=True)
-
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
-
-        gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-
-        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
-        self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-
-    def reshape_time_to_channels(self, X):
-        bs = self.params['optimization']['batch_size']
-        nc = self.params['time']['num_classes']
-        idx = np.arange(bs) * nc
-        x = tf.gather(X, idx)
-        #for i in (np.arange(nc - 1) + 1):
-        for i in range(1, nc):
-            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
-        return x
-
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse)
-
     def encoder(self, X, reuse):
-        return encoder(X, self.params['encoder'], self.latent_dim, reuse=reuse)
+        return encoder(X, self.params['encoder'], latent_dim=self.params['generator']['latent_dim'], reuse=reuse)
+
+    def df_discriminator(self, X, reuse):
+        y = X[:, :, :, 1:] - X[:, :, :, :-1]
+        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
 
     @property
     def D_loss(self):
@@ -713,72 +366,7 @@ class TemporalGanModelv3E(GanModel):
 
     @property
     def has_encoder(self):
-        return True
-
-
-class TemporalGanModelv4old(GanModel):
-    def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
-        super().__init__(params=params, name=name, is_3d=is_3d)
-        assert 'time' in params.keys()
-
-        zn = tf.nn.l2_normalize(z, 1) * np.sqrt(params['generator']['latent_dim'])
-        z_shape = tf.shape(zn)
-        scaling = np.asarray(params['time']['class_weights'])
-        gen_bs = params['optimization']['batch_size'] * params['time']['num_classes']
-        scaling = np.resize(scaling, (gen_bs, 1))
-        default_t = tf.constant(scaling, dtype=tf.float32, name='default_t')
-        self.y = tf.placeholder_with_default(default_t, shape=[None, 1], name='t')
-        t = self.y[:z_shape[0]]
-        zn = tf.multiply(zn, t)
-
-        self.G_c_fake = self.generator(zn, reuse=False)
-        self.G_fake = self.reshape_time_to_channels(self.G_c_fake)
-
-        self.D_real = self.discriminator(X, reuse=False)
-        self.D_fake = self.discriminator(self.G_fake, reuse=True)
-
-        D_loss_f = tf.reduce_mean(self.D_fake)
-        D_loss_r = tf.reduce_mean(self.D_real)
-
-        gamma_gp = self.params['optimization']['gamma_gp']
-        D_gp = wgan_regularization(gamma_gp, self.discriminator, [self.G_fake], [X])
-        # Max(D_loss_r - D_loss_f) = Min -(D_loss_r - D_loss_f)
-        # Min(D_loss_r - D_loss_f) = Min -D_loss_f
-        self._D_loss = -(D_loss_r - D_loss_f) + D_gp
-        self._G_loss = -D_loss_f
-        wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-
-    def reshape_time_to_channels(self, X):
-        bs = self.params['optimization']['batch_size']
-        nc = self.params['time']['num_classes']
-        idx = np.arange(bs) * nc
-        x = tf.gather(X, idx)
-        #for i in (np.arange(nc - 1) + 1):
-        for i in range(1, nc):
-            x = tf.concat([x, tf.gather(X, idx + i)], axis=3)
-        return x
-
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
-
-    def discriminator(self, X, reuse, dif_stats=False):
-        y = X[:,:,:,1:] - X[:,:,:,:-1]
-        return discriminator(tf.concat([X,y], axis=3), self.params['discriminator'], reuse=reuse)
-
-    @property
-    def D_loss(self):
-        return self._D_loss
-
-    @property
-    def G_loss(self):
-        return self._G_loss
-
-
-def reshape_channels_to_separate(self, X):
-    t = tf.transpose(X, [0, 3, 1, 2])
-    shape = tf.shape(t)
-    return tf.reshape(t, [shape[0]*shape[1], shape[2], shape[3], 1])
-
+        return 'encoder' in self.params.keys()
 
 class WVeeGanModel(GanModel):
     def __init__(self, params, X, z, name='veegan', is_3d=False):
@@ -1595,6 +1183,11 @@ class LapPatchWGANDirect(GanModel):
         
 #         return G_fake, D_real, D_fake, Xs, G_fake_s
 
+def js_gan_summaries(D_out_f, D_out_r):
+    tf.summary.scalar("Disc/Out_f", tf.reduce_mean(D_out_f), collections=["Training"])
+    tf.summary.scalar("Disc/Out_r", tf.reduce_mean(D_out_r), collections=["Training"])
+    tf.summary.scalar("Disc/Out_f-r", tf.reduce_mean(D_out_f - D_out_r), collections=["Training"])
+
 def wgan_summaries(D_loss, G_loss, D_loss_f, D_loss_r):
     tf.summary.scalar("Disc/Neg_Loss", -D_loss, collections=["Training"])
     tf.summary.scalar("Disc/Neg_Critic", D_loss_f - D_loss_r, collections=["Training"])
@@ -1819,7 +1412,6 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             cov = params['activation'](cov)
             rprint('     Covariance Full layer with {} outputs'.format(nel), reuse)
             rprint('         Size of the CDF variables: {}'.format(cov.shape), reuse)
-            
 
         for i in range(nconv):
             if params['inception']:
@@ -1832,16 +1424,34 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                                     merge=(i == (nconv-1))
                                     )
                 rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
-
+            elif params.get('separate_first', False) and i == 0:
+                n_out = params['nfilter'][i] // (int(x.shape[3]) + 1)
+                lst = []
+                for j in range(x.shape[3]):
+                    lst.append(conv(x[:,:,:,j:j+1],
+                        nf_out=n_out,
+                        shape=params['shape'][i],
+                        stride=params['stride'][i],
+                        use_spectral_norm=params['spectral_norm'],
+                        name='{}_conv{}'.format(i,j),
+                        summary=params['summary']))
+                lst.append(conv(x[:,:,:,:],
+                        nf_out=params['nfilter'][i] - (n_out * int(x.shape[3])),
+                        shape=params['shape'][i],
+                        stride=params['stride'][i],
+                        use_spectral_norm=params['spectral_norm'],
+                        name='{}_conv_full'.format(i),
+                        summary=params['summary']))
+                x = tf.concat(lst, axis=3)
             else:
                 x = conv(x,
                          nf_out=params['nfilter'][i],
                          shape=params['shape'][i],
                          stride=params['stride'][i],
+                         use_spectral_norm=params['spectral_norm'],
                          name='{}_conv'.format(i),
                          summary=params['summary'])
                 rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
-
 
             if params['batch_norm'][i]:
                 x = batch_norm(x, name='{}_bn'.format(i), train=True)
@@ -1882,7 +1492,6 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
     return x
-
 
 def generator(x, params, y=None, reuse=True, scope="generator"):
     assert(len(params['stride']) == len(params['nfilter'])
@@ -2160,6 +1769,12 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
 
             x = lrelu(x)
 
+        x = conv2d(x,
+                   nf_out=64,
+                   shape=[1,1],
+                   stride=1,
+                   name='out',
+                   summary=params['summary'])
         x = reshape2d(x, name='img2vec')
         rprint('     Reshape to {}'.format(x.shape), reuse)
         for i in range(nfull):
@@ -2171,7 +1786,8 @@ def encoder(x, params, latent_dim, reuse=True, scope="encoder"):
             rprint('     {} Full layer with {} outputs'.format(nconv+i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
 
-        x = linear(x, latent_dim, 'out', summary=params['summary'])
+        #x = linear(x, latent_dim, 'out', summary=params['summary'])
+
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
         rprint('     The output is of size {}'.format(x.shape), reuse)

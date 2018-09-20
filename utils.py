@@ -300,6 +300,57 @@ def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
 
+def get_lst_append_ret(params, key, obj):
+    lst = params.get(key, list())
+    lst.append(obj)
+    return lst
+
+
+def add_conv_layer(params, nfilter, shape=3, stride=1, batch_norm=False, is_3d=False):
+    params['nfilter'] = get_lst_append_ret(params, 'nfilter', nfilter)
+    params['stride'] = get_lst_append_ret(params, 'stride', stride)
+    if batch_norm is not None:
+        params['batch_norm'] = get_lst_append_ret(params, 'batch_norm', batch_norm)
+    if not isinstance(shape, list):
+        if is_3d:
+            shape = [shape, shape, shape]
+        else:
+            shape = [shape, shape]
+    params['shape'] = get_lst_append_ret(params, 'shape', shape)
+    return params
+
+
+def add_bottleneck_layer(params, nfilter, shape=3, stride=1, batch_norm=False, is_3d=False):
+    assert isinstance(nfilter, list)
+    assert len(nfilter) == 3
+    params = add_conv_layer(params, nfilter[0], shape=1, stride=1,
+                            batch_norm=batch_norm, is_3d=is_3d)
+    params = add_conv_layer(params, nfilter[1], shape=shape, stride=stride,
+                            batch_norm=batch_norm, is_3d=is_3d)
+    params = add_conv_layer(params, nfilter[2], shape=1, stride=1,
+                            batch_norm=batch_norm, is_3d=is_3d)
+    return params
+
+
+class NetParamHelper(object):
+    def __init__(self, is_3d=False):
+        self.params = dict()
+        self.is_3d = False
+
+    def add_conv_layer(self, nfilter, shape=3, stride=1, batch_norm=False):
+        self.params = add_conv_layer(self.params, nfilter, shape=shape, stride=stride,
+                                     batch_norm=batch_norm, is_3d=self.is_3d)
+
+    def add_bottleneck_layer(self, nfilter, shape=3, stride=1, batch_norm=False):
+        self.params = add_bottleneck_layer(self.params, nfilter, shape=shape, stride=stride,
+                                     batch_norm=batch_norm, is_3d=self.is_3d)
+
+    def add_full(self, units):
+        self.params['full'] = get_lst_append_ret(self.params, 'full', units)
+
+    def params(self):
+        return self.params
+
 def print_params_to_py_style_output_helper(name, params):
     print("\n# {} Params".format(name.title()))
     d_name = "params_{}".format(name)
