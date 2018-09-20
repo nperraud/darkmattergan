@@ -114,6 +114,7 @@ class CondWGanModel(GanModel):
         return discriminator(X, self.params['discriminator'], z=self.y, reuse=reuse)
 
 
+# Legacy model class required by certain old models
 class TemporalGanModelv3(GanModel):
     def __init__(self, params, X, z, name='TempWGanV3', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)
@@ -176,6 +177,10 @@ class TemporalGanModelv3(GanModel):
     def G_loss(self):
         return self._G_loss
 
+
+# Generic Continuous Conditional GAN class.
+# Depending on parameters difference formats for the continuous conditional GAN
+# may be changed, such as the encoding format for the latent variables.
 class TemporalGenericGanModel(GanModel):
     def __init__(self, params, X, z, name='TempGenericGAN', is_3d=False):
         super().__init__(params=params, name=name, is_3d=is_3d)

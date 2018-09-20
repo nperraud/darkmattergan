@@ -1165,6 +1165,8 @@ class TimeGAN(GAN):
         self.params = default_params_time(params)
         super().__init__(params=self.params, model=model, is_3d=is_3d)
 
+    # Generates image sequence summaries as opposed to the simple image
+    # summaries in the GAN class.
     def _build_image_summary_generic(self, real, fake, collection, afix=''):
         vmin = tf.reduce_min(real)
         vmax = tf.reduce_max(real)
@@ -1221,6 +1223,9 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
             self._stats_t.append(self._compute_real_stats(real[:,:,:,t]))
         super().train(dataset=dataset, resume=resume)
 
+    # Taking advantage of the static function from the CosmoGAN, statistics for
+    # each continuous class are generated seperately as well as averaged over all
+    # classes.
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
         if np.mod(self._counter, self.params['sum_every']) == 0:
@@ -1246,12 +1251,15 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
                 self.summary_op_metrics_t, feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
 
+    # Helper function for train_encoder
     def add_enc_to_path(self, s):
         q = ""
         for i in range(5):
             q = q + s.split('/')[i] + '/'
         return q + s.split('/')[5] + '_z_enc/' + s.split('/')[6] + '/'
 
+    # This very hacky function was written in to add an encoder to already trained models.
+    # If you do not intend to do that then this function may be safely removed.
     def train_encoder(self, dataset):
 
         n_data = dataset.N
@@ -1351,10 +1359,14 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
                 pass
             self._save(self._savedir, self._counter)
 
-
+    # The CosmoTimeGAN samples latent value series. Ie we sample latent vectors
+    # and then repeat them for each continuous class
     def _sample_latent(self, bs=None):
         return TimeGAN._sample_latent(self, bs)
 
+    # Whether to generate statistics over multiple channels if available.
+    # This overides the property from the base GAN class which only looks
+    # at the first channel for statistics.
     @property
     def average_over_all_channels(self):
         return True
