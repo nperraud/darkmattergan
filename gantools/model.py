@@ -123,11 +123,11 @@ class WGAN(BaseGAN):
         self._build_stat_summary()
         self._wgan_summaries()
 
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
+    def generator(self, z, reuse, **kwargs):
+        return generator(z, self.params['generator'], reuse=reuse, **kwargs)
 
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse) 
+    def discriminator(self, X, reuse, **kwargs):
+        return discriminator(X, self.params['discriminator'], reuse=reuse, **kwargs) 
 
     def sample_latent(self, bs=1):
         latent_dim = self.params['generator']['latent_dim']
