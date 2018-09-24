@@ -240,6 +240,17 @@ class GANsystem(NNSystem):
 
 
 class PaulinaGANsystem(GANsystem):
+
+
+    def _classical_gan_loss_d(self, real, fake):
+        return -tf.reduce_mean(tf.log(tf.nn.sigmoid(real)) + tf.log(1-tf.nn.sigmoid(fake)))
+        # return -tf.reduce_mean(tf.log(tf.nn.sigmoid(real)) - fake + tf.log(tf.nn.sigmoid(fake)))
+
+    def _classical_gan_loss_g(self, fake):
+        return tf.reduce_mean(tf.log(1-tf.nn.sigmoid(fake)))
+        # return tf.reduce_mean(- fake + tf.log(tf.nn.sigmoid(fake)))
+
+
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -254,7 +265,8 @@ class PaulinaGANsystem(GANsystem):
             new_opt = tf.train.RMSPropOptimizer(learning_rate=3e-5)
             self.df = self.net.discriminator(self._net.X_fake, reuse=tf.AUTO_REUSE, scope="TMPdisc")
             self.dr = self.net.discriminator(self._net.X_real, reuse=tf.AUTO_REUSE, scope="TMPdisc")
-            disc_loss_worst = -tf.reduce_mean(self.dr - self.df)
+            # disc_loss_worst = -tf.reduce_mean(self.dr - self.df)
+            disc_loss_worst = self._classical_gan_loss_d(self.dr, self.df)
             t_vars = tf.global_variables()
             d_vars_worst = [var for var in t_vars if 'TMPdisc' in var.name]
             self.find_worst_d = new_opt.minimize(disc_loss_worst, var_list=d_vars_worst)
@@ -267,7 +279,9 @@ class PaulinaGANsystem(GANsystem):
         self.dr_w = self.net.discriminator(self._net.X_real, reuse=True, scope="discriminator")
 
         with tf.variable_scope('worst_calc_gen', reuse=tf.AUTO_REUSE):
-            gen_loss_worst = tf.reduce_mean(self.dr_w - self.df_w)
+            # gen_loss_worst = tf.reduce_mean(self.dr_w - self.df_w)
+            gen_loss_worst = self._classical_gan_loss_g(self.df_w)
+            
             t_vars = tf.global_variables()
             g_vars_worst = [var for var in t_vars if 'TMPgen' in var.name]
             self.find_worst_g = new_opt_gen.minimize(gen_loss_worst, var_list=g_vars_worst)
