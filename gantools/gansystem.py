@@ -43,6 +43,7 @@ class GANsystem(NNSystem):
         d_param['optimization']['n_critic'] = 5
         d_param['optimization']['epoch'] = 10
         d_param['optimization']['batch_size'] = 8
+        d_param['Nstats'] = None
 
         return d_param
 
@@ -115,6 +116,11 @@ class GANsystem(NNSystem):
 
         return optimizer
 
+    def train(self, dataset, **kwargs):
+        if self.params['Nstats']:
+            self.net.preprocess_summaries(dataset.get_all_data())
+        super().train(dataset, **kwargs)
+
     def _run_optimization(self, feed_dict, idx):
         # Update discriminator
         for _ in range(self.params['optimization']['n_critic']):
@@ -137,9 +143,12 @@ class GANsystem(NNSystem):
 
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
-
         X_real, X_fake = self._sess.run([self.net.X_real, self.net.X_fake], feed_dict=feed_dict)
-        feed_dict = self.net.compute_summaries(X_real, X_fake, feed_dict)
+        if self.params['Nstats']:
+            X_fake = self._generate_sample_safe(z=self.net.sample_latent(self.params['Nstats']))
+            feed_dict = self.net.compute_summaries(X_real, X_fake, feed_dict)
+        else:
+            feed_dict = self.net.compute_summaries(X_real, X_fake, feed_dict)
 
         summary = self._sess.run(self.net.summary, feed_dict=feed_dict)
         self._summary_writer.add_summary(summary, self._counter)
