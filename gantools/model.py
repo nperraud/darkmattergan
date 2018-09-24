@@ -252,12 +252,12 @@ class CosmoWGAN(WGAN):
             met.add_summary(collections="model")
 
     def preprocess_summaries(self, X_real):
+        super().preprocess_summaries(X_real)  
         if self.params['cosmology']['backward_map']:
             X_real = self.params['cosmology']['backward_map'](X_real)
         for met in self._cosmo_metric_list:
             met.preprocess(X_real)
 
-        super().preprocess_summaries(X_real)  
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         feed_dict = super().compute_summaries(X_real, X_fake, feed_dict)
