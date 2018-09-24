@@ -7,7 +7,7 @@ from gantools.plot.plot_summary import PlotSummary, PlotSummaryLog
 class TFsummaryHelper(object):
     """Helper class for tensorflow summaries."""
 
-    def __init__(self, name, group=''):
+    def __init__(self, name, group='', stype=0):
         """Create a statistical object.
 
         Arguments
@@ -17,9 +17,9 @@ class TFsummaryHelper(object):
         """
         self._name = name
         self._group = group
-        self._stype = None
+        self._stype = stype
 
-    def add_summary(self, stype=0, collections=None):
+    def add_summary(self,  collections=None):
         """Add a tensorflow summary.
 
         stype: summary type. 
@@ -30,18 +30,19 @@ class TFsummaryHelper(object):
         """
 
         name = self.group + '/' + self.name
-        self._stype = stype
-        if stype == 0:
+        print("Add summary for "+name)
+
+        if self.stype == 0:
             self._placeholder = tf.placeholder(tf.float32, name=name)
             tf.summary.scalar(name, self._placeholder, collections=[collections])
-        elif stype == 1:
+        elif self.stype == 1:
             self._placeholder = tf.placeholder(
                 tf.float32, shape=[None, None], name=name)
             tf.summary.image(name, self._placeholder, collections=[collections])
-        elif stype == 2:
+        elif self.stype == 2:
             self._placeholder = tf.placeholder(tf.float32, shape=[None], name=name)
             tf.summary.histogram(name, self._placeholder, collections=[collections])
-        elif stype == 3:
+        elif self.stype == 3:
             self._placeholder = tf.placeholder(tf.float32, name=name)
             tf.summary.scalar(name, self._placeholder, collections=[collections])
             if self._log:
@@ -63,17 +64,22 @@ class TFsummaryHelper(object):
     def name(self):
         return self._name
 
+    @property
+    def stype(self):
+        return self._stype
+    
+
 class Statistic(TFsummaryHelper):
     """Base class for a statistic."""
 
-    def __init__(self, func, name, group=''):
+    def __init__(self, func, *args, **kwargs):
         """Create a statistical object.
 
         Arguments
         ---------
         * func: function to compute the statistic
         """
-        super().__init__(name=name, group=group)
+        super().__init__(*args, **kwargs)
         self._func = func
 
     def compute_summary(self, dat, feed_dict={}):
@@ -88,7 +94,7 @@ class Statistic(TFsummaryHelper):
 class Metric(TFsummaryHelper):
     """Base metric class."""
 
-    def __init__(self, name, group='', recompute_real=True):
+    def __init__(self, name, group='', recompute_real=True, **kwargs):
         """Initialize the statistic.
 
         Argument
@@ -96,9 +102,10 @@ class Metric(TFsummaryHelper):
         * name: name of the statistic (preferably unique)
         * recompute_real: recompute the real statistic (default True)
         """
-        super().__init__(name=name, group=group)
+        super().__init__(name=name, group=group, **kwargs)
         self._preprocessed = False
         self._recompute_real = recompute_real
+        self._last_metric = None
 
 
     def preprocess(self, real):
@@ -111,11 +118,13 @@ class Metric(TFsummaryHelper):
 
     def __call__(self, fake, real=None):
         """Compute the metric."""
-        if self._recompute_real or ((not self.preprocessed) and real):
+
+        if self._recompute_real or ((not self.preprocessed) and (real is not None)):
             self.preprocess(real)
-        elif (not self.preprocessed) and (not real):
+        elif (not self.preprocessed) and (real is not None):
             raise ValueError("The real data need to be preprocessed first!")
-        return self._compute(fake, real)
+        self._last_metric = self._compute(fake, real)
+        return self._last_metric
 
     def _compute(self, fake, real):
         """Compute the metric."""
@@ -130,11 +139,16 @@ class Metric(TFsummaryHelper):
         """Return True if the preprocessing been done."""
         return self._preprocessed
 
+    @property
+    def last_metric(self):
+        return self._last_metric
+    
+
 
 class StatisticalMetric(Metric):
     """Statistically based metric."""
 
-    def __init__(self, statistic, order=2, log=False, recompute_real=True):
+    def __init__(self, statistic, order=2, log=False, **kwargs):
         """Initialize the StatisticalMetric.
 
         Arguments
@@ -148,7 +162,7 @@ class StatisticalMetric(Metric):
         name = statistic.name + '_l' + str(order)
         if log:
             name += 'log'
-        super().__init__(name, statistic.group, recompute_real)
+        super().__init__(name, statistic.group, **kwargs)
         self._order = order
         self._log = log
         self.statistic = statistic
@@ -157,6 +171,7 @@ class StatisticalMetric(Metric):
     def preprocess(self, real):
         """Compute the statistic on the real data."""
         super().preprocess(real)
+        print('Compute real statistics: '+self.group+'/'+self.name)
         self._saved_real_stat = self.statistic(real)
 
     def _compute_stats(self, fake, real=None):
@@ -177,13 +192,13 @@ class StatisticalMetric(Metric):
         if self._log:
             rs = 10*np.log10(rs + 1e-2)
             fs = 10*np.log10(fs + 1e-2)
-        diff = np.mean((rs - fs)**self._order)
-        return diff
+        self._last_metric = np.mean((rs - fs)**self._order)
+        return self._last_metric
 
     def compute_summary(self, fake, real, feed_dict={}):
         super().compute_summary(fake, real, feed_dict)
-        if self._stype == 3:
-            feedict = self._plot_summary.compute_summary(
+        if self.stype == 3:
+            feed_dict = self._plot_summary.compute_summary(
                 self._saved_real_stat[1],
                 self._saved_real_stat[0],
                 self._saved_fake_stat[0],
@@ -219,4 +234,44 @@ class StatisticalMetricLim(StatisticalMetric):
         self._saved_fake_stat = self.statistic(fake, lim=self._lim)
 
 
+class MetricSum(Metric):
+    """This class represent a sum of metrics."""
+    def __init__(self, metrics, recompute_real=True, **kwargs):
+        """Initialize the StatisticalMetric.
+
+        Arguments
+        ---------
+        * name: name of the metric (preferably unique)
+        * metrics: list of metrics object
+        * group: group for the metric
+        """
+        super().__init__(recompute_real=recompute_real, **kwargs)
+        self._metrics = metrics
+
+        for metric in self._metrics:
+            metric._recompute_real = recompute_real
+
+    def preprocess(self, real):
+        for metric in self._metrics:
+            metric.preprocess(real)
+        super().preprocess(real)
+
+    def _compute(self, fake, real=None):
+        score = 0
+        for metric in self._metrics:
+            score += metric(fake, real)
+        return score
+
+    def add_summary(self,  *args, **kwargs):
+        for metric in self._metrics:
+            metric.add_summary(*args, **kwargs)
+        super().add_summary(*args, **kwargs)
+
+    def compute_summary(self, fake, real, feed_dict={}):
+        score = 0
+        for metric in self._metrics:
+            feed_dict = metric.compute_summary(fake, real, feed_dict)
+            score += metric.last_metric
+        feed_dict[self._placeholder] = score
+        return feed_dict
 
