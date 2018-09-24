@@ -81,7 +81,8 @@ class GANsystem(NNSystem):
                 params = self.params['optimization'][varsuffix]
                 optimizer = self.build_optmizer(params)
                 grads_and_vars = optimizer.compute_gradients(losses[index], var_list=s_vars)
-                self._optimize.append(optimizer.apply_gradients(grads_and_vars))
+                apply_opt = optimizer.apply_gradients(grads_and_vars)
+                self._optimize.append(tf.group(apply_opt, *self.net.constraints))
 
                 # Summaries
                 grad_norms = [tf.nn.l2_loss(g[0])*2 for g in grads_and_vars]
