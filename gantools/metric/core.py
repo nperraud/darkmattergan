@@ -108,7 +108,7 @@ class Metric(TFsummaryHelper):
         self._last_metric = None
 
 
-    def preprocess(self, real):
+    def preprocess(self, real, **kwargs):
         """Do the preprocessing.
 
         This function is designed to do all the precomputation that can be done with the real data.
@@ -118,7 +118,6 @@ class Metric(TFsummaryHelper):
 
     def __call__(self, fake, real=None):
         """Compute the metric."""
-
         if self._recompute_real or ((not self.preprocessed) and (real is not None)):
             self.preprocess(real)
         elif (not self.preprocessed) and (real is not None):
@@ -148,7 +147,7 @@ class Metric(TFsummaryHelper):
 class StatisticalMetric(Metric):
     """Statistically based metric."""
 
-    def __init__(self, statistic, order=2, log=False, **kwargs):
+    def __init__(self, statistic, order=2, log=False, normalize=False, wasserstein=False, **kwargs):
         """Initialize the StatisticalMetric.
 
         Arguments
@@ -158,6 +157,8 @@ class StatisticalMetric(Metric):
         * order: order of the norm (default 2, Froebenius norm)
         * log: compute the log of the stat before the norm (default False)
         * recompute_real: recompute the real statistic (default True)
+        * normalize: normalize the metric (default False)
+        * wasserstein: use the wasserstein metric
         """
         name = statistic.name + '_l' + str(order)
         if log:
@@ -167,12 +168,15 @@ class StatisticalMetric(Metric):
         self._log = log
         self.statistic = statistic
         self._saved_stat = None
+        self._normalize = normalize
+        self._wasserstein = wasserstein
 
-    def preprocess(self, real):
+    def preprocess(self, real, rerun=True):
         """Compute the statistic on the real data."""
-        super().preprocess(real)
-        print('Compute real statistics: '+self.group+'/'+self.name)
-        self._saved_real_stat = self.statistic(real)
+        if rerun or (not self.preprocessed):
+            super().preprocess(real)
+            print('Compute real statistics: '+self.group+'/'+self.name)
+            self._saved_real_stat = self.statistic(real)
 
     def _compute_stats(self, fake, real=None):
         self._saved_fake_stat = self.statistic(fake)
@@ -180,6 +184,7 @@ class StatisticalMetric(Metric):
     def _compute(self, fake, real):
         # The real is not vatiable is not used as the stat over real is
         # computed only once
+        # print("Compute summaries: "+self.group+'/'+self.name)
         self._compute_stats(fake, real)
         fake_stat = self._saved_fake_stat
         real_stat = self._saved_real_stat
@@ -192,7 +197,12 @@ class StatisticalMetric(Metric):
         if self._log:
             rs = 10*np.log10(rs + 1e-2)
             fs = 10*np.log10(fs + 1e-2)
-        self._last_metric = np.mean((rs - fs)**self._order)
+        if self._wasserstein:
+            self._last_metric = wasserstein_distance(rs, fs, normalize=self._normalize, w=self._saved_real_stat[1])
+        else:
+            self._last_metric = np.mean(np.abs(rs - fs)**self._order)
+            if self._normalize:
+                self._last_metric /= np.mean(np.abs(rs)**self._order)
         return self._last_metric
 
     def compute_summary(self, fake, real, feed_dict={}):
@@ -225,9 +235,10 @@ class StatisticalMetricLim(StatisticalMetric):
         super().__init__(*args, **kwargs)
         self._lim = None
 
-    def preprocess(self, real):
+    def preprocess(self, real, **kwargs):
         """Compute the statistic on the real data."""
-        super().preprocess(real)
+        super().preprocess(real, **kwargs)
+
         self._lim = self._saved_real_stat[2]
 
     def _compute_stats(self, fake, real=None):
@@ -251,10 +262,10 @@ class MetricSum(Metric):
         for metric in self._metrics:
             metric._recompute_real = recompute_real
 
-    def preprocess(self, real):
+    def preprocess(self, real, **kwargs):
         for metric in self._metrics:
-            metric.preprocess(real)
-        super().preprocess(real)
+            metric.preprocess(real, **kwargs)
+        super().preprocess(real, **kwargs)
 
     def _compute(self, fake, real=None):
         score = 0
@@ -275,3 +286,21 @@ class MetricSum(Metric):
         feed_dict[self._placeholder] = score
         return feed_dict
 
+
+def wasserstein_distance(x, y, w=None, safe=True, normalize=False):
+    """Wasserstein distance for 1D vectors."""
+    if w is None:
+        w = np.arange(x.shape[0])
+    weights = np.diff(w)
+    if normalize:
+        x = x/np.sum(x)
+        y = y/np.sum(y)
+    if safe:
+        assert (x.shape == y.shape == w.shape)
+        np.testing.assert_almost_equal(np.sum(x), np.sum(y))
+        assert ((x >= 0).all())
+        assert ((y >= 0).all())
+        assert ((weights >= 0).all())
+    cx = np.cumsum(x)[:-1]
+    cy = np.cumsum(y)[:-1]
+    return np.sum(weights * np.abs(cx - cy)) / (w[-1] - w[0])
