@@ -295,21 +295,6 @@ def mass_hist_real_fake(real, fake, bins=20, lim=None):
     return y_real, y_fake, x
 
 
-def wasserstein_distance(x, y, w=None, safe=True):
-    """Wasserstein distance for 1D vectors."""
-    if w is None:
-        w = np.arange(x.shape[0])
-    weights = np.diff(w)
-    if safe:
-        assert (x.shape == y.shape == w.shape)
-        np.testing.assert_almost_equal(np.sum(x), np.sum(y))
-        assert ((x >= 0).all())
-        assert ((y >= 0).all())
-        assert ((weights >= 0).all())
-    cx = np.cumsum(x)[:-1]
-    cy = np.cumsum(y)[:-1]
-    return np.sum(weights * np.abs(cx - cy)) / (w[-1] - w[0])
-
 
 def total_stats_error(feed_dict, params=dict()):
     """Generate a weighted total loss based on the image PSD, Mass and Peak

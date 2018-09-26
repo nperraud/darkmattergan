@@ -185,9 +185,9 @@ class WGAN(BaseGAN):
         for met in self._metric_list:
             met.add_summary(collections="model")
 
-    def preprocess_summaries(self, X_real):
+    def preprocess_summaries(self, X_real, **kwargs):
         for met in self._metric_list:
-            met.preprocess(X_real)
+            met.preprocess(X_real, **kwargs)
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         for stat in self._stat_list_real:
@@ -251,13 +251,12 @@ class CosmoWGAN(WGAN):
         for met in self._cosmo_metric_list:
             met.add_summary(collections="model")
 
-    def preprocess_summaries(self, X_real):
-        super().preprocess_summaries(X_real)  
+    def preprocess_summaries(self, X_real, **kwargs):
+        super().preprocess_summaries(X_real, **kwargs)
         if self.params['cosmology']['backward_map']:
             X_real = self.params['cosmology']['backward_map'](X_real)
         for met in self._cosmo_metric_list:
             met.preprocess(X_real)
-
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         feed_dict = super().compute_summaries(X_real, X_fake, feed_dict)

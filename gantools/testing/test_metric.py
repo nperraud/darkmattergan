@@ -63,13 +63,22 @@ class TestMetric(unittest.TestCase):
         np.testing.assert_almost_equal(skewx, l[5](x))
 
     def test_gan_metric_list(self):
-        metric_list = ganlist.gan_metric_list()
+        metric_list = ganlist.gan_metric_list(recompute_real=True)
         x = np.random.randn(100, 20, 50) + 7
         y = 2 * np.random.randn(100, 20, 50) + 8
-        for m in metric_list:
+        for m in metric_list[:7]:
+            print(m.group+'/'+m.name)
             m(x, y)
             assert (m(y, y) == 0)
             assert (m(x, x) == 0)
+        x = np.abs(np.random.randn(100, 32, 32) + 7)
+        y = np.abs(2 * np.random.randn(100, 32, 32) + 8)
+        for m in metric_list:
+            print(m.group+'/'+m.name)
+            m(x, y)
+            assert (m(y, y) == 0)
+            assert (m(x, x) == 0)
+
         x = np.ones(20)
         y = 2 * np.ones(20)
         assert (metric_list[0](x, y) == 1)

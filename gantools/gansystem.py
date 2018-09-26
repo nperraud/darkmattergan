@@ -119,7 +119,7 @@ class GANsystem(NNSystem):
 
     def train(self, dataset, **kwargs):
         if self.params['Nstats']:
-            self.net.preprocess_summaries(dataset.get_all_data())
+            self.net.preprocess_summaries(dataset.get_all_data(), rerun=False)
         super().train(dataset, **kwargs)
 
     def _run_optimization(self, feed_dict, idx):
@@ -254,9 +254,6 @@ class PaulinaGANsystem(GANsystem):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.forward = self.params['net']['cosmology']['forward_map'] 
-        self.backward = self.params['net']['cosmology']['backward_map'] 
-
         self.plc_float = tf.placeholder(tf.float32)
         self.plc_float_r = tf.placeholder(tf.float32)
         self.disc_loss_calc2 = tf.reduce_mean(self.plc_float_r - self.plc_float)
@@ -280,7 +277,8 @@ class PaulinaGANsystem(GANsystem):
 
         with tf.variable_scope('worst_calc_gen', reuse=tf.AUTO_REUSE):
             # gen_loss_worst = tf.reduce_mean(self.dr_w - self.df_w)
-            gen_loss_worst = self._classical_gan_loss_g(self.df_w)
+            # gen_loss_worst = self._classical_gan_loss_g(self.df_w)
+            gen_loss_worst = - self._classical_gan_loss_d(self.dr_w, self.df_w)
             
             t_vars = tf.global_variables()
             g_vars_worst = [var for var in t_vars if 'TMPgen' in var.name]
@@ -339,7 +337,7 @@ class PaulinaGANsystem(GANsystem):
         df_final = self._sess.run(self.df, feed_dict=feed_dict) # here you need to feed z
         dr_final = self._sess.run(self.dr, feed_dict=feed_dict)
         worst_minmax = self._sess.run(self.disc_loss_calc2, feed_dict={self.plc_float: df_final, self.plc_float_r: dr_final})
-        # for fixed D, find the worst G_tmp
+
         for j in range(0, 500):
             batch_curr = next(self.paulina_dataset_iter)
             feed_dict = self._get_dict(**self._net.batch2dict(batch_curr))
