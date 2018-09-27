@@ -399,7 +399,6 @@ class NetParamHelper(object):
 
     def params(self):
         return self.params
->>>>>>> 1860e69e765bc9cb58deacd300fc38887e21cdae:gantools/utils.py
 
 def print_params_to_py_style_output_helper(name, params):
     print("\n# {} Params".format(name.title()))
