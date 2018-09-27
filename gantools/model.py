@@ -72,6 +72,7 @@ class WGAN(BaseGAN):
         d_params['generator']['activation'] = lrelu # leaky relu
         d_params['generator']['one_pixel_mapping'] = [] # One pixel mapping
         d_params['generator']['non_lin'] = tf.nn.relu # non linearity at the end of the generator
+        d_params['generator']['spectral_norm'] = False # use spectral norm
 
         d_params['discriminator'] = dict()
         d_params['discriminator']['full'] = [32]
@@ -89,6 +90,7 @@ class WGAN(BaseGAN):
         d_params['discriminator']['cdf_block'] = None # non linearity at the beginning of the discriminator
         d_params['discriminator']['moment'] = None # non linearity at the beginning of the discriminator
         d_params['discriminator']['minibatch_reg'] = False # Use minibatch regularization
+        d_params['discriminator']['spectral_norm'] = False # use spectral norm
 
         return d_params
 
@@ -162,6 +164,8 @@ class WGAN(BaseGAN):
             D_gp = gamma * tf.square(norm_gradient_pen - 1.0)
             tf.summary.scalar("Disc/GradPen", D_gp, collections=["train"])
             tf.summary.scalar("Disc/NormGradientPen", norm_gradient_pen, collections=["train"])
+            print(" Using gradients clipping")
+
         return D_gp
 
     def _wgan_summaries(self):
