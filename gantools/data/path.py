@@ -32,7 +32,6 @@ def celeba_path():
         raise NotImplementedError()
     return rootpath
 
-
 def medical_path():
     '''Return the root path of the electron microscopy dataset.'''
     hostname = socket.gethostname()

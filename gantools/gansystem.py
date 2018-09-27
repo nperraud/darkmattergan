@@ -395,6 +395,8 @@ class GAN(object):
         
         tf.reset_default_graph()
         self.params = default_params(params)
+        tf.Variable(self.params.get('curr_counter', 0),
+                                  name="global_step", trainable=False)
         self._is_3d = is_3d
         if model is None:
             model = params['model']
@@ -457,8 +459,6 @@ class GAN(object):
         g_vars = [var for var in t_vars if 'generator' in var.name]
         e_vars = [var for var in t_vars if 'encoder' in var.name]
 
-        global_step = tf.Variable(0, name="global_step", trainable=False)
-
         optimizer_D, optimizer_G, optimizer_E = self._build_optmizer()
 
         grads_and_vars_d = optimizer_D.compute_gradients(
@@ -466,8 +466,10 @@ class GAN(object):
         grads_and_vars_g = optimizer_G.compute_gradients(
             self._G_loss, var_list=g_vars)
 
+        global_step = tf.train.get_global_step()
+
         self._D_solver = optimizer_D.apply_gradients(
-            grads_and_vars_d, global_step=global_step)
+            grads_and_vars_d)
         self._G_solver = optimizer_G.apply_gradients(
             grads_and_vars_g, global_step=global_step)
 
@@ -476,7 +478,7 @@ class GAN(object):
             grads_and_vars_e = optimizer_E.compute_gradients(
                 self._E_loss, var_list=e_vars)
             self._E_solver = optimizer_E.apply_gradients(
-                grads_and_vars_e, global_step=global_step)
+                grads_and_vars_e)
 
         self._buid_opt_summaries(optimizer_D, grads_and_vars_d, optimizer_G,
                                  grads_and_vars_g, optimizer_E)
@@ -647,7 +649,7 @@ class GAN(object):
             if optimizer_E is not None:
                 optim_learning_rate_E = get_lr_ADAM(optimizer_E, enc_learning_rate)
                 tf.summary.scalar(
-                    'Gen/ADAM_learning_rate',
+                    'Enc/ADAM_learning_rate',
                     optim_learning_rate_E,
                     collections=["Training"])
 
@@ -816,7 +818,11 @@ class GAN(object):
         latent_dim = self.params['generator']['latent_dim']
         return utils.sample_latent(bs, latent_dim, self._prior_distribution)
 
-    def _get_dict(self, z=None, X=None, index=None, **kwargs):
+    def _add_optimizer_inputs(self, feed_dict, phase):
+        # TODO implement learning rate annealing
+        return feed_dict
+
+    def _get_dict(self, z=None, X=None, phase='generate', index=None, **kwargs):
         feed_dict = dict()
         if z is not None:
             if index is not None:
@@ -828,6 +834,8 @@ class GAN(object):
                 feed_dict[self._X] = X[index]
             else:
                 feed_dict[self._X] = X
+        if phase == 'train_D' or phase == 'train_G' or phase == 'train_E':
+            feed_dict = self._add_optimizer_inputs(feed_dict, phase)
         for key, value in kwargs.items():
             if value is not None:
                 if index is not None:
@@ -1886,20 +1894,25 @@ class TimeGAN(GAN):
         self.params = default_params_time(params)
         super().__init__(params=self.params, model=model, is_3d=is_3d)
 
-    def _build_image_summary(self):
-        vmin = tf.reduce_min(self._X)
-        vmax = tf.reduce_max(self._X)
+    # Generates image sequence summaries as opposed to the simple image
+    # summaries in the GAN class.
+    def _build_image_summary_generic(self, real, fake, collection, afix=''):
+        vmin = tf.reduce_min(real)
+        vmax = tf.reduce_max(real)
         for c in range(self.params["time"]["num_classes"]):
             tf.summary.image(
-                "training/Real_Image_t{}".format(self.params['time']['classes'][c]),
-                colorize(self._X[:, :, :, c:(c+1)], vmin, vmax),
+                "training/Real_Image{}_t{}".format(afix, self.params['time']['classes'][c]),
+                colorize(real[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
-                collections=['Images'])
+                collections=collection)
             tf.summary.image(
-                "training/Fake_Image_t{}".format(self.params['time']['classes'][c]),
-                colorize(self._G_fake[:, :, :, c:(c+1)], vmin, vmax),
+                "training/Fake_Image{}_t{}".format(afix, self.params['time']['classes'][c]),
+                colorize(fake[:, :, :, c:(c+1)], vmin, vmax),
                 max_outputs=4,
-                collections=['Images'])
+                collections=collection)
+
+    def _build_image_summary(self):
+        self._build_image_summary_generic(self._X, self._G_fake, ['Images'])
 
     def _sample_latent(self, bs=None):
         if bs is None:
@@ -1939,6 +1952,9 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
             self._stats_t.append(self._compute_real_stats(real[:,:,:,t]))
         super().train(dataset=dataset, resume=resume)
 
+    # Taking advantage of the static function from the CosmoGAN, statistics for
+    # each continuous class are generated seperately as well as averaged over all
+    # classes.
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
         if np.mod(self._counter, self.params['sum_every']) == 0:
@@ -1964,9 +1980,122 @@ class TimeCosmoGAN(CosmoGAN, TimeGAN):
                 self.summary_op_metrics_t, feed_dict=feed_dict)
             self._summary_writer.add_summary(summary_str, self._counter)
 
+    # Helper function for train_encoder
+    def add_enc_to_path(self, s):
+        q = ""
+        for i in range(5):
+            q = q + s.split('/')[i] + '/'
+        return q + s.split('/')[5] + '_z_enc/' + s.split('/')[6] + '/'
+
+    # This very hacky function was written in to add an encoder to already trained models.
+    # If you do not intend to do that then this function may be safely removed.
+    def train_encoder(self, dataset):
+
+        n_data = dataset.N
+
+        self._counter = 1
+        self._n_epoch = self.params['optimization']['epoch']
+        self._total_iter = self._n_epoch * (n_data // self.batch_size) - 1
+        self._n_batch = n_data // self.batch_size
+
+        self._build_image_summary_generic(self._X, self._model.reconstructed, ['ImagesEnc'], afix="_Enc")
+        self.summary_op_img = tf.summary.merge(tf.get_collection("ImagesEnc"))
+
+        self._save_current_step = False
+
+        # Create the save diretory if it does not exist
+        os.makedirs(self.add_enc_to_path(self.params['save_dir']), exist_ok=True)
+        run_config = tf.ConfigProto()
+
+        gen_and_disc_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator') + tf.get_collection(
+            tf.GraphKeys.GLOBAL_VARIABLES, scope='discriminator')
+
+        #gen_and_disc_vars = [x for x in tf.global_variables() if
+        #                     x not in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='encoder')]
+        self._saver = tf.train.Saver(gen_and_disc_vars, max_to_keep=1000)
+        full_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
+        with tf.Session(config=run_config) as self._sess:
+            self._sess.run(tf.global_variables_initializer())
+            print('Load weights in the network')
+            self.load()
+            self._saver = full_saver
+            self.params['save_dir'] = self.add_enc_to_path(self.params['save_dir'])
+            self._savedir = self.params['save_dir']
+            if self.normalized():
+                X = dataset.get_all_data()
+                m = np.mean(X)
+                v = np.var(X - m)
+                self._mean.assign([m]).eval()
+                self._var.assign([v]).eval()
+            self._var.eval()
+            self._mean.eval()
+            self._summary_writer = tf.summary.FileWriter(
+                self.add_enc_to_path(self.params['summary_dir']), self._sess.graph)
+            try:
+                epoch = 0
+                start_time = time.time()
+                prev_iter_time = start_time
+                self._counter = 0
+
+                while epoch < self._n_epoch:
+                    for idx, batch_real in enumerate(
+                            dataset.iter(self.batch_size)):
+
+                        self.params['curr_counter'] = self._counter
+
+                        # reshape input according to 2d, 3d, or patch case
+                        X_real = self.add_input_channel(batch_real)
+                        sample_z = self._sample_latent(self.batch_size)
+                        _, loss_e = self._sess.run(
+                            [self._E_solver, self._E_loss],
+                            feed_dict=self._get_dict(sample_z, X_real))
+
+                        if np.mod(self._counter,
+                                  self.params['print_every']) == 0:
+                            current_time = time.time()
+                            print("Epoch: [{:2d}] [{:4d}/{:4d}] "
+                                  "Counter:{:2d}\t"
+                                  "({:4.1f} min\t"
+                                  "{:4.3f} examples/sec\t"
+                                  "{:4.2f} sec/batch)\t"
+                                  "L_Enc:{:.8f}".format(
+                                      epoch, idx, self._n_batch,
+                                      self._counter,
+                                      (current_time - start_time) / 60,
+                                      100.0 * self.batch_size /
+                                      (current_time - prev_iter_time),
+                                      (current_time - prev_iter_time) / 100,
+                                      loss_e))
+                            prev_iter_time = current_time
+
+                        if np.mod(self._counter, self.params['viz_every']) == 0:
+                            summary_str, real_arr, fake_arr = self._sess.run(
+                                [self.summary_op_img, self._X, self._model.reconstructed],
+                                feed_dict=self._get_dict(sample_z, X_real))
+                            self._summary_writer.add_summary(summary_str, self._counter)
+
+                        if np.mod(self._counter, self.params['sum_every']) == 0:
+                            summary_str = self._sess.run(self.summary_op, feed_dict=self._get_dict(sample_z, X_real))
+                            self._summary_writer.add_summary(summary_str, self._counter)
+
+                        if (np.mod(self._counter, self.params['save_every'])
+                                == 0) | self._save_current_step:
+                            self._save(self._savedir, self._counter)
+                            self._save_current_step = False
+                        self._counter += 1
+                    epoch += 1
+            except KeyboardInterrupt:
+                pass
+            self._save(self._savedir, self._counter)
+
+    # The CosmoTimeGAN samples latent value series. Ie we sample latent vectors
+    # and then repeat them for each continuous class
     def _sample_latent(self, bs=None):
         return TimeGAN._sample_latent(self, bs)
 
+    # Whether to generate statistics over multiple channels if available.
+    # This overides the property from the base GAN class which only looks
+    # at the first channel for statistics.
     @property
     def average_over_all_channels(self):
         return True

@@ -45,6 +45,11 @@ def selu(x, name="selu"):
     return tf.nn.selu(x, name=name)
 
 
+def prelu(x, name="prelu"):
+    """Parametrized Rectified Linear Unit, He et al. 2015, https://arxiv.org/abs/1502.01852"""
+    return tf.keras.layers.PReLU(name=name)(x)
+
+
 def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
     with tf.variable_scope(name):
         bn = tf.contrib.layers.batch_norm(

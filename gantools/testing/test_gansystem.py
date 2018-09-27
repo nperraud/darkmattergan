@@ -14,6 +14,8 @@ import numpy as np
 class TestGANsystem(unittest.TestCase):
     def test_default_params(self):
         wgan = GANsystem(WGAN)
+        wgan = PaulinaGANsystem(WGAN)
+
 
     def test_gansystem(self):
         params = dict()
