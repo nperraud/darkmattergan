@@ -16,6 +16,7 @@ class BaseGAN(BaseNet):
         self._D_loss = None
         self._G_loss = None
         self._summary = None
+        self._constraints = []
         super().__init__(params=params, name=name)
         self._loss = (self.D_loss, self.G_loss)
 
@@ -39,8 +40,14 @@ class BaseGAN(BaseNet):
     def has_encoder(self):
         return False
 
+    @property
+    def constraints(self):
+        return self._constraints
+    
+
     def sample_latent(self, N):
         raise NotImplementedError("This is a an abstract class.")
+
 
 
 class WGAN(BaseGAN):
@@ -116,11 +123,11 @@ class WGAN(BaseGAN):
         self._build_stat_summary()
         self._wgan_summaries()
 
-    def generator(self, z, reuse):
-        return generator(z, self.params['generator'], reuse=reuse)
+    def generator(self, z, reuse, **kwargs):
+        return generator(z, self.params['generator'], reuse=reuse, **kwargs)
 
-    def discriminator(self, X, reuse):
-        return discriminator(X, self.params['discriminator'], reuse=reuse) 
+    def discriminator(self, X, reuse, **kwargs):
+        return discriminator(X, self.params['discriminator'], reuse=reuse, **kwargs) 
 
     def sample_latent(self, bs=1):
         latent_dim = self.params['generator']['latent_dim']
@@ -132,10 +139,10 @@ class WGAN(BaseGAN):
             t_vars = tf.trainable_variables()
             d_vars = [var for var in t_vars if 'discriminator' in var.name]
             D_clip = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in d_vars]
+            self._constraints.append(D_clip)
             D_gp = tf.constant(0, dtype=tf.float32)
             print(" [!] Using weight clipping")
         else:
-            D_clip = tf.constant(0, dtype=tf.float32)
             # calculate `x_hat`
             assert(len(list_fake) == len(list_real))
             bs = tf.shape(list_fake[0])[0]
@@ -178,9 +185,9 @@ class WGAN(BaseGAN):
         for met in self._metric_list:
             met.add_summary(collections="model")
 
-    def preprocess_summaries(self, X_real):
+    def preprocess_summaries(self, X_real, **kwargs):
         for met in self._metric_list:
-            feed_dict = met.preprocess(X_real)    
+            met.preprocess(X_real, **kwargs)
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         for stat in self._stat_list_real:
@@ -244,13 +251,12 @@ class CosmoWGAN(WGAN):
         for met in self._cosmo_metric_list:
             met.add_summary(collections="model")
 
-    def preprocess_summaries(self, X_real):
+    def preprocess_summaries(self, X_real, **kwargs):
+        super().preprocess_summaries(X_real, **kwargs)
         if self.params['cosmology']['backward_map']:
             X_real = self.params['cosmology']['backward_map'](X_real)
         for met in self._cosmo_metric_list:
             met.preprocess(X_real)
-
-        super().preprocess_summaries(X_real)  
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         feed_dict = super().compute_summaries(X_real, X_fake, feed_dict)

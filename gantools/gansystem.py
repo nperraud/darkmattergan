@@ -81,7 +81,8 @@ class GANsystem(NNSystem):
                 params = self.params['optimization'][varsuffix]
                 optimizer = self.build_optmizer(params)
                 grads_and_vars = optimizer.compute_gradients(losses[index], var_list=s_vars)
-                self._optimize.append(optimizer.apply_gradients(grads_and_vars))
+                apply_opt = optimizer.apply_gradients(grads_and_vars)
+                self._optimize.append(tf.group(apply_opt, *self.net.constraints))
 
                 # Summaries
                 grad_norms = [tf.nn.l2_loss(g[0])*2 for g in grads_and_vars]
@@ -92,7 +93,7 @@ class GANsystem(NNSystem):
                     beta1_power, beta2_power = optimizer._get_beta_accumulators()
                     learning_rate = self.params['optimization'][varsuffix]['learning_rate']
                     optim_learning_rate = learning_rate*(tf.sqrt(1 - beta2_power) /(1 - beta1_power))
-                    tf.summary.scalar('/ADAM_learning_rate', optim_learning_rate, collections=["train"])
+                    tf.summary.scalar(varsuffix+'/ADAM_learning_rate', optim_learning_rate, collections=["train"])
 
     @staticmethod
     def build_optmizer(params):
@@ -118,7 +119,7 @@ class GANsystem(NNSystem):
 
     def train(self, dataset, **kwargs):
         if self.params['Nstats']:
-            self.net.preprocess_summaries(dataset.get_all_data())
+            self.net.preprocess_summaries(dataset.get_all_data(), rerun=False)
         super().train(dataset, **kwargs)
 
     def _run_optimization(self, feed_dict, idx):
@@ -237,6 +238,140 @@ class GANsystem(NNSystem):
         gen_images.append(gi)
         return self._special_vstack(gen_images)
 
+
+class PaulinaGANsystem(GANsystem):
+
+
+    def _classical_gan_loss_d(self, real, fake):
+        return -tf.reduce_mean(tf.log(tf.nn.sigmoid(real)) + tf.log(1-tf.nn.sigmoid(fake)))
+        # return -tf.reduce_mean(tf.log(tf.nn.sigmoid(real)) - fake + tf.log(tf.nn.sigmoid(fake)))
+
+    def _classical_gan_loss_g(self, fake):
+        return tf.reduce_mean(tf.log(1-tf.nn.sigmoid(fake)))
+        # return tf.reduce_mean(- fake + tf.log(tf.nn.sigmoid(fake)))
+
+
+    def __init__(self,  *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.plc_float = tf.placeholder(tf.float32)
+        self.plc_float_r = tf.placeholder(tf.float32)
+        self.disc_loss_calc2 = tf.reduce_mean(self.plc_float_r - self.plc_float)
+
+        with tf.variable_scope('worst_calc', reuse=tf.AUTO_REUSE):
+            new_opt = tf.train.RMSPropOptimizer(learning_rate=3e-5)
+            self.df = self.net.discriminator(self._net.X_fake, reuse=tf.AUTO_REUSE, scope="TMPdisc")
+            self.dr = self.net.discriminator(self._net.X_real, reuse=tf.AUTO_REUSE, scope="TMPdisc")
+            # disc_loss_worst = -tf.reduce_mean(self.dr - self.df)
+            disc_loss_worst = self._classical_gan_loss_d(self.dr, self.df)
+            t_vars = tf.global_variables()
+            d_vars_worst = [var for var in t_vars if 'TMPdisc' in var.name]
+            self.find_worst_d = new_opt.minimize(disc_loss_worst, var_list=d_vars_worst)
+
+
+        with tf.variable_scope('worst_calc_gen', reuse=tf.AUTO_REUSE):
+            new_opt_gen = tf.train.RMSPropOptimizer(learning_rate=3e-5)
+            x_w = self.net.generator(self._net.z, reuse=False, scope="TMPgen")
+        self.df_w = self.net.discriminator(x_w, reuse=True, scope="discriminator")
+        self.dr_w = self.net.discriminator(self._net.X_real, reuse=True, scope="discriminator")
+
+        with tf.variable_scope('worst_calc_gen', reuse=tf.AUTO_REUSE):
+            # gen_loss_worst = tf.reduce_mean(self.dr_w - self.df_w)
+            # gen_loss_worst = self._classical_gan_loss_g(self.df_w)
+            gen_loss_worst = - self._classical_gan_loss_d(self.dr_w, self.df_w)
+            
+            t_vars = tf.global_variables()
+            g_vars_worst = [var for var in t_vars if 'TMPgen' in var.name]
+            self.find_worst_g = new_opt_gen.minimize(gen_loss_worst, var_list=g_vars_worst)
+
+        t_vars = tf.global_variables()
+        d_init = [var for var in t_vars if 'worst_calc' in var.name]
+        self.init_new_vars_op = tf.initialize_variables(d_init)
+
+        curr_to_tmp = []
+        t_vars = tf.global_variables()
+        d_vars_tmp = [var for var in t_vars if 'TMPdisc' in var.name and 'RMSProp' not in var.name]
+        d_vars_0 = [var for var in t_vars if 'discriminator/' in var.name and 'RMSProp' not in var.name]
+        g_vars_tmp = [var for var in t_vars if 'TMPgen' in var.name and 'RMSProp' not in var.name]
+        g_vars_0 = [var for var in t_vars if 'generator/' in var.name and 'RMSProp' not in var.name]
+        for j in range(0, len(d_vars_tmp)):
+            print (d_vars_tmp[j])
+            curr_to_tmp.append(d_vars_tmp[j].assign(d_vars_0[j]))
+        for j in range(0, len(g_vars_tmp)):
+            curr_to_tmp.append(g_vars_tmp[j].assign(g_vars_0[j]))
+
+        self.current_to_tmp = tf.group(*curr_to_tmp)
+
+        # This is not clean. It should probably done at the model level.    
+        self.dualitygap_score_pl = tf.placeholder(tf.float32, name='duality/gap')
+        tf.summary.scalar('duality/gap', self.dualitygap_score_pl, collections=['train'])
+
+        self.worst_minmax_pl = tf.placeholder(tf.float32, name='duality/minmax')
+        tf.summary.scalar('duality/minmax', self.worst_minmax_pl, collections=['train'])
+
+        self.worst_maxmin_pl = tf.placeholder(tf.float32, name='duality/maxmin')
+        tf.summary.scalar('duality/maxmin', self.worst_maxmin_pl, collections=['train'])
+        self._summaries = tf.summary.merge(tf.get_collection("train"))
+
+    def calculate_metrics(self):
+
+        if self._sess is None:
+            self._sess = tf.Session()
+            sess_to_be_closed = True
+        else:
+            sess_to_be_closed = False
+
+        # First randomly initialize the new variables for the optimization of the new D_tmp/G_tmp
+        self._sess.run(self.init_new_vars_op)
+        # Assign the weights to the new D_tmp/G_tmp to be the those of the current D/G
+        self._sess.run(self.current_to_tmp)
+
+        # for fixed G, find the worst D_tmp
+        # This need to be replaced with an infinite iterator define in the train function.
+        for j in range(0, 500):
+            batch_curr = next(self.paulina_dataset_iter)
+            feed_dict = self._get_dict(**self._net.batch2dict(batch_curr))
+            self._sess.run(self.find_worst_d, feed_dict=feed_dict)
+        # calculate the worst minmax
+        feed_dict = self._get_dict(**self._net.batch2dict(batch_curr))
+        df_final = self._sess.run(self.df, feed_dict=feed_dict) # here you need to feed z
+        dr_final = self._sess.run(self.dr, feed_dict=feed_dict)
+        worst_minmax = self._sess.run(self.disc_loss_calc2, feed_dict={self.plc_float: df_final, self.plc_float_r: dr_final})
+
+        for j in range(0, 500):
+            batch_curr = next(self.paulina_dataset_iter)
+            feed_dict = self._get_dict(**self._net.batch2dict(batch_curr))
+            self._sess.run(self.find_worst_g, feed_dict=feed_dict)
+        # calculate the worst maxmin
+        feed_dict = self._get_dict(**self._net.batch2dict(batch_curr))
+        df_final = self._sess.run(self.df_w, feed_dict=feed_dict)
+        dr_final = self._sess.run(self.dr_w, feed_dict=feed_dict)
+        worst_maxmin = self._sess.run(self.disc_loss_calc2, feed_dict={self.plc_float: df_final, self.plc_float_r: dr_final})
+
+        # report the metrics
+        dualitygap_score = worst_minmax - worst_maxmin
+        print ('The duality gap score is: ')
+        print ('{0:.16f}'.format(dualitygap_score))
+        print ('The minmax is: ')
+        print ('{0:.16f}'.format(worst_minmax))
+
+        if sess_to_be_closed:
+            self._sess.close()
+            self._sess = None
+        return (dualitygap_score, worst_minmax, worst_maxmin)
+
+    def train(self, dataset, **kwargs):
+        batch_size = self.params['optimization']['batch_size']
+
+        self.paulina_dataset_iter = itertools.cycle(dataset.iter(batch_size))
+        super().train(dataset, **kwargs)
+
+    def _train_log(self, feed_dict):
+        (dualitygap_score, worst_minmax, worst_maxmin) = self.calculate_metrics()
+        feed_dict[self.dualitygap_score_pl] = dualitygap_score
+        feed_dict[self.worst_minmax_pl] = worst_minmax
+        feed_dict[self.worst_maxmin_pl] = worst_maxmin
+        super()._train_log(feed_dict)
 
 class GAN(object):
     """General (Generative Adversarial Network) GAN class.

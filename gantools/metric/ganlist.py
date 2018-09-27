@@ -61,6 +61,7 @@ def gan_stat_list(subname=''):
     stat_list.append(Statistic(min, name='min'+subname, group='descriptives', stype=0))
     stat_list.append(Statistic(max, name='max'+subname, group='descriptives', stype=0))    
     stat_list.append(Statistic(kurtosis, name='kurtosis'+subname, group='descriptives', stype=0))
+    stat_list.append(Statistic(skewness, name='skewness'+subname, group='descriptives', stype=0))
     stat_list.append(Statistic(median, name='median'+subname, group='descriptives', stype=0))
 
     return stat_list
@@ -70,7 +71,35 @@ def gan_metric_list(recompute_real=False):
     """Return a metric list for a GAN."""
 
     stat_list = gan_stat_list()
-    metric_list = [StatisticalMetric(statistic=stat, recompute_real=False) for stat in stat_list]
+    metric_list = [StatisticalMetric(statistic=stat, recompute_real=recompute_real) for stat in stat_list]
+    
+    metric_list_t = []
+    metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram_log', group='nomap'), log=True, recompute_real=recompute_real, stype=3))
+    metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram_log', group='nomap'), log=True, recompute_real=recompute_real, stype=3))
+    metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd_log', group='nomap'), log=True, recompute_real=recompute_real, stype=3))
+    metric_list.append(MetricSum(metric_list_t, name ='global_score_log', group='nomap', recompute_real=recompute_real, stype=0))
+   
+    metric_list_t = []
+    metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='nomap'), log=False, recompute_real=recompute_real, stype=0))
+    metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='nomap'), log=False, recompute_real=recompute_real, stype=0))
+    metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='nomap'), log=False, recompute_real=recompute_real, stype=0))
+    metric_list.append(MetricSum(metric_list_t, name ='global_score', group='nomap', recompute_real=recompute_real, stype=0))
+
+    metric_list_t = []
+    metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
+    metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
+    metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='final'), log=True, recompute_real=recompute_real, stype=0, normalize=True))
+    metric_list.append(MetricSum(metric_list_t, name ='global_score', group='final', recompute_real=recompute_real, stype=0))
+
+    metric_list_t = []
+    metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+    metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+    metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+    metric_list.append(MetricSum(metric_list_t, name ='global_score', group='wasserstein', recompute_real=recompute_real, stype=0))
+
+    metric_list.append(StatisticalMetric(Statistic(psd_mean, name='psd_log', group='wasserstein'), log=True, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+
+
     return metric_list
 
 
@@ -93,5 +122,5 @@ def cosmo_metric_list(recompute_real=False):
     return metric_list
 
 
-def  global_score(recompute_real=False):
+def global_score(recompute_real=False):
     return cosmo_metric_list(recompute_real)[-1]
