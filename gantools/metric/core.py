@@ -287,7 +287,7 @@ class MetricSum(Metric):
         return feed_dict
 
 
-def wasserstein_distance(x, y, w=None, safe=True, normalize=False):
+def wasserstein_distance(x, y, w=None, safe=True, normalize=True):
     """Wasserstein distance for 1D vectors."""
     if w is None:
         w = np.arange(x.shape[0])

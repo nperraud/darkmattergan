@@ -93,11 +93,9 @@ def gan_metric_list(recompute_real=False):
 
     metric_list_t = []
     metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
-    metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+    # metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
     metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
     metric_list.append(MetricSum(metric_list_t, name ='global_score', group='wasserstein', recompute_real=recompute_real, stype=0))
-
-    metric_list.append(StatisticalMetric(Statistic(psd_mean, name='psd_log', group='wasserstein'), log=True, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
 
 
     return metric_list

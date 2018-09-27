@@ -48,7 +48,6 @@ def power_spectrum_batch_phys(X1,
                               X2=None,
                               bin_k=50,
                               box_l=100 / 0.7,
-                              is_3d=False,
                               remove_nan=True):
     """
     Calculates the 1-D PSD of a batch of variable size
@@ -56,11 +55,15 @@ def power_spectrum_batch_phys(X1,
     :param size_image:
     :return: result, k
     """
+    
+    if len(X1.shape)==5 or (len(X1.shape)==4 and not(X1.shape[3]==1)):
+        is_3d = True
+    else:
+        is_3d = False
     sx, sy = X1[0].shape[0], X1[0].shape[1]
     sz = None
     if is_3d:
         sz = X1[0].shape[2]
-
     if not (sx == sy):
         X1 = utils.makeit_square(X1)
         s = X1[0].shape[0]
