@@ -53,7 +53,8 @@ Thumbs.db
 
 # Output Folders #
 ##################
-
+figures
+tfnntools.egg-info/
 
 # Jupyter stuff  #
 ##################
