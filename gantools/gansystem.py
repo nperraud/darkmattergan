@@ -6,7 +6,7 @@ import time
 import os
 import pickle
 from gantools import utils
-from gantools import metric, blocks
+from gantools import blocks
 import itertools
 import math
 from gantools.plot import colorize
@@ -119,6 +119,8 @@ class GANsystem(NNSystem):
 
     def train(self, dataset, **kwargs):
         if self.params['Nstats']:
+            assert(dataset.N>self.params['Nstats'])
+            self.summary_dataset = itertools.cycle(dataset.iter(self.params['Nstats']))
             self.net.preprocess_summaries(dataset.get_all_data(), rerun=False)
         super().train(dataset, **kwargs)
 
@@ -146,7 +148,9 @@ class GANsystem(NNSystem):
         super()._train_log(feed_dict)
         X_real, X_fake = self._sess.run([self.net.X_real, self.net.X_fake], feed_dict=feed_dict)
         if self.params['Nstats']:
-            X_fake = self._generate_sample_safe(z=self.net.sample_latent(self.params['Nstats']))
+            sum_batch = next(self.summary_dataset)
+            sum_feed_dict = self._get_dict(**self._net.batch2dict(sum_batch))
+            X_fake = self._generate_sample_safe(is_feed_dict=True, feed_dict=sum_feed_dict)
             feed_dict = self.net.compute_summaries(X_real, X_fake, feed_dict)
         else:
             feed_dict = self.net.compute_summaries(X_real, X_fake, feed_dict)
@@ -221,19 +225,29 @@ class GANsystem(NNSystem):
             return tuple(s)
 
     # TODO: move this to the nnsystem class
-    def _generate_sample_safe(self, **kwargs):
+    def _generate_sample_safe(self, is_feed_dict=False, **kwargs):
         gen_images = []
-        N = len(kwargs['z'])
+        if is_feed_dict:
+            feed_dict = kwargs['feed_dict']
+            N = len(feed_dict[list(feed_dict.keys())[0]])
+        else:
+            N = len(kwargs[list(kwargs.keys())[0]])
         sind = 0
         bs = self.params['optimization']['batch_size']
         if N > bs:
             nb = (N - 1) // bs
             for i in range(nb):
-                feed_dict = self._get_dict(index=slice(sind, sind + bs), **kwargs)
+                if is_feed_dict:
+                    feed_dict = self._slice_feed_dict(index=slice(sind, sind + bs), **kwargs)
+                else:
+                    feed_dict = self._get_dict(index=slice(sind, sind + bs), **kwargs)
                 gi = self._sess.run(self._net.outputs, feed_dict=feed_dict)
                 gen_images.append(gi)
                 sind = sind + bs
-        feed_dict = self._get_dict(index=slice(sind, N), **kwargs)
+        if is_feed_dict:
+            feed_dict = self._slice_feed_dict(index=slice(sind, N), **kwargs)
+        else:
+            feed_dict = self._get_dict(index=slice(sind, N), **kwargs)
         gi = self._sess.run(self._net.outputs, feed_dict=feed_dict)
         gen_images.append(gi)
         return self._special_vstack(gen_images)

@@ -5,7 +5,7 @@ if __name__ == '__main__':
 
 import unittest
 
-from gantools.model import WGAN
+from gantools.model import CosmoWGAN, WGAN, LapWGAN
 from gantools.gansystem import GANsystem
 from gantools.data.Dataset import Dataset
 import numpy as np
@@ -13,8 +13,13 @@ import numpy as np
 
 class TestGANmodels(unittest.TestCase):
     def test_default_params(self):
+        wgan = GANsystem(LapWGAN)
         wgan = GANsystem(WGAN)
-
+        wgan = GANsystem(CosmoWGAN)
+        class UgradedGAN(LapWGAN, CosmoWGAN):
+            pass
+        wgan = GANsystem(UgradedGAN)
+         
     def test_2d(self):
         bn = False
         params = dict()
@@ -90,6 +95,45 @@ class TestGANmodels(unittest.TestCase):
         img = wgan.generate(500)
         assert (len(img) == 500)
 
+    def test_lapgan2d(self):
+        bn = False
+        params = dict()
+        params['optimization'] = dict()
+        params['optimization']['epoch'] = 1
+        params['summary_every'] = 4
+        params['save_every'] = 5
+        params['print_every'] = 3
+        params['net'] = dict()
+        params['net']['shape'] = [16, 16, 1] 
+        params['net']['generator'] = dict()
+        params['net']['generator']['latent_dim'] = 16 * 16
+        params['net']['generator']['full'] = []
+        params['net']['generator']['nfilter'] = [1, 32, 1]
+        params['net']['generator']['batch_norm'] = [bn, bn]
+        params['net']['generator']['shape'] = [[5, 5], [5, 5], [5, 5]]
+        params['net']['generator']['stride'] = [1, 1, 1]
+        params['net']['generator']['is_3d'] = False
+        params['net']['discriminator'] = dict()
+        params['net']['discriminator']['full'] = [32]
+        params['net']['discriminator']['nfilter'] = [16, 32]
+        params['net']['discriminator']['batch_norm'] = [bn, bn]
+        params['net']['discriminator']['shape'] = [[5, 5], [3, 3]]
+        params['net']['discriminator']['stride'] = [2, 2]
+        params['net']['discriminator']['is_3d'] = False
+        params['net']['upsampling'] = 2
+
+        X = np.random.rand(101, 16, 16)
+        dataset = Dataset(X)
+        class UgradedGAN(LapWGAN, CosmoWGAN):
+            pass
+        wgan = GANsystem(UgradedGAN, params)
+        wgan.train(dataset)
+        X_down = np.random.rand(500, 8, 8, 1)
+        img = wgan.generate(N=2, X_down=X_down[:2])
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (16, 16, 1))
+        img = wgan.generate(N=500, X_down=X_down[:500])
+        assert (len(img) == 500)
 
 if __name__ == '__main__':
     unittest.main()
