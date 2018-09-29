@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='gantools',
-      version='0.0.1',
+      version='0.0.2',
       description='Generative Adversarial Networks Toolbox',
       url='https://github.com/nperraud/gantools',
       author='Nathanael Perraudin',

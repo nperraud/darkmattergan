@@ -5,20 +5,31 @@ if __name__ == '__main__':
 
 import unittest
 
-from gantools.model import CosmoWGAN, WGAN, LapWGAN
+from gantools.model import CosmoWGAN, WGAN, LapWGAN, UpscalePatchWGAN
 from gantools.gansystem import GANsystem
 from gantools.data.Dataset import Dataset
 import numpy as np
 
 
 class TestGANmodels(unittest.TestCase):
-    def test_default_params(self):
-        wgan = GANsystem(LapWGAN)
-        wgan = GANsystem(WGAN)
-        wgan = GANsystem(CosmoWGAN)
+    def test_default_params_wgan(self):
+        obj = GANsystem(WGAN)    
+        obj = GANsystem(CosmoWGAN)
+
+    def test_default_params_lapgan(self):
+
+        obj = GANsystem(LapWGAN)
         class UgradedGAN(LapWGAN, CosmoWGAN):
             pass
-        wgan = GANsystem(UgradedGAN)
+        obj = GANsystem(UgradedGAN)
+
+    def test_default_params_patchgan(self):
+
+        obj = GANsystem(UpscalePatchWGAN)
+
+        class UgradedGAN(UpscalePatchWGAN, CosmoWGAN):
+            pass
+        obj = GANsystem(UgradedGAN)
          
     def test_2d(self):
         bn = False
@@ -108,7 +119,7 @@ class TestGANmodels(unittest.TestCase):
         params['net']['generator'] = dict()
         params['net']['generator']['latent_dim'] = 16 * 16
         params['net']['generator']['full'] = []
-        params['net']['generator']['nfilter'] = [1, 32, 1]
+        params['net']['generator']['nfilter'] = [8, 32, 1]
         params['net']['generator']['batch_norm'] = [bn, bn]
         params['net']['generator']['shape'] = [[5, 5], [5, 5], [5, 5]]
         params['net']['generator']['stride'] = [1, 1, 1]
@@ -133,6 +144,210 @@ class TestGANmodels(unittest.TestCase):
         assert (len(img) == 2)
         assert (img.shape[1:] == (16, 16, 1))
         img = wgan.generate(N=500, X_down=X_down[:500])
+        assert (len(img) == 500)
+
+    def test_lapgan3d(self):
+        bn = False
+        params = dict()
+        params['optimization'] = dict()
+        params['optimization']['epoch'] = 1
+        params['summary_every'] = 4
+        params['save_every'] = 5
+        params['print_every'] = 3
+        params['net'] = dict()
+        params['net']['shape'] = [8, 8, 8, 1] 
+        params['net']['generator'] = dict()
+        params['net']['generator']['latent_dim'] = 8*8*8
+        params['net']['generator']['full'] = []
+        params['net']['generator']['nfilter'] = [8, 32, 1]
+        params['net']['generator']['batch_norm'] = [bn, bn]
+        params['net']['generator']['shape'] = [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
+        params['net']['generator']['stride'] = [1, 1, 1]
+        params['net']['generator']['is_3d'] = True
+        params['net']['discriminator'] = dict()
+        params['net']['discriminator']['full'] = [32]
+        params['net']['discriminator']['nfilter'] = [16, 32]
+        params['net']['discriminator']['batch_norm'] = [bn, bn]
+        params['net']['discriminator']['shape'] = [[3, 3, 3], [3, 3, 3]]
+        params['net']['discriminator']['stride'] = [2, 2]
+        params['net']['discriminator']['is_3d'] = True
+        params['net']['upsampling'] = 2
+
+        X = np.random.rand(101, 8, 8, 8)
+        dataset = Dataset(X)
+        class UgradedGAN(LapWGAN, CosmoWGAN):
+            pass
+        wgan = GANsystem(UgradedGAN, params)
+        wgan.train(dataset)
+        X_down = np.random.rand(500, 4, 4, 4, 1)
+        img = wgan.generate(N=2, X_down=X_down[:2])
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (8, 8, 8, 1))
+        img = wgan.generate(N=500, X_down=X_down[:500])
+        assert (len(img) == 500)
+
+
+    def test_patchgan2d(self):
+        bn = False
+        params = dict()
+        params['optimization'] = dict()
+        params['optimization']['epoch'] = 1
+        params['summary_every'] = 4
+        params['save_every'] = 5
+        params['print_every'] = 3
+        params['net'] = dict()
+        params['net']['shape'] = [8, 8, 4] 
+        params['net']['generator'] = dict()
+        params['net']['generator']['latent_dim'] = 8 * 8
+        params['net']['generator']['full'] = []
+        params['net']['generator']['nfilter'] = [8, 32, 1]
+        params['net']['generator']['batch_norm'] = [bn, bn]
+        params['net']['generator']['shape'] = [[3, 3], [3, 3], [3, 3]]
+        params['net']['generator']['stride'] = [1, 1, 1]
+        params['net']['generator']['is_3d'] = False
+        params['net']['discriminator'] = dict()
+        params['net']['discriminator']['full'] = [32]
+        params['net']['discriminator']['nfilter'] = [16, 32]
+        params['net']['discriminator']['batch_norm'] = [bn, bn]
+        params['net']['discriminator']['shape'] = [[5, 5], [3, 3]]
+        params['net']['discriminator']['stride'] = [2, 2]
+        params['net']['discriminator']['is_3d'] = False
+        params['net']['upsampling'] = None
+
+        X = np.random.rand(101, 8, 8, 4)
+        dataset = Dataset(X)
+        class UgradedGAN(UpscalePatchWGAN, CosmoWGAN):
+            pass
+        wgan = GANsystem(UgradedGAN, params)
+        wgan.train(dataset)
+        borders = np.random.rand(500, 8, 8, 3)
+        img = wgan.generate(N=2, borders=borders[:2])
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (8, 8, 1))
+        img = wgan.generate(N=500, borders=borders[:500])
+        assert (len(img) == 500)
+
+    def test_patchgan3d(self):
+        bn = False
+        params = dict()
+        params['optimization'] = dict()
+        params['optimization']['epoch'] = 1
+        params['summary_every'] = 4
+        params['save_every'] = 5
+        params['print_every'] = 3
+        params['net'] = dict()
+        params['net']['shape'] = [8, 8, 8, 8] 
+        params['net']['generator'] = dict()
+        params['net']['generator']['latent_dim'] = 8*8*8
+        params['net']['generator']['full'] = []
+        params['net']['generator']['nfilter'] = [8, 32, 1]
+        params['net']['generator']['batch_norm'] = [bn, bn]
+        params['net']['generator']['shape'] = [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
+        params['net']['generator']['stride'] = [1, 1, 1]
+        params['net']['generator']['is_3d'] = True
+        params['net']['discriminator'] = dict()
+        params['net']['discriminator']['full'] = [32]
+        params['net']['discriminator']['nfilter'] = [16, 32]
+        params['net']['discriminator']['batch_norm'] = [bn, bn]
+        params['net']['discriminator']['shape'] = [[3, 3, 3], [3, 3, 3]]
+        params['net']['discriminator']['stride'] = [2, 2]
+        params['net']['discriminator']['is_3d'] = True
+        params['net']['upsampling'] = None
+
+        X = np.random.rand(101, 8, 8, 8, 8)
+        dataset = Dataset(X)
+        class UgradedGAN(UpscalePatchWGAN, CosmoWGAN):
+            pass
+        wgan = GANsystem(UgradedGAN, params)
+        wgan.train(dataset)
+        borders = np.random.rand(500, 8, 8, 8, 7)
+        img = wgan.generate(N=2, borders=borders[:2])
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (8, 8, 8, 1))
+        img = wgan.generate(N=500, borders=borders[:500])
+        assert (len(img) == 500)
+
+    def test_patchupscalegan2d(self):
+        bn = False
+        params = dict()
+        params['optimization'] = dict()
+        params['optimization']['epoch'] = 1
+        params['summary_every'] = 4
+        params['save_every'] = 5
+        params['print_every'] = 3
+        params['net'] = dict()
+        params['net']['shape'] = [8, 8, 4] 
+        params['net']['generator'] = dict()
+        params['net']['generator']['latent_dim'] = 8 * 8
+        params['net']['generator']['full'] = []
+        params['net']['generator']['nfilter'] = [8, 32, 1]
+        params['net']['generator']['batch_norm'] = [bn, bn]
+        params['net']['generator']['shape'] = [[3, 3], [3, 3], [3, 3]]
+        params['net']['generator']['stride'] = [1, 1, 1]
+        params['net']['generator']['is_3d'] = False
+        params['net']['discriminator'] = dict()
+        params['net']['discriminator']['full'] = [32]
+        params['net']['discriminator']['nfilter'] = [16, 32]
+        params['net']['discriminator']['batch_norm'] = [bn, bn]
+        params['net']['discriminator']['shape'] = [[5, 5], [3, 3]]
+        params['net']['discriminator']['stride'] = [2, 2]
+        params['net']['discriminator']['is_3d'] = False
+        params['net']['upsampling'] = 2
+
+        X = np.random.rand(101, 8, 8, 4)
+        dataset = Dataset(X)
+        class UgradedGAN(UpscalePatchWGAN, CosmoWGAN):
+            pass
+        wgan = GANsystem(UgradedGAN, params)
+        wgan.train(dataset)
+        borders = np.random.rand(500, 8, 8, 3)
+        X_down = np.random.rand(500, 4, 4, 1)
+        img = wgan.generate(N=2, X_down=X_down[:2], borders=borders[:2])
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (8, 8, 1))
+        img = wgan.generate(N=500, X_down=X_down[:500], borders=borders[:500])
+        assert (len(img) == 500)
+
+    def test_patchupscalegan3d(self):
+        bn = False
+        params = dict()
+        params['optimization'] = dict()
+        params['optimization']['epoch'] = 1
+        params['summary_every'] = 4
+        params['save_every'] = 5
+        params['print_every'] = 3
+        params['net'] = dict()
+        params['net']['shape'] = [8, 8, 8, 8] 
+        params['net']['generator'] = dict()
+        params['net']['generator']['latent_dim'] = 8*8*8
+        params['net']['generator']['full'] = []
+        params['net']['generator']['nfilter'] = [8, 32, 1]
+        params['net']['generator']['batch_norm'] = [bn, bn]
+        params['net']['generator']['shape'] = [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
+        params['net']['generator']['stride'] = [1, 1, 1]
+        params['net']['generator']['is_3d'] = True
+        params['net']['discriminator'] = dict()
+        params['net']['discriminator']['full'] = [32]
+        params['net']['discriminator']['nfilter'] = [16, 32]
+        params['net']['discriminator']['batch_norm'] = [bn, bn]
+        params['net']['discriminator']['shape'] = [[3, 3, 3], [3, 3, 3]]
+        params['net']['discriminator']['stride'] = [2, 2]
+        params['net']['discriminator']['is_3d'] = True
+        params['net']['upsampling'] = 2
+
+        X = np.random.rand(101, 8, 8, 8, 8)
+        dataset = Dataset(X)
+        class UgradedGAN(UpscalePatchWGAN, CosmoWGAN):
+            pass
+        wgan = GANsystem(UgradedGAN, params)
+        wgan.train(dataset)
+        borders = np.random.rand(500, 8, 8, 8, 7)
+        X_down = np.random.rand(500, 4, 4, 4, 1)
+
+        img = wgan.generate(N=2, X_down=X_down[:2], borders=borders[:2])
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (8, 8, 8, 1))
+        img = wgan.generate(N=500, X_down=X_down[:500], borders=borders[:500])
         assert (len(img) == 500)
 
 if __name__ == '__main__':

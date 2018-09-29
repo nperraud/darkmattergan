@@ -127,6 +127,8 @@ class TestSlice2d(unittest.TestCase):
         order = [0, 2, 1, 3, 4, 6, 5, 7]
         np.testing.assert_array_equal(res[order], res2)
 
+    
+
 
 if __name__ == '__main__':
     unittest.main()

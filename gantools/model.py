@@ -6,6 +6,7 @@ from gantools import utils
 from tfnntools.model import BaseNet, rprint
 from gantools.plot import colorize
 from gantools.metric import ganlist
+from gantools.data.transformation import tf_flip_slices, tf_patch2img
 
 class BaseGAN(BaseNet):
     """Abstract class for the model."""
@@ -111,6 +112,7 @@ class WGAN(BaseGAN):
         self.X_fake = self.generator(self.z, reuse=False)
 
     def _build_net(self):
+        self._is_3d = self.params['generator']['is_3d']
         self._build_generator()
         self._D_fake = self.discriminator(self.X_fake, reuse=False)
         self._D_real = self.discriminator(self.X_real, reuse=True)
@@ -210,7 +212,7 @@ class WGAN(BaseGAN):
     def _build_image_summary(self):
         vmin = tf.reduce_min(self.X_real)
         vmax = tf.reduce_max(self.X_real)
-        if self.params['generator']['is_3d']:
+        if self.is_3d:
             X_real = utils.tf_cube_slices(self.X_real)
             X_fake = utils.tf_cube_slices(self.X_fake)
         else:
@@ -228,7 +230,7 @@ class WGAN(BaseGAN):
             collections=['model'])
 
     def assert_image(self, x):
-        if self.params['discriminator']['is_3d']:
+        if self.is_3d:
             dim = 4
         else:
             dim = 3
@@ -244,6 +246,9 @@ class WGAN(BaseGAN):
         d['z'] = self.sample_latent(len(batch))
         return d
 
+    @property
+    def is_3d(self):
+        return self._is_3d
 
 class CosmoWGAN(WGAN):
     def default_params(self):
@@ -285,14 +290,14 @@ class LapWGAN(WGAN):
         d_params['upsampling'] = 2
         d_params['generator']['latent_dim'] = 32*32
         d_params['generator']['full'] = []
-        d_params['generator']['nfilter'] = [1, 32, 32, 1]
+        d_params['generator']['nfilter'] = [16, 32, 32, 1]
         d_params['generator']['batch_norm'] = [bn, bn, bn]
         d_params['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
         d_params['generator']['stride'] = [1, 1, 1, 1]
 
         return d_params
 
-    def __init__(self, params, name='wgan'):
+    def __init__(self, params, name='lap_wgan'):
         super().__init__(params=params, name=name)
 
     def _build_generator(self):
@@ -310,7 +315,7 @@ class LapWGAN(WGAN):
         self.X_fake = self.generator(self.z, X=self.X_smooth, reuse=False)
 
     def discriminator(self, X, **kwargs):
-        if self.params['discriminator']['is_3d']:
+        if self.is_3d:
             axis = 4
         else:
             axis = 3
@@ -321,7 +326,7 @@ class LapWGAN(WGAN):
         super()._build_image_summary()
         vmin = tf.reduce_min(self.X_real)
         vmax = tf.reduce_max(self.X_real)
-        if self.params['generator']['is_3d']:
+        if self.is_3d:
             X_smooth = utils.tf_cube_slices(self.X_smooth)
         else:
             X_smooth = self.X_smooth
@@ -332,6 +337,129 @@ class LapWGAN(WGAN):
             collections=['model'])
 
 
+
+class UpscalePatchWGAN(WGAN):
+    '''
+    Generate blocks, using top, left and top-left border information
+    '''
+
+    def default_params(self):
+        d_params = super().default_params()
+        d_params['shape'] = [16, 16, 4] # Shape of the input data (1 image and 3 borders)
+        bn = False
+        d_params['upsampling'] = None
+        d_params['generator']['latent_dim'] = 16*16
+        d_params['generator']['full'] = []
+        d_params['generator']['nfilter'] = [16, 32, 32, 1]
+        d_params['generator']['batch_norm'] = [bn, bn, bn]
+        d_params['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
+        d_params['generator']['stride'] = [1, 1, 1, 1]
+
+        return d_params
+
+    def __init__(self, params, name='upscale_patch_wgan'):
+        super().__init__(params=params, name=name)
+        assert(not(self.params['upsampling']==1))
+        if self.params['upsampling']:
+            self._inputs = (self.z, self.borders)
+        self._outputs = (self.X_fake_corner)
+
+
+    def _build_generator(self):
+        shape = self.params['shape']
+        self.X_data = tf.placeholder(tf.float32, shape=[None, *shape], name='X_data')
+        self.z = tf.placeholder(
+            tf.float32,
+            shape=[None, self.params['generator']['latent_dim']],
+            name='z')
+        # A) Separate real data and border information
+        if self.is_3d:
+            axis = 4
+            o = 7
+        else:
+            axis = 3
+            o = 3
+        self.X_real_corner, borders = tf.split(self.X_data, [1,o], axis=axis)
+        inshape = borders.shape.as_list()[1:]
+        self.borders = tf.placeholder_with_default(borders, shape=[None, *inshape], name='borders')
+        
+        # B) Split the borders
+        border_list = tf.split(self.borders, o, axis=axis)
+        # C) Handling downsampling
+        if self.params['upsampling']:
+            self.upsampling = self.params['upsampling']
+            X_down = down_sampler(self.X_real_corner, s=self.upsampling)
+            inshape = X_down.shape.as_list()[1:]
+            self.X_down = tf.placeholder_with_default(X_down, shape=[None, *inshape], name='y')
+            self.X_smooth = up_sampler(self.X_down, s=self.upsampling)
+        else:
+            self.X_smooth = None
+
+        # D) Flip the borders
+        flipped_border_list = tf_flip_slices(*border_list, is_3d=self.is_3d)
+
+        # E) Generater the corner
+        if self.params['upsampling']:
+            X = tf.concat([self.X_smooth, *flipped_border_list], axis=axis)
+        else:
+            X = tf.concat(flipped_border_list, axis=axis)
+
+        self.X_fake_corner = self.generator(z=self.z, X=X, reuse=False)
+        
+        #F) Recreate the big images
+        self.X_real = tf_patch2img(self.X_real_corner, *border_list, is_3d=self.is_3d)
+        self.X_fake = tf_patch2img(self.X_fake_corner, *border_list, is_3d=self.is_3d)
+        if self.params['upsampling']:
+            self.X_down_up = up_sampler(down_sampler(self.X_real, s=self.upsampling),s=self.upsampling)
+
+    def discriminator(self, X, **kwargs):
+        if self.params['upsampling']:
+            if self.params['discriminator']['is_3d']:
+                axis = 4
+            else:
+                axis = 3
+            v = tf.concat([X, self.X_down_up, X-self.X_down_up], axis=axis)
+        else:
+            v = X
+        return discriminator(v, params=self.params['discriminator'], **kwargs)
+
+    def _get_corner(self, X):
+        if X is not None:
+            if self.params['discriminator']['is_3d']:
+                axis = 4
+            else:
+                axis = 3
+            slc = [slice(None)] * len(X.shape)
+            slc[axis] = 0
+            return X[slc]
+
+    def preprocess_summaries(self, X_real, **kwargs):
+        super().preprocess_summaries(self._get_corner(X_real), **kwargs)
+
+    def compute_summaries(self, X_real, X_fake, feed_dict={}):
+        return super().compute_summaries(self._get_corner(X_real), self._get_corner(X_fake), feed_dict)
+
+    def batch2dict(self, batch):
+        d = dict()
+        d['X_data'] = self.assert_image(batch)
+        d['z'] = self.sample_latent(len(batch))
+        return d
+
+
+    def _build_image_summary(self):
+        super()._build_image_summary()
+        if self.params['upsampling']:
+            vmin = tf.reduce_min(self.X_real)
+            vmax = tf.reduce_max(self.X_real)
+            if self.is_3d:
+                X_smooth = utils.tf_cube_slices(self.X_smooth)
+            else:
+                X_smooth = self.X_smooth
+            tf.summary.image(
+                "images/Down_sampled_image",
+                colorize(X_smooth, vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
 # class GanModel(object):
 #     ''' Abstract class for the model'''
 #     def __init__(self, params, name='gan', is_3d=False):
@@ -1124,189 +1252,6 @@ class LapWGAN(WGAN):
 #         return discriminator(tf.concat([X, Xsu, X-Xsu], axis=3), self.params['discriminator'], reuse=reuse)
 
 
-# class upscale_WGAN_pixel_CNN(GanModel):
-#     '''
-#     Generate blocks, using top, left and top-left border information
-#     '''
-#     def __init__(self, params, X, z, name='upscale_WGAN_pixel_CNN', is_3d=False):
-#         ''' z must have the same dimension as X, or downsampled X in case of downsampling'''
-#         super().__init__(params=params, name=name, is_3d=is_3d)
-
-#         # A) Get downsampling factor
-#         self.downsampling = params['generator']['downsampling']
-
-#         if self.is_3d:
-#             self.__init_3d(params, X, z)
-
-#         else:
-#             self.__init_2d(params, X, z)
-
-#     def __init_3d(self, params, X, z):
-#         '''
-#         build the computation graph for 3d case.
-#         '''
-
-#         # A) Separate real data and border information
-#         real, border = tf.split(X, [1,7], axis=4)
-
-#         if self.downsampling:
-#             self.real_downsampled = down_sampler(real, s=self.downsampling, is_3d=True)
-#             inshape = self.real_downsampled.shape.as_list()[1:]
-#             # The input is the downsampled image
-#             self.downsampled = tf.placeholder_with_default(self.real_downsampled, shape=[None, *inshape], name='downsampled')
-#         else:
-#             self.downsampled = None
-
-#         # B) Split the borders
-#         inshape = border.shape.as_list()[1:]
-#         self.border = tf.placeholder_with_default(border, shape=[None, *inshape], name='border')
-#         d_above, d_left, d_corner, up, u_above, u_left, u_corner = tf.split(self.border, [1, 1, 1, 1, 1, 1, 1], axis=4)
-
-#         # C) Flip the borders for proper alignment with original data
-#         flip_d_above  = tf.reverse( d_above, axis=[2])
-#         flip_d_left   = tf.reverse(  d_left, axis=[3])
-#         flip_d_corner = tf.reverse(d_corner, axis=[2, 3])
-#         flip_up       = tf.reverse(      up, axis=[1])
-#         flip_u_above  = tf.reverse( u_above, axis=[1, 2])
-#         flip_u_left   = tf.reverse(  u_left, axis=[1, 3])
-#         flip_u_corner = tf.reverse(u_corner, axis=[1, 2, 3])
-
-#         flip_border = tf.concat([flip_d_above, flip_d_left, flip_d_corner, flip_up, flip_u_above, flip_u_left, flip_u_corner], axis=4)
-
-#         self.G_fake = self.generator(downsampled=self.downsampled, z=z, border=flip_border, reuse=False, scope='generator')
-
-#         # D) Concatenate back
-#         down_left     = tf.concat([ d_corner,      d_left], axis=2)
-#         down_right    = tf.concat([  d_above,        real], axis=2)
-#         down_right_g  = tf.concat([  d_above, self.G_fake], axis=2)
-        
-#         down_cuboid     = tf.concat([down_left,   down_right], axis=3)
-#         down_cuboid_g   = tf.concat([down_left, down_right_g], axis=3)
-
-#         up_left   = tf.concat([u_corner,   u_left], axis=2)
-#         up_right  = tf.concat([ u_above,       up], axis=2)
-#         up_cuboid = tf.concat([ up_left, up_right], axis=3)
-
-#         X_real = tf.concat([up_cuboid,   down_cuboid], axis=1)
-#         G_fake = tf.concat([up_cuboid, down_cuboid_g], axis=1)
-        
-#         if self.downsampling:
-#             X_down = down_sampler(X_real, s=self.downsampling, is_3d=True)
-#             X_down_up = up_sampler(X_down, s=self.downsampling, is_3d=True)
-#         else:
-#             X_down_up = None
-
-#         # E) Discriminator
-#         self.D_real = self.discriminator(X_real, X_down_up, reuse=False)
-#         self.D_fake = self.discriminator(G_fake, X_down_up, reuse=True)
-
-#         # F) Losses
-#         D_loss_f = tf.reduce_mean(self.D_fake)
-#         D_loss_r = tf.reduce_mean(self.D_real)
-#         gamma_gp = self.params['optimization']['gamma_gp']
-
-#         if self.downsampling:
-#             D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
-#         else:
-#             D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
-
-
-#         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
-#         self._G_loss = -D_loss_f
-
-#         # G) Summaries
-#         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-
-#     def __init_2d(self, params, X, z):
-#         '''
-#         build the computation graph for 2d case.
-#         '''
-
-#         # A) Separate real data and border information
-#         real, border = tf.split(X, [1,3],axis=3)
-
-#         if self.downsampling:
-#             self.real_downsampled = down_sampler(real, s=self.downsampling, is_3d=False)
-#             inshape = self.real_downsampled.shape.as_list()[1:]
-#             # The input is the downsampled image
-#             self.downsampled = tf.placeholder_with_default(self.real_downsampled, shape=[None, *inshape], name='downsampled')
-#         else:
-#             self.downsampled = None
-
-#         # B) Split the borders
-#         inshape = border.shape.as_list()[1:]
-#         self.border = tf.placeholder_with_default(border, shape=[None, *inshape], name='border')
-#         above, left, corner = tf.split(self.border, [1,1,1],axis=3)
-
-#         # C) Flip the borders for proper alignment with original data
-#         flip_above  = tf.reverse( above, axis=[1])
-#         flip_left   = tf.reverse(  left, axis=[2])
-#         flip_corner = tf.reverse(corner, axis=[1,2])
-
-#         flip_border = tf.concat([flip_above, flip_left, flip_corner], axis=3)
-
-#         self.G_fake = self.generator(downsampled=self.downsampled, z=z, border=flip_border, reuse=False, scope='generator')
-
-#         # D) Concatenate back
-#         left    = tf.concat([corner,        left], axis=1)
-#         right   = tf.concat([ above,        real], axis=1)
-#         right_g = tf.concat([ above, self.G_fake], axis=1)
-        
-#         X_real = tf.concat([left,  right], axis=2)
-#         G_fake = tf.concat([left,right_g], axis=2)
-
-#         if self.downsampling:
-#             X_down = down_sampler(X_real, s=self.downsampling, is_3d=False)
-#             X_down_up = up_sampler(X_down, s=self.downsampling, is_3d=False)
-#         else:
-#             X_down_up = None
-
-#         # E) Discriminator
-#         self.D_real = self.discriminator(X_real, X_down_up, reuse=False)
-#         self.D_fake = self.discriminator(G_fake, X_down_up, reuse=True)
-
-#         # F) Losses
-#         D_loss_f = tf.reduce_mean(self.D_fake)
-#         D_loss_r = tf.reduce_mean(self.D_real)
-#         gamma_gp = self.params['optimization']['gamma_gp']
-
-#         if self.downsampling:
-#             D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake, X_down_up], [X_real, X_down_up])
-#         else:
-#             D_gp = wgan_regularization(gamma_gp, self.discriminator, [G_fake], [X_real])
-
-#         self._D_loss = -(D_loss_r - D_loss_f) + D_gp
-#         self._G_loss = -D_loss_f
-
-#         # G) Summaries
-#         wgan_summaries(self._D_loss, self._G_loss, D_loss_f, D_loss_r)
-#         tf.summary.image("training/Real_full_image", X_real, max_outputs=2, collections=['Images'])
-#         tf.summary.image("training/Fake_full_image", G_fake, max_outputs=2, collections=['Images'])
-
-#         if True:
-#             tf.summary.image("checking/real",               real, max_outputs=2, collections=['Images'])
-#             tf.summary.image("checking/above",             above, max_outputs=1, collections=['Images'])
-#             tf.summary.image("checking/left",               left, max_outputs=1, collections=['Images'])
-#             tf.summary.image("checking/corner",           corner, max_outputs=1, collections=['Images'])
-#             tf.summary.image("checking/flip_above",   flip_above, max_outputs=1, collections=['Images'])
-#             tf.summary.image("checking/flip_left",     flip_left, max_outputs=1, collections=['Images'])
-#             tf.summary.image("checking/flip_corner", flip_corner, max_outputs=1, collections=['Images'])
-
-#     def generator(self, downsampled, z, border, reuse, scope):
-#         return generator_up(downsampled, z, self.params['generator'], y=border, reuse=reuse, scope=scope)
-
-#     def discriminator(self, X, X_down_up=None, reuse=True):
-#         if self.is_3d:
-#             concat_axis = 4
-#         else:
-#             concat_axis = 3
-
-#         if self.downsampling:
-#             return discriminator(tf.concat([X, X_down_up, X-X_down_up], axis=concat_axis), self.params['discriminator'], reuse=reuse)
-#         else:
-#             return discriminator(X, self.params['discriminator'], reuse=reuse)
-
-
 # class LapPatchWGANDirect(GanModel):
 #     def __init__(self, params, X, z, name='lapgandirect', is_3d=False):
 #         '''Some model for Ankit to try.
@@ -1708,20 +1653,28 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         bs = tf.shape(x)[0]  # Batch size
 
-
         if params['is_3d']:
             # nb pixel
-            sx = np.int(np.round((np.prod(x.shape.as_list()[1:]) // params['nfilter'][0])**(1/3)))
-
-            x = tf.reshape(x, [bs, sx, sx, sx, params['nfilter'][0]], name='vec2img')
+            if X is not None:
+                sx, sy, sz = X.shape.as_list()[1:4]
+            else:
+                sx = np.int(np.round((np.prod(x.shape.as_list()[1:]) // params['nfilter'][0])**(1/3)))
+                sy, sz = sx, sx
+            c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//(sx*sy*sz)
+            x = tf.reshape(x, [bs, sx, sy, sz, c], name='vec2img')
             if X is not None:
                 x = tf.concat([x, X], axis=4)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
         else:
             # nb pixel
-            sx = np.int(np.round(
-                np.sqrt(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0])))
-            x = tf.reshape(x, [bs, sx, sx, params['nfilter'][0]], name='vec2img')
+            if X is not None:
+                sx, sy = X.shape.as_list()[1:3]
+            else:
+                sx = np.int(np.round(
+                    np.sqrt(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0])))
+                sy = sx
+            c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//(sx*sy)
+            x = tf.reshape(x, [bs, sx, sy, c], name='vec2img')
             if X is not None:
                 x = tf.concat([x, X], axis=3)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)

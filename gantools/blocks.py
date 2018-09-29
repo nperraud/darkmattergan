@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from numpy import prod
+from gantools import utils
 
 
 def _tf_variable(name, shape, initializer):
@@ -107,7 +108,9 @@ def np_downsample_3d(x, scaling):
         dsx = dsx[0]
     return dsx
 
-def downsample(imgs, s, is_3d=False):
+def downsample(imgs, s, is_3d=None):
+    if is_3d is None:
+        is_3d = utils.is_3d(imgs)
     if is_3d:
         return np_downsample_3d(imgs,s)
     else:
@@ -116,11 +119,13 @@ def downsample(imgs, s, is_3d=False):
 
 
 
-def down_sampler(x=None, s=2, is_3d=False):
+def down_sampler(x=None, s=2, is_3d=None):
     '''
     Op to downsample 2D or 3D images by factor 's'.
     This method works for both inputs: tensor or placeholder
     '''
+    if is_3d is None:
+        is_3d = utils.is_3d(x)
 
     # The input to the downsampling operation is a placeholder.
     if x is None:
@@ -143,7 +148,10 @@ def down_sampler(x=None, s=2, is_3d=False):
         return tf.nn.conv2d(down_sampler_x, filt, strides=[1, s, s, 1], padding='SAME', name=op_name)
 
 
-def up_sampler(x, s=2, is_3d=False):
+def up_sampler(x, s=2, is_3d=None):
+    if is_3d is None:
+        is_3d = utils.is_3d(x)
+    
     bs = tf.shape(x)[0]
     dims = x.shape.as_list()[1:]
 

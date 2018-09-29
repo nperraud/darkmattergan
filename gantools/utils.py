@@ -349,6 +349,30 @@ def in_ipynb():
     except NameError:
         return False
 
+def is_3d(img, is_square=True):
+    """Infer from the data if the image is 3d. Return None if it does not know.
+
+    Image format tested is [n, x, y, c] or [n, x, y, z, c], where
+    * n is the number of images
+    * x,y,z are the dimension of the image
+    * c is the number of channels
+    """
+    if type(img) is tf.Tensor:
+        sh = img.shape.as_list()
+    else:
+        sh = img.shape
+    if len(sh)==5:
+        return True
+    if len(sh)==4:
+        ls = sh[3]
+        if ls==1:
+            return False
+        if is_square:
+            if sh[2]==ls:
+                return True
+    return None
+
+
 def get_lst_append_ret(params, key, obj):
     lst = params.get(key, list())
     lst.append(obj)
