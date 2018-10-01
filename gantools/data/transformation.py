@@ -217,10 +217,12 @@ def slice_2d(cubes, spix=64):
     and return all the smaller cubes
     '''
     s = cubes.shape
-    # The last dimension is used for the samples
-    cubes = cubes.transpose([0, 3, 1, 2])
 
-    cubes = cubes.reshape([s[0] * s[3], s[1], s[2]])
+
+    # This was done in a old version of the code
+    # # The last dimension is used for the samples
+    # cubes = cubes.transpose([0, 3, 1, 2])
+    # cubes = cubes.reshape([s[0] * s[3], s[1], s[2]])
 
     # compute the number of slices (We assume square images)
     num_slices = s[2] // spix

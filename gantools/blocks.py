@@ -213,11 +213,11 @@ def up_sampler(x, s=2, size=None):
     else:
         filt = tf.constant(1, dtype=tf.float32, shape=[s, 1, 1])
         output_shape = [bs, dims[0] * s, dims[1]]
-        return tf.nn.conv1d_transpose(
+        return tf.contrib.nn.conv1d_transpose(
             x,
             filt,
             output_shape=output_shape,
-            strides=[1, s, 1],
+            stride= s,
             padding='SAME')
 
 
@@ -360,11 +360,11 @@ def deconv1d(imgs,
                   imgs.get_shape()[-1]],
             initializer=weights_initializer)
 
-        deconv = tf.nn.conv2d_transpose(
+        deconv = tf.contrib.nn.conv1d_transpose(
             imgs,
             w,
             output_shape=output_shape,
-            strides=[1, stride, 1])
+            stride=stride)
 
         biases = _tf_variable(
             'biases', [output_shape[-1]], initializer=const)

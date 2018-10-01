@@ -7,6 +7,7 @@ from tfnntools.model import BaseNet, rprint
 from gantools.plot import colorize
 from gantools.metric import ganlist
 from gantools.data.transformation import tf_flip_slices, tf_patch2img
+from gantools.plot.plot_summary import PlotSummaryPlot
 
 class BaseGAN(BaseNet):
     """Abstract class for the model."""
@@ -193,7 +194,7 @@ class WGAN(BaseGAN):
         for stat in self._stat_list_fake:
             stat.add_summary(collections="model")
 
-        self._metric_list = ganlist.gan_metric_list()
+        self._metric_list = ganlist.gan_metric_list(size=self.data_size)
         for met in self._metric_list:
             met.add_summary(collections="model")
 
@@ -208,6 +209,9 @@ class WGAN(BaseGAN):
             feed_dict = stat.compute_summary(X_fake, feed_dict)
         for met in self._metric_list:
             feed_dict = met.compute_summary(X_fake, X_real, feed_dict)
+        if self.data_size==1:
+            feed_dict = self._plot_real.compute_summary(X_real[:, :, 0], feed_dict=feed_dict)
+            feed_dict = self._plot_fake.compute_summary(X_fake[:, :, 0], feed_dict=feed_dict)
         return feed_dict
 
     def _build_image_summary(self):
@@ -219,7 +223,9 @@ class WGAN(BaseGAN):
         elif self.data_size==2:
             X_real = self.X_real
             X_fake = self.X_fake
-        else:
+        elif self.data_size==1:
+            self._plot_real = PlotSummaryPlot(4, 4, "real", "signals", collections=['model'])
+            self._plot_fake = PlotSummaryPlot(4, 4, "fake", "signals", collections=['model'])
             return None
         tf.summary.image(
             "images/Real_Image",
@@ -283,6 +289,7 @@ class CosmoWGAN(WGAN):
 
 
 class LapWGAN(WGAN):
+    # TODO add summaries for the 1D case...
     def default_params(self):
         d_params = super().default_params()
         d_params['shape'] = [32, 32, 1] # Shape of the image
@@ -1436,11 +1443,11 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, data_
                               summary=summary)
     elif data_size==1:
         output_shape = [bs, sx, n_filters]
-        out_tensor = deconv2d(in_tensor,
+        out_tensor = deconv1d(in_tensor,
                               output_shape=output_shape,
                               shape=shape,
                               stride=stride,
-                              name='{}_deconv_2d'.format(conv_num),
+                              name='{}_deconv_1d'.format(conv_num),
                               summary=summary)
     else:
         raise ValueError("Wrong data_size")
@@ -1691,7 +1698,15 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                 x = tf.concat([x, X], axis=3)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
         else:
-            raise NotImplementedError('TBD')
+            if X is not None:
+                sx = X.shape.as_list()[1]
+            else:
+                sx = np.int(np.round(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0]))
+            c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//sx
+            x = tf.reshape(x, [bs, sx, c], name='vec2img')
+            if X is not None:
+                x = tf.concat([x, X], axis=2)
+                rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
 
         rprint('     Reshape to {}'.format(x.shape), reuse)
 

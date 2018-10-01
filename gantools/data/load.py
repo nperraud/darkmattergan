@@ -148,9 +148,17 @@ def load_dataset(
     if forward_map:
         images = forward_map(images)
 
+    if (not is_3d):
+        sh = images.shape
+        images = images.reshape([sh[0]*sh[1], sh[2], sh[3]])
+
     # 2p) Apply downscaling if necessary
     if scaling>1:
-        images = blocks.downsample(images, scaling, None)
+        if is_3d:
+            data_shape = 3
+        else:
+            data_shape = 2
+        images = blocks.downsample(images, scaling, size=data_shape)
 
     if augmentation:
         # With the current implementation, 3d augmentation is not supported
@@ -293,7 +301,7 @@ def load_medical_dataset(
         spix=32,
         augmentation=True,
         scaling=1,
-        patch=True):
+        patch=False):
 
     ''' Load a 2D dataset object 
 
@@ -329,10 +337,9 @@ def load_medical_dataset(
     return dataset
 
 
-def load_nysnth_data():
+def load_nysnth_rawdata():
     pathdata = os.path.join(path.nsynth_path(), 'nsynth-valid.npz')
     return np.load(pathdata)['arr_0']
-
 
 
 def load_nsynth_dataset(
@@ -346,7 +353,7 @@ def load_nsynth_dataset(
     * shuffle: shuffle the data (default True)
     * scaling : downscale the image by a factor (default 1)
     '''
-    sig = load_nysnth_data()
+    sig = load_nysnth_rawdata()
     
     # 1) Transform the data
     def transform(x):
