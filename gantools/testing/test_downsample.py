@@ -29,7 +29,11 @@ def downsample_old(imgs, s, is_3d=False, sess=None):
 
     except KeyError as e:
         print('Tensor {} not found, hence creating the Op.'.format(down_sampler_out_name))
-        down_sampler_op = blocks.down_sampler(x=None, s=s, is_3d=is_3d)
+        if is_3d:
+            size = 3
+        else:
+            size = 2
+        down_sampler_op = blocks.down_sampler(x=None, s=s, size=size)
 
 
     # name of the input placeholder to the downsapling operation
@@ -66,43 +70,43 @@ class TestDownsample(unittest.TestCase):
     def test_2d(self):
         tmp_data = np.random.rand(16,16,64)
         d1 = downsample_old(tmp_data, 2, False)
-        d2 = blocks.downsample(tmp_data, 2, False)
+        d2 = blocks.downsample(tmp_data, 2, 2)
         assert(np.sum(np.abs(d1-d2))/np.sum(np.abs(d1))<1e-6)
 
         tmp_data = np.random.randn(16,16,64)
         d1 = downsample_old(tmp_data, 4, False)
-        d2 = blocks.downsample(tmp_data, 4, False)
+        d2 = blocks.downsample(tmp_data, 4, 2)
         assert(np.sum(np.abs(d1-d2))/np.sum(np.abs(d1))<1e-6)
 
         tmp_data = np.random.rand(16,16,64)
         d1 = downsample_old(tmp_data, 8, False)
-        d2 = blocks.downsample(tmp_data, 8, False)
+        d2 = blocks.downsample(tmp_data, 8, 2)
         assert(np.sum(np.abs(d1-d2))/np.sum(np.abs(d1))<1e-6)
 
         tmp_data =  np.random.randint(0,255,size=[16,16,64])
         d1 = downsample_old(tmp_data, 8, False)
-        d2 = blocks.downsample(tmp_data, 8, False)
+        d2 = blocks.downsample(tmp_data, 8, 2)
         assert(np.sum(np.abs(d1-d2))/np.sum(np.abs(d1))<1e-6)
 
     def test_3d(self):
         tmp_data = np.random.rand(16,16,8,64)
         d1 = downsample_old(tmp_data, 2, True)
-        d2 = blocks.downsample(tmp_data, 2, True)
+        d2 = blocks.downsample(tmp_data, 2, 3)
         assert(np.sum(np.abs(d1-d2))/np.sum(np.abs(d1))<1e-6)
 
         tmp_data = np.random.randn(16,16,8,64)
         d1 = downsample_old(tmp_data, 4, True)
-        d2 = blocks.downsample(tmp_data, 4, True)
+        d2 = blocks.downsample(tmp_data, 4, 3)
         assert(np.sum(np.abs(d1-d2))/np.sum(np.abs(d1))<1e-6)
 
         tmp_data = np.random.randn(16,16,32,64)
         d1 = downsample_old(tmp_data, 8, True)
-        d2 = blocks.downsample(tmp_data, 8, True)
+        d2 = blocks.downsample(tmp_data, 8, 3)
         assert(np.sum(np.abs(d1-d2))/np.sum(np.abs(d1))<1e-6)
 
         tmp_data =  np.random.randint(0,255,size=[16,16,64,32])
         d1 = downsample_old(tmp_data, 8, True)
-        d2 = blocks.downsample(tmp_data, 8, True)
+        d2 = blocks.downsample(tmp_data, 8, 3)
         assert(np.sum(np.abs(d1-d2))/np.sum(np.abs(d1))<1e-6)
 
     def test_downsampler_2d(self):
@@ -136,10 +140,10 @@ class TestDownsample(unittest.TestCase):
         # Testing up_sampler, down_sampler
         x = tf.placeholder(tf.float32, shape=[1,64,64, 64,1],name='x')
         input_img = np.reshape(np.random.randn(64,64, 64), [1,64,64, 64,1])
-        xd = blocks.down_sampler(x, s=2, is_3d=True)
-        xdu = blocks.up_sampler(xd, s=2, is_3d=True)
-        xdud = blocks.down_sampler(xdu, s=2, is_3d=True)
-        xdudu = blocks.up_sampler(xdud, s=2, is_3d=True)
+        xd = blocks.down_sampler(x, s=2, size=3)
+        xdu = blocks.up_sampler(xd, s=2, size=3)
+        xdud = blocks.down_sampler(xdu, s=2, size=3)
+        xdudu = blocks.up_sampler(xdud, s=2, size=3)
         with tf.Session() as sess:
             img_d, img_du = sess.run([xd,xdu], feed_dict={x: input_img})
             img_dud, img_dudu = sess.run([xdud,xdudu], feed_dict={x: input_img})
@@ -159,6 +163,27 @@ class TestDownsample(unittest.TestCase):
         assert(np.linalg.norm((img_dud-img_d).flatten())<1e-4)
         assert(np.linalg.norm((img_dudu-img_du).flatten())<1e-4)
 
+    def test_downsample_np(self):
+        x = np.random.rand(25, 64).astype(np.float32)
+        scaling = 4
+        x1 = blocks.downsample(x, scaling)
+        with tf.Session() as sess:
+            x2 = np.squeeze(blocks.down_sampler(np.reshape(x, [*x.shape, 1]), scaling).eval())
+        np.testing.assert_allclose(x1, x2, atol=1e-6)
+
+        x = np.random.rand(25, 64, 64).astype(np.float32)
+        scaling = 4
+        x1 = blocks.downsample(x, scaling)
+        with tf.Session() as sess:
+            x2 = np.squeeze(blocks.down_sampler(np.reshape(x, [*x.shape, 1]), scaling).eval())
+        np.testing.assert_allclose(x1, x2, atol=1e-6)
+
+        x = np.random.rand(25, 32, 32, 32).astype(np.float32)
+        scaling = 4
+        x1 = blocks.downsample(x, scaling)
+        with tf.Session() as sess:
+            x2 = np.squeeze(blocks.down_sampler(np.reshape(x, [*x.shape, 1]), scaling).eval())
+        np.testing.assert_allclose(x1, x2, atol=1e-6)
 
 if __name__ == '__main__':
     unittest.main()

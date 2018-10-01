@@ -39,8 +39,14 @@ def medical_path():
     if 'nid' in hostname:
         rootpath = '/scratch/snx3000/nperraud/pre_processed_medical_data/'
     elif 'omenx' in hostname:
-        rootpath = '/store/nati/datasets/pre_processed_medical_data/'        
+        rootpath = '/store/nati/datasets/pre_processed_medical_data/'
     else:
         utils_module_path = os.path.dirname(__file__)
-        rootpath =utils_module_path + '/../../pre_processed_medical_data/'
+        rootpath = utils_module_path + '/../../../data/'
+    return rootpath
+
+
+def nsynth_path():
+    utils_module_path = os.path.dirname(__file__)
+    rootpath = utils_module_path + '/../../../data/'
     return rootpath

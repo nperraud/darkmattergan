@@ -64,6 +64,25 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
 
         return bn
 
+def np_downsample_1d(x, scaling):
+    unique = False
+    if len(x.shape)<1:
+        raise ValueError('Too few dimensions')
+    elif len(x.shape)==1:
+        x = x.reshape([1,*x.shape])
+        unique = True
+    elif len(x.shape)>2:
+        raise ValueError('Too many dimensions')
+        
+    n, sx = x.shape 
+    dsx = np.zeros([n,sx//scaling])
+    for i in range(scaling):
+            dsx += x[:,i::scaling]
+    dsx /= scaling
+    if unique:
+        dsx = dsx[0]
+    return dsx
+
 def np_downsample_2d(x, scaling):
     unique = False
     if len(x.shape)<2:
@@ -108,30 +127,42 @@ def np_downsample_3d(x, scaling):
         dsx = dsx[0]
     return dsx
 
-def downsample(imgs, s, is_3d=None):
-    if is_3d is None:
-        is_3d = utils.is_3d(imgs)
-    if is_3d:
-        return np_downsample_3d(imgs,s)
+def downsample(imgs, s, size=None):
+    if size is None:
+        size = utils.get_data_size(imgs)
+    if size == 3:
+        return np_downsample_3d(imgs, s)
+    elif size == 2:
+        return np_downsample_2d(imgs, s)
+    elif size == 1:
+        return np_downsample_1d(imgs, s)
     else:
-        return np_downsample_2d(imgs,s)
+        raise ValueError("Size should be 1,2,3 or None")
 
 
 
-
-def down_sampler(x=None, s=2, is_3d=None):
+def down_sampler(x=None, s=2, size=None):
     '''
     Op to downsample 2D or 3D images by factor 's'.
     This method works for both inputs: tensor or placeholder
     '''
-    if is_3d is None:
-        is_3d = utils.is_3d(x)
+    if size is None:
+        size = utils.get_data_size(x)
+
+    if not (size in [1, 2, 3]):
+        raise ValueError("Wrong size parameter")
 
     # The input to the downsampling operation is a placeholder.
     if x is None:
-        placeholder_name = 'down_sampler_in_' + ('3d_' if is_3d else '2d_') + str(s)
+        if size == 3:
+            addname = '3d_'
+        elif size == 2:
+            addname = '2d_'
+        else:
+            addname = '1d_'
+        placeholder_name = 'down_sampler_in_' + addname + str(s)
         down_sampler_x = tf.placeholder(dtype=tf.float32, name=placeholder_name)
-        op_name = 'down_sampler_out_' + ('3d_' if is_3d else '2d_') + str(s)
+        op_name = 'down_sampler_out_' + addname + str(s)
     
     # The input to the downsampling operation is the input tensor x.
     else: 
@@ -139,41 +170,55 @@ def down_sampler(x=None, s=2, is_3d=None):
         op_name = None
 
 
-    if is_3d:
+    if size==3:
         filt = tf.constant(1 / (s * s * s), dtype=tf.float32, shape=[s, s, s, 1, 1])
         return tf.nn.conv3d(down_sampler_x, filt, strides=[1, s, s, s, 1], padding='SAME', name=op_name)
 
-    else:
+    elif size==2:
         filt = tf.constant(1 / (s * s), dtype=tf.float32, shape=[s, s, 1, 1])
         return tf.nn.conv2d(down_sampler_x, filt, strides=[1, s, s, 1], padding='SAME', name=op_name)
 
+    else:
+        filt = tf.constant(1 / s, dtype=tf.float32, shape=[s, 1, 1])
+        return tf.nn.conv1d(down_sampler_x, filt, stride=s, padding='SAME', name=op_name)
 
-def up_sampler(x, s=2, is_3d=None):
-    if is_3d is None:
-        is_3d = utils.is_3d(x)
-    
+def up_sampler(x, s=2, size=None):
+    if size is None:
+        size = utils.get_data_size(x)
+
+    if not (size in [1, 2, 3]):
+        raise ValueError("Wrong size parameter")
+
     bs = tf.shape(x)[0]
     dims = x.shape.as_list()[1:]
 
-    if is_3d:
+    if size == 3:
         filt = tf.constant(1, dtype=tf.float32, shape=[s, s, s, 1, 1])
         output_shape = [bs, dims[0] * s, dims[1] * s, dims[2] * s, dims[3]]
         return tf.nn.conv3d_transpose(
-                        x,
-                        filt,
-                        output_shape=output_shape,
-                        strides=[1, s, s, s, 1],
-                        padding='SAME')
-    else:
+            x,
+            filt,
+            output_shape=output_shape,
+            strides=[1, s, s, s, 1],
+            padding='SAME')
+    elif size == 2:
         filt = tf.constant(1, dtype=tf.float32, shape=[s, s, 1, 1])
         output_shape = [bs, dims[0] * s, dims[1] * s, dims[2]]
         return tf.nn.conv2d_transpose(
-                        x,
-                        filt,
-                        output_shape=output_shape,
-                        strides=[1, s, s, 1],
-                        padding='SAME')
-
+            x,
+            filt,
+            output_shape=output_shape,
+            strides=[1, s, s, 1],
+            padding='SAME')
+    else:
+        filt = tf.constant(1, dtype=tf.float32, shape=[s, 1, 1])
+        output_shape = [bs, dims[0] * s, dims[1]]
+        return tf.nn.conv1d_transpose(
+            x,
+            filt,
+            output_shape=output_shape,
+            strides=[1, s, 1],
+            padding='SAME')
 
 
 
@@ -208,6 +253,33 @@ def spectral_norm(w, iteration=1):
 
     return w_norm
 
+
+
+def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="conv1d", summary=True):
+    '''Convolutional layer for square images'''
+
+    weights_initializer = tf.contrib.layers.xavier_initializer()
+    const = tf.constant_initializer(0.0)
+
+    with tf.variable_scope(name):
+        w = _tf_variable(
+            'w', [shape[0],
+                  imgs.get_shape()[-1], nf_out],
+            initializer=weights_initializer)
+        if use_spectral_norm:
+            w = spectral_norm(w)
+        conv = tf.nn.conv1d(
+            imgs, w, stride=stride, padding='SAME')
+
+        biases = _tf_variable('biases', [nf_out], initializer=const)
+        conv = tf.nn.bias_add(conv, biases)
+
+        if summary:
+            tf.summary.histogram("Bias_sum", biases, collections=["metrics"])
+            # we put it in metrics so we don't store it too often
+            tf.summary.histogram("Weights_sum", w, collections=["metrics"])
+
+        return conv
 
 def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="conv2d", summary=True):
     '''Convolutional layer for square images'''
@@ -269,6 +341,46 @@ def conv3d(imgs,
 
         return conv
 
+def deconv1d(imgs,
+             output_shape,
+             shape=[5],
+             stride=2,
+             name="deconv1d",
+             summary=True):
+
+    weights_initializer = tf.contrib.layers.xavier_initializer()
+    # was
+    # weights_initializer = tf.random_normal_initializer(stddev=stddev)
+    const = tf.constant_initializer(0.0)
+
+    with tf.variable_scope(name):
+        # filter : [height, width, output_channels, in_channels]
+        w = _tf_variable(
+            'w', [shape[0], output_shape[-1],
+                  imgs.get_shape()[-1]],
+            initializer=weights_initializer)
+
+        deconv = tf.nn.conv2d_transpose(
+            imgs,
+            w,
+            output_shape=output_shape,
+            strides=[1, stride, 1])
+
+        biases = _tf_variable(
+            'biases', [output_shape[-1]], initializer=const)
+        deconv = tf.nn.bias_add(deconv, biases)
+
+        # If we are running on Leonhard we need to reshape in order for TF
+        # to explicitly know the shape of the tensor. Machines with newer
+        # TensorFlow versions do not need this.
+        if tf.__version__ == '1.3.0':
+            deconv = tf.reshape(deconv, output_shape)
+
+        if summary:
+            tf.summary.histogram("Bias_sum", biases, collections=["metrics"])
+            # we put it in metrics so we don't store it too often
+            tf.summary.histogram("Weights_sum", w, collections=["metrics"])
+        return deconv
 
 def deconv2d(imgs,
              output_shape,

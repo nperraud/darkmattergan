@@ -95,7 +95,7 @@ def random_transformation_3d(images):
     return random_translate_3d(random_rotate_3d(images))
 
 
-def path2img(patches, is_3d=False):
+def patch2img(patches, is_3d=False):
     if is_3d:
         imgs_down_left = np.concatenate([patches[:, :, :, :, 3], patches[:, :, :, :,2]], axis=2)
         imgs_down_right = np.concatenate([patches[:, :, :, :, 1], patches[:, :, :, :,0]], axis=2)
@@ -129,6 +129,7 @@ def tf_patch2img_3d(*args):
     imgs = tf.concat([imgs_up, imgs_down], axis=1)
     return imgs
 
+
 def flip_slices_2d(dl, ur, ul):
     flip_dl = np.flip(dl, axis=1)
     flip_ur = np.flip(ur, axis=2)    
@@ -141,18 +142,26 @@ def tf_flip_slices_2d(dl, ur, ul):
     flip_ul = tf.reverse(ul, axis=[1,2])
     return flip_dl, flip_ur, flip_ul
 
-def tf_flip_slices(*args, is_3d=False):
-    if is_3d:
+def tf_flip_slices(*args, size=2):
+    if size==3:
         return tf_flip_slices_3d(*args)
-    else:
+    elif size==2:
         return tf_flip_slices_2d(*args)
-
-def tf_patch2img(*args, is_3d=False):
-    if is_3d:
-        return tf_patch2img_3d(*args)
+    elif size==1:
+        return tf.reverse(*args, axis=[1])
     else:
-        return tf_patch2img_2d(*args)
+        raise ValueError("Size should be 1, 2 or 3")
 
+
+def tf_patch2img(*args, size=2):
+    if size==3:
+        return tf_patch2img_3d(*args)
+    elif size==2:
+        return tf_patch2img_2d(*args)
+    elif size==1:
+        raise NotImplementedError("To be done and tested - should be trivial")
+    else:
+        raise ValueError("Size should be 1, 2 or 3")
 
 def flip_slices_3d(*args):
     flip_d_above = np.flip(args[0], axis=2)

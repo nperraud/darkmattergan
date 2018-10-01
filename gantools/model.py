@@ -68,7 +68,7 @@ class WGAN(BaseGAN):
         d_params['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
         d_params['generator']['stride'] = [1, 2, 1, 1]
         d_params['generator']['summary'] = True
-        d_params['generator']['is_3d'] = False # Is the image 3D?
+        d_params['generator']['data_size'] = 2 # 1 for 1D signal, 2 for images, 3 for 3D
         d_params['generator']['inception'] = False # Use inception module
         d_params['generator']['activation'] = lrelu # leaky relu
         d_params['generator']['one_pixel_mapping'] = [] # One pixel mapping
@@ -83,7 +83,7 @@ class WGAN(BaseGAN):
         d_params['discriminator']['shape'] = [[5, 5], [5, 5], [5, 5], [3, 3]]
         d_params['discriminator']['stride'] = [2, 2, 2, 1]
         d_params['discriminator']['summary'] = True
-        d_params['discriminator']['is_3d'] = False # Is the image 3D?
+        d_params['discriminator']['data_size'] = 2 # 1 for 1D signal, 2 for images, 3 for 3D
         d_params['discriminator']['inception'] = False # Use inception module
         d_params['discriminator']['activation'] = lrelu # leaky relu
         d_params['discriminator']['one_pixel_mapping'] = [] # One pixel mapping
@@ -112,7 +112,8 @@ class WGAN(BaseGAN):
         self.X_fake = self.generator(self.z, reuse=False)
 
     def _build_net(self):
-        self._is_3d = self.params['generator']['is_3d']
+        self._data_size = self.params['generator']['data_size']
+        assert(self.params['discriminator']['data_size'] == self.data_size)
         self._build_generator()
         self._D_fake = self.discriminator(self.X_fake, reuse=False)
         self._D_real = self.discriminator(self.X_real, reuse=True)
@@ -212,12 +213,14 @@ class WGAN(BaseGAN):
     def _build_image_summary(self):
         vmin = tf.reduce_min(self.X_real)
         vmax = tf.reduce_max(self.X_real)
-        if self.is_3d:
+        if self.data_size==3:
             X_real = utils.tf_cube_slices(self.X_real)
             X_fake = utils.tf_cube_slices(self.X_fake)
-        else:
+        elif self.data_size==2:
             X_real = self.X_real
             X_fake = self.X_fake
+        else:
+            return None
         tf.summary.image(
             "images/Real_Image",
             colorize(X_real, vmin, vmax),
@@ -230,10 +233,7 @@ class WGAN(BaseGAN):
             collections=['model'])
 
     def assert_image(self, x):
-        if self.is_3d:
-            dim = 4
-        else:
-            dim = 3
+        dim = self.data_size + 1
         if len(x.shape) < dim:
             raise ValueError('The size of the data is wrong')
         elif len(x.shape) < (dim +1):
@@ -247,8 +247,8 @@ class WGAN(BaseGAN):
         return d
 
     @property
-    def is_3d(self):
-        return self._is_3d
+    def data_size(self):
+        return self._data_size
 
 class CosmoWGAN(WGAN):
     def default_params(self):
@@ -315,10 +315,7 @@ class LapWGAN(WGAN):
         self.X_fake = self.generator(self.z, X=self.X_smooth, reuse=False)
 
     def discriminator(self, X, **kwargs):
-        if self.is_3d:
-            axis = 4
-        else:
-            axis = 3
+        axis = self.data_size + 1
         v = tf.concat([X, self.X_smooth, X-self.X_smooth], axis=axis)
         return discriminator(v, params=self.params['discriminator'], **kwargs)
 
@@ -326,10 +323,12 @@ class LapWGAN(WGAN):
         super()._build_image_summary()
         vmin = tf.reduce_min(self.X_real)
         vmax = tf.reduce_max(self.X_real)
-        if self.is_3d:
+        if self.data_size==3:
             X_smooth = utils.tf_cube_slices(self.X_smooth)
-        else:
+        elif self.data_size==2:
             X_smooth = self.X_smooth
+        else:
+            return None
         tf.summary.image(
             "images/Down_sampled_image",
             colorize(X_smooth, vmin, vmax),
@@ -373,12 +372,15 @@ class UpscalePatchWGAN(WGAN):
             shape=[None, self.params['generator']['latent_dim']],
             name='z')
         # A) Separate real data and border information
-        if self.is_3d:
+        if self.data_size==3:
             axis = 4
             o = 7
-        else:
+        elif self.data_size==2:
             axis = 3
             o = 3
+        else:
+            axis=2
+            o = 1
         self.X_real_corner, borders = tf.split(self.X_data, [1,o], axis=axis)
         inshape = borders.shape.as_list()[1:]
         self.borders = tf.placeholder_with_default(borders, shape=[None, *inshape], name='borders')
@@ -396,7 +398,7 @@ class UpscalePatchWGAN(WGAN):
             self.X_smooth = None
 
         # D) Flip the borders
-        flipped_border_list = tf_flip_slices(*border_list, is_3d=self.is_3d)
+        flipped_border_list = tf_flip_slices(*border_list, size=self.data_size)
 
         # E) Generater the corner
         if self.params['upsampling']:
@@ -407,17 +409,14 @@ class UpscalePatchWGAN(WGAN):
         self.X_fake_corner = self.generator(z=self.z, X=X, reuse=False)
         
         #F) Recreate the big images
-        self.X_real = tf_patch2img(self.X_real_corner, *border_list, is_3d=self.is_3d)
-        self.X_fake = tf_patch2img(self.X_fake_corner, *border_list, is_3d=self.is_3d)
+        self.X_real = tf_patch2img(self.X_real_corner, *border_list, size=self.data_size)
+        self.X_fake = tf_patch2img(self.X_fake_corner, *border_list, size=self.data_size)
         if self.params['upsampling']:
             self.X_down_up = up_sampler(down_sampler(self.X_real, s=self.upsampling),s=self.upsampling)
 
     def discriminator(self, X, **kwargs):
         if self.params['upsampling']:
-            if self.params['discriminator']['is_3d']:
-                axis = 4
-            else:
-                axis = 3
+            axis = self.data_size + 1
             v = tf.concat([X, self.X_down_up, X-self.X_down_up], axis=axis)
         else:
             v = X
@@ -425,10 +424,7 @@ class UpscalePatchWGAN(WGAN):
 
     def _get_corner(self, X):
         if X is not None:
-            if self.params['discriminator']['is_3d']:
-                axis = 4
-            else:
-                axis = 3
+            axis = self.data_size + 1
             slc = [slice(None)] * len(X.shape)
             slc[axis] = 0
             return X[slc]
@@ -451,10 +447,12 @@ class UpscalePatchWGAN(WGAN):
         if self.params['upsampling']:
             vmin = tf.reduce_min(self.X_real)
             vmax = tf.reduce_max(self.X_real)
-            if self.is_3d:
+            if self.data_size==3:
                 X_smooth = utils.tf_cube_slices(self.X_smooth)
-            else:
+            elif self.data_size==2:
                 X_smooth = self.X_smooth
+            else:
+                raise ValueError("The data should not be 1D!")
             tf.summary.image(
                 "images/Down_sampled_image",
                 colorize(X_smooth, vmin, vmax),
@@ -1408,16 +1406,19 @@ def js_regularization(D1_logits, D1_arg, D2_logits, D2_arg, batch_size):
     return disc_regularizer
 
 
-def get_conv(is_3d=False):
-    if is_3d:
-        conv = conv3d
+def get_conv(data_size):
+    if data_size == 3:
+        return conv3d
+    elif data_size == 2:
+        return conv2d
+    elif data_size == 1:
+        return conv1d
     else:
-        conv = conv2d
-    return conv
+        raise ValueError("Wrong data_size")
 
 
-def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d=False):
-    if is_3d:
+def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, data_size=2):
+    if data_size==3:
         output_shape = [bs, sx, sx, sx, n_filters]
         out_tensor = deconv3d(in_tensor,
                               output_shape=output_shape,
@@ -1425,7 +1426,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d
                               stride=stride,
                               name='{}_deconv_3d'.format(conv_num),
                               summary=summary)
-    else:
+    elif data_size==2:
         output_shape = [bs, sx, sx, n_filters]
         out_tensor = deconv2d(in_tensor,
                               output_shape=output_shape,
@@ -1433,6 +1434,16 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, is_3d
                               stride=stride,
                               name='{}_deconv_2d'.format(conv_num),
                               summary=summary)
+    elif data_size==1:
+        output_shape = [bs, sx, n_filters]
+        out_tensor = deconv2d(in_tensor,
+                              output_shape=output_shape,
+                              shape=shape,
+                              stride=stride,
+                              name='{}_deconv_2d'.format(conv_num),
+                              summary=summary)
+    else:
+        raise ValueError("Wrong data_size")
 
     return out_tensor
 
@@ -1509,7 +1520,7 @@ def histogram_block(x, params, reuse):
 
 
 def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
-    conv = get_conv(params['is_3d'])
+    conv = get_conv(params['data_size'])
 
     assert(len(params['stride']) ==
            len(params['nfilter']) ==
@@ -1552,13 +1563,14 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             rprint('         Size of the CDF variables: {}'.format(cov.shape), reuse)
 
         for i in range(nconv):
+            # TODO: this really needs to be cleaned uy...
             if params['inception']:
                 x = inception_conv(in_tensor=x, 
                                     n_filters=params['nfilter'][i], 
                                     stride=params['stride'][i], 
                                     summary=params['summary'], 
                                     num=i,
-                                    is_3d=params['is_3d'], 
+                                    data_size=params['data_size'], 
                                     merge=(i == (nconv-1))
                                     )
                 rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1653,7 +1665,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         bs = tf.shape(x)[0]  # Batch size
 
-        if params['is_3d']:
+        if params['data_size']==3:
             # nb pixel
             if X is not None:
                 sx, sy, sz = X.shape.as_list()[1:4]
@@ -1665,7 +1677,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
             if X is not None:
                 x = tf.concat([x, X], axis=4)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
-        else:
+        elif params['data_size']==2:
             # nb pixel
             if X is not None:
                 sx, sy = X.shape.as_list()[1:3]
@@ -1678,6 +1690,8 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
             if X is not None:
                 x = tf.concat([x, X], axis=3)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
+        else:
+            raise NotImplementedError('TBD')
 
         rprint('     Reshape to {}'.format(x.shape), reuse)
 
@@ -1692,7 +1706,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                                     stride=params['stride'][i], 
                                     summary=params['summary'], 
                                     num=i, 
-                                    is_3d=params['is_3d'], 
+                                    data_size=params['data_size'], 
                                     merge=(i == (nconv-1))
                                     )
                 rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1706,7 +1720,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                            stride=params['stride'][i],
                            summary=params['summary'],
                            conv_num=i,
-                           is_3d=params['is_3d']
+                           data_size=params['data_size']
                            )
                 rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
 
@@ -1745,7 +1759,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
 
-    conv = get_conv(params['is_3d'])
+    conv = get_conv(params['data_size'])
     nconv = len(params['stride'])
     nfull = len(params['full'])
 
@@ -1756,7 +1770,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
             rprint('     The input X is of size {}'.format(X.shape), reuse)
 
             if params['downsampling']:
-                X = up_sampler(X, s=params['downsampling'], is_3d=True)
+                X = up_sampler(X, s=params['downsampling'], size=params['data_size'])
                 rprint('     The input X is upsampled to size {}'.format(X.shape), reuse)
 
         rprint('     The input z is of size {}'.format(z.shape), reuse)
@@ -1782,7 +1796,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
             sx = X.shape.as_list()[1]
             sy = X.shape.as_list()[2]
         
-        if params['is_3d']:
+        if params['data_size']==3:
             if X is None:
                 sz = y.shape.as_list()[3]
             else:
@@ -1795,7 +1809,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
         if X is None:
             x = z
         else:
-            if params['is_3d']:
+            if params['data_size']==3:
                 x = tf.concat([X, z], axis=4)
             else:
                 x = tf.concat([X, z], axis=3)
@@ -1810,7 +1824,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
             if (y is not None) and (params['y_layer'] == i):
                 rprint('     Merge input y of size{}'.format(y.shape), reuse)
 
-                if params['is_3d']:
+                if params['data_size']==3:
                     x = tf.concat([x, y], axis=4)
                 else:
                     x = tf.concat([x, y], axis=3)
@@ -1827,7 +1841,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                                     stride=params['stride'][i], 
                                     summary=params['summary'], 
                                     num=i,
-                                    is_3d=params['is_3d'], 
+                                    data_size=params['data_size'], 
                                     merge= (True if params['residual'] else (i == (nconv-1)) )
                                     )
                     rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1840,7 +1854,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                                         stride=params['stride'][i], 
                                         summary=params['summary'], 
                                         num=i, 
-                                        is_3d=params['is_3d'], 
+                                        data_size=params['data_size'], 
                                         merge= (True if params['residual'] else (i == (nconv-1)) )
                                         )
                     rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1864,7 +1878,7 @@ def generator_up(X, z, params, y=None, reuse=True, scope="generator_up"):
                                stride=params['stride'][i],
                                summary=params['summary'],
                                conv_num=i,
-                               is_3d=params['is_3d']
+                               data_size=params['data_size']
                                )
                     rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
 
