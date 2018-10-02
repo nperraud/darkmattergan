@@ -34,7 +34,7 @@ params_discriminator['data_size'] = 1
 
 params_generator = dict()
 params_generator['stride'] = [1, 1, 1, 1, 1 , 1, 1]
-params_generator['latent_dim'] = 4*128
+params_generator['latent_dim'] = ns
 params_generator['nfilter'] = [4, 64, 256, 256, 256, 32, 1]
 params_generator['shape'] = [[5], [7], [9], [9], [9], [9], [9] ]
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
