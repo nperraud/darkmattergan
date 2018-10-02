@@ -5,9 +5,7 @@ from gantools.data import gaussian_synthetic_data
 from gantools.data import path
 from gantools.data import transformation, fmap
 from gantools.data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time, Dataset
-from gantools.data.Dataset_file import Dataset_file_2d, Dataset_file_3d, Dataset_file_2d_patch, Dataset_file_3d_patch, Dataset_file_time
 from gantools.data import Dataset_medical
-# from data.Dataset_medical import Dataset_medical_2d, Dataset_medical_3d, Dataset_medical_2d_patch, Dataset_medical_3d_patch, Dataset_medical_time
 from skimage import io
 from functools import partial
 
@@ -357,7 +355,9 @@ def load_nsynth_dataset(
     
     # 1) Transform the data
     def transform(x):
-        return x/(2**15)
+        x = x[:, :2**15]/(2**15)
+        x = (0.99*x.T/np.max(np.abs(x), axis=1)).T
+        return x
     sig = transform(sig)
 
     # 2) Downsample
