@@ -10,7 +10,7 @@ def root_path():
     hostname = socket.gethostname()
     # Check if we are on pizdaint
     if 'nid' in hostname:
-        rootpath = '/scratch/snx3000/nperraud/pre_processed_data/' 
+        rootpath = '/scratch/snx1600/nperraud/pre_processed_data/' 
     elif 'omenx' in hostname:
         rootpath = '/store/nati/datasets/cosmology/pre_processed_data/'         
     else:
@@ -25,7 +25,7 @@ def celeba_path():
     hostname = socket.gethostname()
     # Check if we are on pizdaint
     if 'nid' in hostname:
-        rootpath = '/scratch/snx3000/nperraud/celeba/'
+        rootpath = '/scratch/snx1600/nperraud/celeba/'
     elif 'omenx' in hostname:
         rootpath = '/store/nati/dataset/downsampled-celeba/'
     else:
@@ -37,7 +37,7 @@ def medical_path():
     hostname = socket.gethostname()
     # Check if we are on pizdaint
     if 'nid' in hostname:
-        rootpath = '/scratch/snx3000/nperraud/pre_processed_medical_data/'
+        rootpath = '/scratch/snx1600/nperraud/pre_processed_medical_data/'
     elif 'omenx' in hostname:
         rootpath = '/store/nati/datasets/pre_processed_medical_data/'
     else:
@@ -47,6 +47,11 @@ def medical_path():
 
 
 def nsynth_path():
-    utils_module_path = os.path.dirname(__file__)
-    rootpath = utils_module_path + '/../../../data/'
+    hostname = socket.gethostname()
+    if ('nid' in hostname) or ('daint' in hostname):
+        rootpath = '/scratch/snx1600/nperraud/data/'
+    else:
+        utils_module_path = os.path.dirname(__file__)
+
+        rootpath = utils_module_path + '/../../../data/'
     return rootpath
