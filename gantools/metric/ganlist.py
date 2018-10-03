@@ -42,8 +42,11 @@ def median(x):
     """Compute the median."""
     return np.median(x.flatten())
 
+def do_nothing(x):
+    """Do nothing."""
+    return x
 
-def gan_stat_list(subname=''):
+def gan_stat_list(subname='', size=2):
     """Return a list of statistic for a GAN."""
     stat_list = []
 
@@ -67,35 +70,24 @@ def gan_stat_list(subname=''):
     return stat_list
 
 
-def gan_metric_list(recompute_real=False):
+def gan_metric_list(recompute_real=False, size=2):
     """Return a metric list for a GAN."""
 
-    stat_list = gan_stat_list()
+    stat_list = gan_stat_list(size=size)
     metric_list = [StatisticalMetric(statistic=stat, recompute_real=recompute_real) for stat in stat_list]
-    
-    # metric_list_t = []
-    # metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram_log', group='nomap'), log=True, recompute_real=recompute_real, stype=3))
-    # metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram_log', group='nomap'), log=True, recompute_real=recompute_real, stype=3))
-    # metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd_log', group='nomap'), log=True, recompute_real=recompute_real, stype=3))
-    # metric_list.append(MetricSum(metric_list_t, name ='global_score_log', group='nomap', recompute_real=recompute_real, stype=0))
-   
-    # metric_list_t = []
-    # metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='nomap'), log=False, recompute_real=recompute_real, stype=0))
-    # metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='nomap'), log=False, recompute_real=recompute_real, stype=0))
-    # metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='nomap'), log=False, recompute_real=recompute_real, stype=0))
-    # metric_list.append(MetricSum(metric_list_t, name ='global_score', group='nomap', recompute_real=recompute_real, stype=0))
 
-    metric_list_t = []
-    metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
-    metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
-    metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='final'), log=True, recompute_real=recompute_real, stype=0, normalize=True))
-    metric_list.append(MetricSum(metric_list_t, name ='global_score', group='final', recompute_real=recompute_real, stype=0))
+    if size==2 or size==3:
+        metric_list_t = []
+        metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
+        metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
+        metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='final'), log=True, recompute_real=recompute_real, stype=0, normalize=True))
+        metric_list.append(MetricSum(metric_list_t, name ='global_score', group='final', recompute_real=recompute_real, stype=0))
 
-    metric_list_t = []
-    metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
-    # metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
-    metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
-    metric_list.append(MetricSum(metric_list_t, name ='global_score', group='wasserstein', recompute_real=recompute_real, stype=0))
+        metric_list_t = []
+        metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+        # metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+        metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+        metric_list.append(MetricSum(metric_list_t, name ='global_score', group='wasserstein', recompute_real=recompute_real, stype=0))
 
 
     return metric_list

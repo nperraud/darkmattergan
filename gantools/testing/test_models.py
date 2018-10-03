@@ -48,7 +48,7 @@ class TestGANmodels(unittest.TestCase):
         params['net']['generator']['batch_norm'] = [bn, bn, bn]
         params['net']['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
         params['net']['generator']['stride'] = [1, 2, 1, 1]
-        params['net']['generator']['is_3d'] = False
+        params['net']['generator']['data_size'] = 2
         params['net']['discriminator'] = dict()
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32, 32, 32]
@@ -56,7 +56,7 @@ class TestGANmodels(unittest.TestCase):
         params['net']['discriminator']['shape'] = [[5, 5], [5, 5], [5, 5],
                                                    [3, 3]]
         params['net']['discriminator']['stride'] = [2, 2, 2, 1]
-        params['net']['discriminator']['is_3d'] = False
+        params['net']['discriminator']['data_size'] = 2
 
         X = np.random.rand(101, 16, 16)
         dataset = Dataset(X)
@@ -86,7 +86,7 @@ class TestGANmodels(unittest.TestCase):
         params['net']['generator']['shape'] = [[3, 3, 3], [3, 3, 3],
                                                [5, 5, 5]]
         params['net']['generator']['stride'] = [1, 2, 1]
-        params['net']['generator']['is_3d'] = True
+        params['net']['generator']['data_size'] = 3
         params['net']['discriminator'] = dict()
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32, 32]
@@ -94,7 +94,7 @@ class TestGANmodels(unittest.TestCase):
         params['net']['discriminator']['shape'] = [[5, 5, 5], [3, 3, 3],
                                                    [3, 3, 3]]
         params['net']['discriminator']['stride'] = [2, 2, 2]
-        params['net']['discriminator']['is_3d'] = True
+        params['net']['discriminator']['data_size'] = 3
 
         X = np.random.rand(101, 8, 8, 8)
         dataset = Dataset(X)
@@ -123,14 +123,14 @@ class TestGANmodels(unittest.TestCase):
         params['net']['generator']['batch_norm'] = [bn, bn]
         params['net']['generator']['shape'] = [[5, 5], [5, 5], [5, 5]]
         params['net']['generator']['stride'] = [1, 1, 1]
-        params['net']['generator']['is_3d'] = False
+        params['net']['generator']['data_size'] = 2
         params['net']['discriminator'] = dict()
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32]
         params['net']['discriminator']['batch_norm'] = [bn, bn]
         params['net']['discriminator']['shape'] = [[5, 5], [3, 3]]
         params['net']['discriminator']['stride'] = [2, 2]
-        params['net']['discriminator']['is_3d'] = False
+        params['net']['discriminator']['data_size'] = 2
         params['net']['upsampling'] = 2
 
         X = np.random.rand(101, 16, 16)
@@ -163,14 +163,14 @@ class TestGANmodels(unittest.TestCase):
         params['net']['generator']['batch_norm'] = [bn, bn]
         params['net']['generator']['shape'] = [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
         params['net']['generator']['stride'] = [1, 1, 1]
-        params['net']['generator']['is_3d'] = True
+        params['net']['generator']['data_size'] = 3
         params['net']['discriminator'] = dict()
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32]
         params['net']['discriminator']['batch_norm'] = [bn, bn]
         params['net']['discriminator']['shape'] = [[3, 3, 3], [3, 3, 3]]
         params['net']['discriminator']['stride'] = [2, 2]
-        params['net']['discriminator']['is_3d'] = True
+        params['net']['discriminator']['data_size'] = 3
         params['net']['upsampling'] = 2
 
         X = np.random.rand(101, 8, 8, 8)
@@ -204,14 +204,14 @@ class TestGANmodels(unittest.TestCase):
         params['net']['generator']['batch_norm'] = [bn, bn]
         params['net']['generator']['shape'] = [[3, 3], [3, 3], [3, 3]]
         params['net']['generator']['stride'] = [1, 1, 1]
-        params['net']['generator']['is_3d'] = False
+        params['net']['generator']['data_size'] = 2
         params['net']['discriminator'] = dict()
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32]
         params['net']['discriminator']['batch_norm'] = [bn, bn]
         params['net']['discriminator']['shape'] = [[5, 5], [3, 3]]
         params['net']['discriminator']['stride'] = [2, 2]
-        params['net']['discriminator']['is_3d'] = False
+        params['net']['discriminator']['data_size'] = 2
         params['net']['upsampling'] = None
 
         X = np.random.rand(101, 8, 8, 4)
@@ -244,14 +244,14 @@ class TestGANmodels(unittest.TestCase):
         params['net']['generator']['batch_norm'] = [bn, bn]
         params['net']['generator']['shape'] = [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
         params['net']['generator']['stride'] = [1, 1, 1]
-        params['net']['generator']['is_3d'] = True
+        params['net']['generator']['data_size'] = 3
         params['net']['discriminator'] = dict()
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32]
         params['net']['discriminator']['batch_norm'] = [bn, bn]
         params['net']['discriminator']['shape'] = [[3, 3, 3], [3, 3, 3]]
         params['net']['discriminator']['stride'] = [2, 2]
-        params['net']['discriminator']['is_3d'] = True
+        params['net']['discriminator']['data_size'] = 3
         params['net']['upsampling'] = None
 
         X = np.random.rand(101, 8, 8, 8, 8)
@@ -284,14 +284,14 @@ class TestGANmodels(unittest.TestCase):
         params['net']['generator']['batch_norm'] = [bn, bn]
         params['net']['generator']['shape'] = [[3, 3], [3, 3], [3, 3]]
         params['net']['generator']['stride'] = [1, 1, 1]
-        params['net']['generator']['is_3d'] = False
+        params['net']['generator']['data_size'] = 2
         params['net']['discriminator'] = dict()
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32]
         params['net']['discriminator']['batch_norm'] = [bn, bn]
         params['net']['discriminator']['shape'] = [[5, 5], [3, 3]]
         params['net']['discriminator']['stride'] = [2, 2]
-        params['net']['discriminator']['is_3d'] = False
+        params['net']['discriminator']['data_size'] = 2
         params['net']['upsampling'] = 2
 
         X = np.random.rand(101, 8, 8, 4)
@@ -325,14 +325,14 @@ class TestGANmodels(unittest.TestCase):
         params['net']['generator']['batch_norm'] = [bn, bn]
         params['net']['generator']['shape'] = [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
         params['net']['generator']['stride'] = [1, 1, 1]
-        params['net']['generator']['is_3d'] = True
+        params['net']['generator']['data_size'] = 3
         params['net']['discriminator'] = dict()
         params['net']['discriminator']['full'] = [32]
         params['net']['discriminator']['nfilter'] = [16, 32]
         params['net']['discriminator']['batch_norm'] = [bn, bn]
         params['net']['discriminator']['shape'] = [[3, 3, 3], [3, 3, 3]]
         params['net']['discriminator']['stride'] = [2, 2]
-        params['net']['discriminator']['is_3d'] = True
+        params['net']['discriminator']['data_size'] = 3
         params['net']['upsampling'] = 2
 
         X = np.random.rand(101, 8, 8, 8, 8)
@@ -348,7 +348,7 @@ class TestGANmodels(unittest.TestCase):
         assert (len(img) == 2)
         assert (img.shape[1:] == (8, 8, 8, 1))
         img = wgan.generate(N=500, X_down=X_down[:500], borders=borders[:500])
-        assert (len(img) == 500)
-
+        assert (len(img) == 500
+        
 if __name__ == '__main__':
     unittest.main()

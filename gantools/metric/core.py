@@ -2,7 +2,8 @@
 
 import numpy as np
 import tensorflow as tf
-from gantools.plot.plot_summary import PlotSummary, PlotSummaryLog
+from gantools.plot.plot_summary import PlotSummaryLog, PlotSummaryPlot
+
 
 class TFsummaryHelper(object):
     """Helper class for tensorflow summaries."""
@@ -27,6 +28,7 @@ class TFsummaryHelper(object):
                * 1 image
                * 2 histogram
                * 3 curves
+               * 4 simple unique curve
         """
 
         name = self.group + '/' + self.name
@@ -48,8 +50,10 @@ class TFsummaryHelper(object):
             if self._log:
                 self._plot_summary = PlotSummaryLog(
                     self.name, self.group, collections=[collections])
-            else:
-                raise NotImplementedError()
+        elif self.stype == 4:
+            self._plot_summary = PlotSummaryPlot(
+                self.name, self.group, collections=[collections])
+
         else:
             raise ValueError('Wrong summary type')
 
@@ -84,6 +88,10 @@ class Statistic(TFsummaryHelper):
 
     def compute_summary(self, dat, feed_dict={}):
         feed_dict[self._placeholder] = self(dat)
+        if self.stype == 4:
+            feed_dict = self._plot_summary.compute_summary(
+                self._saved_real_stat,
+                feed_dict=feed_dict)
         return feed_dict
 
     def __call__(self, *args, **kwargs):

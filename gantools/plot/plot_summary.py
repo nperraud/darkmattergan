@@ -1,6 +1,7 @@
 import io
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Inspired by Andres
 
@@ -76,6 +77,23 @@ class PlotSummaryLog(PlotSummary):
         ax.title.set_fontsize(11)
         ax.tick_params(axis='both', which='major', labelsize=10)
         ax.legend()
-        # self._fill_from_figure()
+
+class PlotSummaryPlot(PlotSummary):
+    def __init__(self, nx, ny, *args, **kwargs):
+        self.nx = nx
+        self.ny = ny
+        super().__init__(*args, **kwargs)
+
+    def plot(self, x):
+        f, ax = plt.subplots(
+            self.nx, self.ny, sharey=True, figsize=(4 * self.nx, 3 * self.ny))
+        it = 0
+        lim = np.max(np.abs(x))
+        xlim = (-lim, lim)
+        for i in range(self.nx):
+            for j in range(self.ny):
+                ax[i, j].plot(x[it, :])
+                ax[i, j].set_ylim(xlim)
+                it += 1
 
 

@@ -18,19 +18,19 @@ class TestSlice(unittest.TestCase):
     def test_patch2img_2d(self):
         imgs = np.random.rand(25, 64, 64)
         patches = slice_2d_patch(imgs, spix=32)
-        imgs2 = path2img(patches, is_3d=False)
+        imgs2 = patch2img(patches, is_3d=False)
         np.testing.assert_almost_equal(imgs2[-25:], imgs)
 
     def test_patch2img_3d(self):
         imgs = np.random.rand(25, 64, 64, 64)
         patches = slice_3d_patch(imgs, spix=32)
-        imgs2 = path2img(patches, is_3d=True)
+        imgs2 = patch2img(patches, is_3d=True)
         np.testing.assert_almost_equal(imgs2[-25:], imgs)
 
     def test_tf_patch2img_2d(self):
         imgs = np.random.rand(25, 64, 64)
         patches = slice_2d_patch(imgs, spix=32)
-        imgs2 = path2img(patches, is_3d=False)
+        imgs2 = patch2img(patches, is_3d=False)
         args = (patches[:, :, :, 0], patches[:, :, :, 1], patches[:, :, :, 2],
                 patches[:, :, :, 3])
         with tf.Session() as sess:
@@ -40,7 +40,7 @@ class TestSlice(unittest.TestCase):
     def test_tf_patch2img_3d(self):
         imgs = np.random.rand(25, 16, 16, 16)
         patches = slice_3d_patch(imgs, spix=8)
-        imgs2 = path2img(patches, is_3d=True)
+        imgs2 = patch2img(patches, is_3d=True)
         args = (patches[:, :, :, :, 0], patches[:, :, :, :, 1],
                 patches[:, :, :, :, 2], patches[:, :, :, :, 3],
                 patches[:, :, :, :, 4], patches[:, :, :, :, 5],

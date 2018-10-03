@@ -373,6 +373,44 @@ def is_3d(img, is_square=True):
     return None
 
 
+def get_data_size(img, is_square=True):
+    """Infer from the data if the image is 3d, 2d or 1d. Return None if it does not know.
+
+    Image format tested is [n, x, c], [n, x, y, c] or [n, x, y, z, c], where
+    * n is the number of images
+    * x,y,z are the dimension of the image
+    * c is the number of channels
+    """
+
+    if type(img) is tf.Tensor:
+        sh = img.shape.as_list()
+    else:
+        sh = img.shape
+    if len(sh) == 5:
+        return 3
+    if len(sh) == 4:
+        if is_square:
+            if sh[3] == sh[2] == sh[1]:
+                return 3
+            elif sh[2] == sh[1]:
+                return 2
+            elif sh[2] == sh[3] == 1:
+                return 1
+        if sh[3] == 1:
+            return 2
+    if len(sh) == 3:
+        if is_square:
+            if sh[2] == sh[1]:
+                return 2
+            else:
+                return 1
+        if sh[2] == 1:
+            return 1
+    if len(sh) == 2:
+        return 1
+    return None
+
+
 def get_lst_append_ret(params, key, obj):
     lst = params.get(key, list())
     lst.append(obj)
