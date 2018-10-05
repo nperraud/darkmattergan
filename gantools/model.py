@@ -210,8 +210,8 @@ class WGAN(BaseGAN):
         for met in self._metric_list:
             feed_dict = met.compute_summary(X_fake, X_real, feed_dict)
         if self.data_size==1:
-            feed_dict = self._plot_real.compute_summary(X_real[:, :, 0], feed_dict=feed_dict)
-            feed_dict = self._plot_fake.compute_summary(X_fake[:, :, 0], feed_dict=feed_dict)
+            feed_dict = self._plot_real.compute_summary(np.squeeze(X_real), feed_dict=feed_dict)
+            feed_dict = self._plot_fake.compute_summary(np.squeeze(X_fake), feed_dict=feed_dict)
         return feed_dict
 
     def _build_image_summary(self):
@@ -226,6 +226,11 @@ class WGAN(BaseGAN):
         elif self.data_size==1:
             self._plot_real = PlotSummaryPlot(4, 4, "real", "signals", collections=['model'])
             self._plot_fake = PlotSummaryPlot(4, 4, "fake", "signals", collections=['model'])
+            fs = self.params.get('fs', 16000)
+            tf.summary.audio(
+                'audio/Real', self.X_real, fs, max_outputs=4, collections=['model'])
+            tf.summary.audio(
+                'audio/Fake', self.X_fake, fs, max_outputs=4, collections=['model'])
             return None
         tf.summary.image(
             "images/Real_Image",
@@ -334,7 +339,12 @@ class LapWGAN(WGAN):
             X_smooth = utils.tf_cube_slices(self.X_smooth)
         elif self.data_size==2:
             X_smooth = self.X_smooth
-        else:
+
+        elif self.data_size==1:
+            self._plot_down = PlotSummaryPlot(4, 4, "down", "signals", collections=['model'])
+            fs = self.params.get('fs', 16000)
+            tf.summary.audio(
+                'audio/down', self.X_smooth, fs, max_outputs=4, collections=['model'])
             return None
         tf.summary.image(
             "images/Down_sampled_image",
@@ -342,7 +352,12 @@ class LapWGAN(WGAN):
             max_outputs=4,
             collections=['model'])
 
-
+    def compute_summaries(self, X_real, X_fake, feed_dict={}):
+        feed_dict = super().compute_summaries(X_real, X_fake, feed_dict)
+        if self.data_size==1:
+            X_smooth = self.X_smooth.eval(feed_dict=feed_dict)
+            feed_dict = self._plot_down.compute_summary(np.squeeze(X_smooth), feed_dict=feed_dict)
+        return feed_dict
 
 class UpscalePatchWGAN(WGAN):
     '''
@@ -405,11 +420,15 @@ class UpscalePatchWGAN(WGAN):
             self.X_smooth = None
 
         # D) Flip the borders
+
         flipped_border_list = tf_flip_slices(*border_list, size=self.data_size)
 
         # E) Generater the corner
         if self.params['upsampling']:
-            X = tf.concat([self.X_smooth, *flipped_border_list], axis=axis)
+            if self.data_size==1:
+                X = tf.concat([self.X_smooth, flipped_border_list], axis=axis)
+            else:
+                X = tf.concat([self.X_smooth, *flipped_border_list], axis=axis)
         else:
             X = tf.concat(flipped_border_list, axis=axis)
 
@@ -440,7 +459,11 @@ class UpscalePatchWGAN(WGAN):
         super().preprocess_summaries(self._get_corner(X_real), **kwargs)
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
-        return super().compute_summaries(self._get_corner(X_real), self._get_corner(X_fake), feed_dict)
+        feed_dict = super().compute_summaries(self._get_corner(X_real), self._get_corner(X_fake), feed_dict)
+        if self.data_size==1 and self.params['upsampling']:
+            X_smooth = self.X_smooth.eval(feed_dict=feed_dict)
+            feed_dict = self._plot_down.compute_summary(np.squeeze(X_smooth), feed_dict=feed_dict)
+        return feed_dict
 
     def batch2dict(self, batch):
         d = dict()
@@ -458,8 +481,12 @@ class UpscalePatchWGAN(WGAN):
                 X_smooth = utils.tf_cube_slices(self.X_smooth)
             elif self.data_size==2:
                 X_smooth = self.X_smooth
-            else:
-                raise ValueError("The data should not be 1D!")
+            elif self.data_size==1:
+                self._plot_down = PlotSummaryPlot(4, 4, "down", "signals", collections=['model'])
+                fs = self.params.get('fs', 16000)
+                tf.summary.audio(
+                    'audio/down', self.X_smooth, fs, max_outputs=4, collections=['model'])
+                return None
             tf.summary.image(
                 "images/Down_sampled_image",
                 colorize(X_smooth, vmin, vmax),

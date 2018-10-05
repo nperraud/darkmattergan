@@ -95,8 +95,8 @@ def random_transformation_3d(images):
     return random_translate_3d(random_rotate_3d(images))
 
 
-def patch2img(patches, is_3d=False):
-    if is_3d:
+def patch2img(patches, size=2):
+    if size==3:
         imgs_down_left = np.concatenate([patches[:, :, :, :, 3], patches[:, :, :, :,2]], axis=2)
         imgs_down_right = np.concatenate([patches[:, :, :, :, 1], patches[:, :, :, :,0]], axis=2)
         imgs_down = np.concatenate([imgs_down_left, imgs_down_right], axis=3)
@@ -104,12 +104,20 @@ def patch2img(patches, is_3d=False):
         imgs_up_right  = np.concatenate([patches[:, :, :, :, 5], patches[:, :, :, :, 4]], axis=2)
         imgs_up = np.concatenate([ imgs_up_left, imgs_up_right], axis=3)
         imgs = np.concatenate([imgs_up, imgs_down], axis=1)
-    else:
+    elif size==2:
         imgs_d = np.concatenate(
             [patches[:, :, :, 1], patches[:, :, :, 0]], axis=1)
         imgs_u = np.concatenate(
             [patches[:, :, :, 3], patches[:, :, :, 2]], axis=1)
         imgs = np.concatenate([imgs_u, imgs_d], axis=2)
+    elif size==1:
+        imgs = np.concatenate([patches[:, :, 1], patches[:, :, 0]], axis=1)
+    else:
+        raise ValueError('data_shape must be 1,2 or 3.')
+    return imgs
+
+def tf_patch2img_1d(r, l):
+    imgs = tf.concat([l, r], axis=1)
     return imgs
 
 def tf_patch2img_2d(dr, dl, ur, ul):
@@ -123,12 +131,18 @@ def tf_patch2img_3d(*args):
     imgs_down_left = tf.concat([args[3], args[2]], axis=2)
     imgs_down_right = tf.concat([args[1], args[0]], axis=2)
     imgs_down = tf.concat([imgs_down_left, imgs_down_right], axis=3)
-    imgs_up_left   = tf.concat([args[7], args[6]], axis=2)
-    imgs_up_right  = tf.concat([args[5], args[4]], axis=2)
+    imgs_up_left = tf.concat([args[7], args[6]], axis=2)
+    imgs_up_right = tf.concat([args[5], args[4]], axis=2)
     imgs_up = tf.concat([ imgs_up_left, imgs_up_right], axis=3)
     imgs = tf.concat([imgs_up, imgs_down], axis=1)
     return imgs
 
+def flip_slices_1d(l):
+    flip_l = np.flip(l, axis=1)
+    return flip_l
+
+def tf_flip_slices_1d(l):
+    return tf.reverse(l, axis=[1])
 
 def flip_slices_2d(dl, ur, ul):
     flip_dl = np.flip(dl, axis=1)
@@ -141,27 +155,6 @@ def tf_flip_slices_2d(dl, ur, ul):
     flip_ur = tf.reverse(ur, axis=[2])    
     flip_ul = tf.reverse(ul, axis=[1,2])
     return flip_dl, flip_ur, flip_ul
-
-def tf_flip_slices(*args, size=2):
-    if size==3:
-        return tf_flip_slices_3d(*args)
-    elif size==2:
-        return tf_flip_slices_2d(*args)
-    elif size==1:
-        return tf.reverse(*args, axis=[1])
-    else:
-        raise ValueError("Size should be 1, 2 or 3")
-
-
-def tf_patch2img(*args, size=2):
-    if size==3:
-        return tf_patch2img_3d(*args)
-    elif size==2:
-        return tf_patch2img_2d(*args)
-    elif size==1:
-        raise NotImplementedError("To be done and tested - should be trivial")
-    else:
-        raise ValueError("Size should be 1, 2 or 3")
 
 def flip_slices_3d(*args):
     flip_d_above = np.flip(args[0], axis=2)
@@ -183,7 +176,26 @@ def tf_flip_slices_3d(*args):
     flip_u_corner = tf.reverse(args[6], axis=[1, 2, 3])
     return flip_d_above, flip_d_left, flip_d_corner, flip_up, flip_u_above, flip_u_left, flip_u_corner
 
+def tf_flip_slices(*args, size=2):
+    if size==3:
+        return tf_flip_slices_3d(*args)
+    elif size==2:
+        return tf_flip_slices_2d(*args)
+    elif size==1:
+        return tf_flip_slices_1d(*args)        
+    else:
+        raise ValueError("Size should be 1, 2 or 3")
 
+
+def tf_patch2img(*args, size=2):
+    if size==3:
+        return tf_patch2img_3d(*args)
+    elif size==2:
+        return tf_patch2img_2d(*args)
+    elif size==1:
+        return tf_patch2img_1d(*args)
+    else:
+        raise ValueError("Size should be 1, 2 or 3")
 
 
 def slice_time(cubes, spix=64):
@@ -265,6 +277,35 @@ def slice_3d(cubes, spix=64):
 
     return cubes
 
+
+def slice_1d_patch(img0, spix=64):
+
+    # Handle the dimesnsions
+    l = len(img0.shape)
+    if l < 1:
+        ValueError('Not enough dimensions')
+    elif l == 1:
+        img0 = img0.reshape([1, *img0.shape])
+    elif l == 3:
+        s = img0.shape
+        img0 = img0.reshape([s[0] * s[1], s[2]])
+    elif l > 3:
+        ValueError('To many dimensions')
+    _, sx = img0.shape
+
+    nx = sx // spix
+
+    # 1) Create the different subparts
+    img1 = np.roll(img0, spix, axis=1)
+    img1[:, :spix] = 0
+
+    # 2) Concatenate
+    img = np.stack([img0, img1], axis=2)
+
+    # 3) Slice the image
+    img = np.vstack(np.split(img, nx, axis=1))
+
+    return img
 
 def slice_2d_patch(img0, spix=64):
 

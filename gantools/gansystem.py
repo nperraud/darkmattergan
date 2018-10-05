@@ -7,7 +7,6 @@ import itertools
 from copy import deepcopy
 
 from tfnntools.nnsystem import NNSystem
-from gantools.model import WGAN
 
 class GANsystem(NNSystem):
     """General GAN System class.
@@ -40,7 +39,7 @@ class GANsystem(NNSystem):
         return d_param
 
 
-    def __init__(self,  model=WGAN, params={}, name=None):
+    def __init__(self,  model, params={}, name=None):
         """Build the GAN network.
 
         Input arguments
@@ -192,7 +191,10 @@ class GANsystem(NNSystem):
         if N is None and len(kwargs)==0:
             raise ValueError("Please Specify N or variable for the models")
         dict_latent = dict()
-        if N:
+        if not('z' in kwargs.keys()):
+            print('Sampling z')
+            if N is None:
+                N = len(kwargs[list(kwargs.keys())[0]])
             dict_latent['z'] =self.net.sample_latent(N)
         if sess is not None:
             self._sess = sess

@@ -8,6 +8,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import h5py
 
+from gantools.gansystem import GANsystem
 
 def test_resume(try_resume, params):
     """ Try to load the parameters saved in `params['save_dir']+'params.pkl',`
@@ -27,6 +28,16 @@ def test_resume(try_resume, params):
             print('No resume, the training will start from the beginning!')
 
     return resume, params
+
+
+def load_gan(savepath, model, system=GANsystem):
+    import gantools
+    pathparams = os.path.join(savepath, 'params.pkl')
+    with open(pathparams, 'rb') as f:          
+        params = params = pickle.load(f)
+    params['save_dir'] = savepath
+    return system(model, params)
+
 
 
 def sample_latent(m, n, prior="uniform", normalize=False):

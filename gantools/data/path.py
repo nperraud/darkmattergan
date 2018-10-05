@@ -51,7 +51,7 @@ def nsynth_path():
     if ('nid' in hostname) or ('daint' in hostname):
         rootpath = '/scratch/snx1600/nperraud/data/'
     elif 'omenx' in hostname:
-        rootpath = '/store/nati/dataset/Nsynth-gan/'
+        rootpath = '/store/nati/datasets/Nsynth-gan/'
     else:
         utils_module_path = os.path.dirname(__file__)
 

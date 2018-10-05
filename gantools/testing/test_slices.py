@@ -6,7 +6,6 @@ import unittest
 
 import numpy as np
 
-from gantools.data.Dataset import slice_2d_patch, slice_3d_patch
 from gantools.data.transformation import *
 
 import tensorflow as tf
@@ -15,22 +14,37 @@ if __name__ == '__main__':
 
 
 class TestSlice(unittest.TestCase):
+    def test_patch2img_1d(self):
+        imgs = np.random.rand(25, 64)
+        patches = slice_1d_patch(imgs, spix=32)
+        imgs2 = patch2img(patches, size=1)
+        np.testing.assert_almost_equal(imgs2[-25:], imgs)
+
     def test_patch2img_2d(self):
         imgs = np.random.rand(25, 64, 64)
         patches = slice_2d_patch(imgs, spix=32)
-        imgs2 = patch2img(patches, is_3d=False)
+        imgs2 = patch2img(patches, size=2)
         np.testing.assert_almost_equal(imgs2[-25:], imgs)
 
     def test_patch2img_3d(self):
         imgs = np.random.rand(25, 64, 64, 64)
         patches = slice_3d_patch(imgs, spix=32)
-        imgs2 = patch2img(patches, is_3d=True)
+        imgs2 = patch2img(patches, size=3)
         np.testing.assert_almost_equal(imgs2[-25:], imgs)
+
+    def test_tf_patch2img_1d(self):
+        imgs = np.random.rand(25, 64)
+        patches = slice_1d_patch(imgs, spix=32)
+        imgs2 = patch2img(patches, size=1)
+        args = (patches[:, :, 0], patches[:, :, 1])
+        with tf.Session() as sess:
+            imgs3 = tf_patch2img_1d(*args).eval()
+        np.testing.assert_almost_equal(imgs3, imgs2)
 
     def test_tf_patch2img_2d(self):
         imgs = np.random.rand(25, 64, 64)
         patches = slice_2d_patch(imgs, spix=32)
-        imgs2 = patch2img(patches, is_3d=False)
+        imgs2 = patch2img(patches, size=2)
         args = (patches[:, :, :, 0], patches[:, :, :, 1], patches[:, :, :, 2],
                 patches[:, :, :, 3])
         with tf.Session() as sess:
@@ -40,7 +54,7 @@ class TestSlice(unittest.TestCase):
     def test_tf_patch2img_3d(self):
         imgs = np.random.rand(25, 16, 16, 16)
         patches = slice_3d_patch(imgs, spix=8)
-        imgs2 = patch2img(patches, is_3d=True)
+        imgs2 = patch2img(patches, size=3)
         args = (patches[:, :, :, :, 0], patches[:, :, :, :, 1],
                 patches[:, :, :, :, 2], patches[:, :, :, :, 3],
                 patches[:, :, :, :, 4], patches[:, :, :, :, 5],
@@ -48,6 +62,15 @@ class TestSlice(unittest.TestCase):
         with tf.Session() as sess:
             imgs3 = tf_patch2img_3d(*args).eval()
         np.testing.assert_almost_equal(imgs3, imgs2)
+
+    def test_flip_slices_1d(self):
+        imgs = np.zeros([25, 16])
+        imgs[:, 4:12] = 1
+        patches = slice_1d_patch(imgs, spix=8)[-25:]
+        r,l = patches[:, :, 0:1], patches[:, :, 1:2]
+        flip_l = flip_slices_1d(l)
+        np.testing.assert_almost_equal(r, flip_l)
+
 
     def test_flip_slices_2d(self):
         imgs = np.zeros([25, 16, 16])
@@ -74,6 +97,16 @@ class TestSlice(unittest.TestCase):
         sols = flip_slices_3d(*args[1:])
         for sol in sols:
             np.testing.assert_almost_equal(args[0], sol)
+    
+    def test_tf_flip_slice_1d(self):
+        imgs = np.random.rand(25, 64)
+        patches = slice_1d_patch(imgs, spix=32)
+        a = flip_slices_1d(patches[:, :, 1])
+        with tf.Session() as sess:
+            a2t = tf_flip_slices_1d(patches[:, :, 1])
+            a2 = a2t.eval()
+        np.testing.assert_almost_equal(a, a2)
+
 
     def test_tf_flip_slice_2d(self):
         imgs = np.random.rand(25, 64, 64)

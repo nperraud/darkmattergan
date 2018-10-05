@@ -2,7 +2,7 @@ import io
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
-
+from gantools.plot import audio
 # Inspired by Andres
 
 
@@ -85,15 +85,21 @@ class PlotSummaryPlot(PlotSummary):
         super().__init__(*args, **kwargs)
 
     def plot(self, x):
-        f, ax = plt.subplots(
-            self.nx, self.ny, sharey=True, figsize=(4 * self.nx, 3 * self.ny))
-        it = 0
-        lim = np.max(np.abs(x))
-        xlim = (-lim, lim)
-        for i in range(self.nx):
-            for j in range(self.ny):
-                ax[i, j].plot(x[it, :])
-                ax[i, j].set_ylim(xlim)
-                it += 1
+        nel = x.shape[0]
+        if nel < self.nx*self.ny:
+            self.nx = int(np.round(np.sqrt(nel)))
+            self.ny = nel // self.nx
+        audio.plot_signals(x, nx=self.nx, ny=self.ny)
+        # f, ax = plt.subplots(
+        #     self.nx, self.ny, sharey=True, figsize=(4 * self.nx, 3 * self.ny))
+        # it = 0
+        # lim = np.max(np.abs(x))
+        # xlim = (-lim, lim)
+        # for i in range(self.nx):
+        #     for j in range(self.ny):
+
+        #         ax[i, j].plot(x[it, :])
+        #         ax[i, j].set_ylim(xlim)
+        #         it += 1
 
 

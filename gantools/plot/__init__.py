@@ -6,3 +6,5 @@ if not in_ipynb():
 
 from .plot import *
 from .colorize import colorize
+
+from . import audio
