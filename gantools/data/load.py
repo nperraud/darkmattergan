@@ -341,17 +341,19 @@ def load_nysnth_rawdata():
 
 
 def load_nsynth_dataset(
-        shuffle=True,
-        scaling=1):
-
-    ''' Load a Nsynth dataset object 
+        shuffle=True, scaling=1, patch=False, augmentation=False, spix=128):
+    ''' Load a Nsynth dataset object.
 
      Arguments
     ---------
     * shuffle: shuffle the data (default True)
     * scaling : downscale the image by a factor (default 1)
+    * path : downscale the image by a factor (default 1)
+    * scaling : downscale the image by a factor (default 1)
     '''
     sig = load_nysnth_rawdata()
+    if augmentation and (not patch):
+        raise ValueError('Augementation works only with patches.')
     
     # 1) Transform the data
     def transform(x):
@@ -364,7 +366,16 @@ def load_nsynth_dataset(
     if scaling>1:
         sig = blocks.downsample(sig, scaling, 1)
 
+    if patch:
+        slice_fn = partial(transformation.slice_1d_patch, spix=spix)
+    else:
+        slice_fn = do_nothing
+
+    if augmentation:
+        transform = partial(transformation.random_shift_1d, spix=spix)
+    else:
+        transform = do_nothing
     # 3) Make a dataset
-    dataset = Dataset(sig, shuffle=shuffle)
+    dataset = Dataset(sig, shuffle=shuffle, transform=transform, slice_fn=slice_fn)
 
     return dataset

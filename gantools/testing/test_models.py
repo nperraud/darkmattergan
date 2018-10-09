@@ -5,7 +5,7 @@ if __name__ == '__main__':
 
 import unittest
 
-from gantools.model import CosmoWGAN, WGAN, LapWGAN, UpscalePatchWGAN
+from gantools.model import CosmoWGAN, WGAN, LapWGAN, UpscalePatchWGAN, UpscalePatchWGANBorders
 from gantools.gansystem import GANsystem
 from gantools.data.Dataset import Dataset
 import numpy as np
@@ -34,6 +34,14 @@ class TestGANmodels(unittest.TestCase):
 
         obj = GANsystem(UgradedGAN)
 
+    def test_default_params_patchgan_borders(self):
+
+        obj = GANsystem(UpscalePatchWGANBorders)
+
+        class UgradedGAN(UpscalePatchWGANBorders, CosmoWGAN):
+            pass
+
+        obj = GANsystem(UpscalePatchWGANBorders)
     def test_1d(self):
         bn = False
         params = dict()
@@ -560,6 +568,54 @@ class TestGANmodels(unittest.TestCase):
         img = wgan.generate(N=500, X_down=X_down[:500], borders=borders[:500])
         assert (len(img) == 500)
 
+
+    def test_patchupscalegan1dborder(self):
+        bn = False
+        params = dict()
+        params['optimization'] = dict()
+        params['optimization']['epoch'] = 1
+        params['summary_every'] = 4
+        params['save_every'] = 5
+        params['print_every'] = 3
+        params['net'] = dict()
+        params['net']['shape'] = [8, 2]
+        params['net']['generator'] = dict()
+        params['net']['generator']['latent_dim'] = 8
+        params['net']['generator']['full'] = [16]
+        params['net']['generator']['nfilter'] = [8, 32, 1]
+        params['net']['generator']['batch_norm'] = [bn, bn]
+        params['net']['generator']['shape'] = [[3], [3], [3]]
+        params['net']['generator']['stride'] = [1, 1, 1]
+        params['net']['generator']['data_size'] = 1
+        params['net']['generator']['borders'] = dict()
+        params['net']['generator']['borders']['width_full'] = None
+        params['net']['generator']['borders']['nfilter'] = [4, 1]
+        params['net']['generator']['borders']['batch_norm'] = [bn, bn]
+        params['net']['generator']['borders']['shape'] = [[5], [3]]
+        params['net']['generator']['borders']['stride'] = [2, 2]
+        params['net']['generator']['borders']['data_size'] = 1
+        params['net']['generator']['borders']['width_full'] = 2
+        params['net']['discriminator'] = dict()
+        params['net']['discriminator']['full'] = [32]
+        params['net']['discriminator']['nfilter'] = [16, 32]
+        params['net']['discriminator']['batch_norm'] = [bn, bn]
+        params['net']['discriminator']['shape'] = [[5], [3]]
+        params['net']['discriminator']['stride'] = [2, 2]
+        params['net']['discriminator']['data_size'] = 1
+        params['net']['upsampling'] = 2
+
+
+        X = np.random.rand(101, 8, 2)
+        dataset = Dataset(X)
+        wgan = GANsystem(UpscalePatchWGANBorders, params)
+        wgan.train(dataset)
+        borders = np.random.rand(500, 8, 1)
+        X_down = np.random.rand(500, 4, 1)
+        img = wgan.generate(N=2, X_down=X_down[:2], borders=borders[:2])
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (8, 1))
+        img = wgan.generate(N=500, X_down=X_down[:500], borders=borders[:500])
+        assert (len(img) == 500)
 
 if __name__ == '__main__':
     unittest.main()

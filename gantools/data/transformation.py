@@ -2,6 +2,20 @@ import numpy as np
 import tensorflow as tf
 
 
+def random_shift_1d(signals, spix):
+    """Apply a random shift to 1 d signal.
+
+    The shift is not circular and the data will be cropped accordingly.
+    """
+    nx = signals.shape[1]
+    shiftx = np.random.randint(0, spix)
+    if np.mod(nx, spix)==0:
+        new_nx = ((nx//spix)-1)*spix
+        out = signals[:, shiftx:shiftx+new_nx]
+    else:
+        out = signals[:, shiftx:]
+    return out
+
 def random_shift_2d(images):
     ''' Apply a random circshift to 2d images'''
     nx = images.shape[1]

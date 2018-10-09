@@ -198,11 +198,13 @@ class GANsystem(NNSystem):
             dict_latent['z'] =self.net.sample_latent(N)
         if sess is not None:
             self._sess = sess
+            print("Not loading a checkpoint")
+
         else:
             self._sess = tf.Session()
-        res = self.load(checkpoint=checkpoint)
-        if res:
-            print("Checkpoint succesfully loaded!")
+            res = self.load(checkpoint=checkpoint)
+            if res:
+                print("Checkpoint succesfully loaded!")
         samples = self._generate_sample_safe(**dict_latent, **kwargs)
         if sess is None:
             self._sess.close()
@@ -380,6 +382,189 @@ class PaulinaGANsystem(GANsystem):
         feed_dict[self.worst_minmax_pl] = worst_minmax
         feed_dict[self.worst_maxmin_pl] = worst_maxmin
         super()._train_log(feed_dict)
+
+class UpcaleGANsystem(GANsystem):
+
+    def upscale_image(self, N=None, small=None, resolution=None, checkpoint=None, sess=None):
+        """Upscale image using the lappachsimple model, or upscale_WGAN_pixel_CNN model.
+
+        For model upscale_WGAN_pixel_CNN, pass num_samples to generate and resolution of the final bigger histogram.
+        for model lappachsimple         , pass small.
+
+        3D only works for upscale_WGAN_pixel_CNN.
+
+        This function can be accelerated if the model is created only once.
+        """
+        # Number of sample to produce
+        if small is not None:
+            N = small.shape[0]
+        if N is None:
+            raise ValueError('Please specify small or N.')
+        if self.net.data_size==1:
+            raise NotImplementedError()
+        # Output dimension of the generator
+        soutx, souty = self.params['net']['shape'][:2]
+        if self.net.data_size==3:
+            soutz = self.params['net']['shape'][2]
+
+        if small is not None:
+            # Dimension of the low res image
+            lx, ly = small.shape[1:3]
+            if self.net.data_size==3:
+                lz = small.shape[3]
+
+            # Input dimension of the generator
+            sinx = soutx // self.params['net']['upsampling']
+            siny = souty // self.params['net']['upsampling']
+            if self.net.data_size==3:
+                sinz = soutz // self.params['net']['upsampling']
+
+            # Number of part to be generated
+            nx = lx // sinx
+            ny = ly // siny
+            if self.net.data_size==3:
+                nz = lz // sinz
+
+        else:
+            sinx = siny = sinz = None
+            if resolution is None:
+                raise ValueError("Both small and resolution cannot be None")
+            else:
+                nx = resolution // soutx
+                ny = resolution // souty
+                nz = resolution // soutz
+
+        # If no session passed, create a new one and load a checkpoint.
+        if sess is None:
+            new_sess = tf.Session()
+            res = self.load(sess=new_sess, checkpoint=checkpoint)
+            if res:
+                print('Checkpoint successfully loaded!')
+        else:
+            new_sess = sess
+
+        if self.net.data_size==3:
+            output_image = self.generate_3d_output(new_sess, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz)
+        else:
+            output_image = self.generate_2d_output(new_sess, N, nx, ny, soutx, souty, small, sinx, siny)
+
+        # If a new session was created, close it. 
+        if sess is None:
+            new_sess.close()
+
+        return np.squeeze(output_image)
+    def generate_3d_output(self, sess, N, nx, ny, nz, soutx, souty, soutz, small,
+                           sinx, siny, sinz):
+        output_image = np.zeros(
+            shape=[N, soutz * nz, souty * ny, soutx * nx, 1], dtype=np.float32)
+        output_image[:] = np.nan
+
+        print('Total number of patches = {}*{}*{} = {}'.format(
+            nx, ny, nz, nx * ny * nz))
+
+        for k in range(nz):  # height
+            for j in range(ny):  # rows
+                for i in range(nx):  # columns
+
+                    # 1) Generate the border
+                    border = np.zeros([N, soutz, souty, soutx, 7])
+
+                    if j:  # one row above, same height
+                        border[:, :, :, :, 0:1] = output_image[:,
+                            k * soutz:(k + 1) * soutz,
+                            (j - 1) * souty:j * souty,
+                            i * soutx:(i + 1) * soutx, :]
+                    if i:  # one column left, same height
+                        border[:, :, :, :, 1:2] = output_image[:,
+                            k * soutz:(k + 1) * soutz,
+                            j * souty:(j + 1) * souty,
+                            (i - 1) *soutx:i * soutx, :]
+                    if i and j:  # one row above, one column left, same height
+                        border[:, :, :, :, 2:3] = output_image[:,
+                            k * soutz:(k + 1) * soutz,
+                            (j - 1) * souty:j * souty,
+                            (i - 1) * soutx:i * soutx, :]
+                    if k:  # same row, same column, one height above
+                        border[:, :, :, :, 3:4] = output_image[:,
+                            (k - 1) * soutz:k * soutz,
+                            j * souty:(j + 1) * souty,
+                            i * soutx:(i + 1) * soutx, :]
+                    if k and j:  # one row above, same column, one height above
+                        border[:, :, :, :, 4:5] = output_image[:,
+                            (k - 1) * soutz:k * soutz,
+                            (j - 1) * souty:j *souty,
+                            i * soutx:(i + 1) * soutx, :]
+                    if k and i:  # same row, one column left, one height above
+                        border[:, :, :, :, 5:6] = output_image[:,
+                            (k - 1) * soutz:k * soutz,
+                            j * souty:(j + 1) * souty,
+                            (i - 1) * soutx:i * soutx, :]
+                    if k and i and j:  # one row above, one column left, one height above
+                        border[:, :, :, :, 6:7] = output_image[:,
+                            (k - 1) * soutz:k * soutz,
+                            (j - 1) * souty:j * souty,
+                            (i - 1) * soutx:i * soutx, :]
+
+                    # 2) Prepare low resolution
+                    if small is not None:
+                        downsampled = small[:, 
+                                            k * sinz:(k + 1) * sinz,
+                                            j * siny:(j + 1) * siny,
+                                            i * sinx:(i + 1) * sinx, :]
+                    else:
+                        downsampled = None
+
+                    # 3) Generate the image
+                    print('Current patch: column={}, row={}, height={}\n'.format(
+                        i + 1, j + 1, k + 1))
+                    if downsampled is not None:
+                        gen_sample = self.generate(N=N, borders=border, X_down=downsampled, sess=sess)
+                    else:
+                        gen_sample = self.generate(N=N, borders=border, sess=sess)
+                    output_image[:,
+                        k * soutz:(k + 1) * soutz,
+                        j * souty:(j + 1) *souty,
+                        i * soutx:(i + 1) * soutx, :] = gen_sample
+
+        return output_image
+
+
+    def generate_2d_output(self, sess, N, nx, ny, soutx, souty, small, sinx,
+                           siny):
+        output_image = np.zeros(
+            shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
+        output_image[:] = np.nan
+
+        for j in range(ny):
+            for i in range(nx):
+                # 1) Generate the border
+                border = np.zeros([N, soutx, souty, 3])
+                if i:
+                    border[:, :, :, :1] = output_image[:, (i - 1) * soutx:i * soutx, j * souty:(j + 1) * souty, :]
+                if j:
+                    border[:, :, :, 1:2] = output_image[:, i * soutx:(i + 1) * soutx, (j - 1) * souty:j * souty, :]
+                if i and j:
+                    border[:, :, :, 2:3] = output_image[:, (i - 1) * soutx:i * soutx, (j - 1) * souty:j * souty, :]
+
+                if small is not None:
+                    # 2) Prepare low resolution
+                    downsampled = np.expand_dims(
+                        small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3)
+                else:
+                    downsampled = None
+
+                # 3) Generate the image
+                print('Current patch: column={}, row={}'.format(j + 1, i + 1))
+                if  downsampled is not None:
+                    gen_sample = self.generate(N=N, borders=border, X_down=downsampled, sess=sess)
+                else:
+                    gen_sample = self.generate(N=N, borders=border, sess=sess)
+
+                output_image[:, i * soutx:(i + 1) * soutx, j * souty:(j + 1) *
+                             souty, :] = gen_sample
+
+        return output_image
+
 
 # class GAN(object):
 #     """General (Generative Adversarial Network) GAN class.

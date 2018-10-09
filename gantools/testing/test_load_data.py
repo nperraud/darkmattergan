@@ -12,44 +12,44 @@ from gantools.blocks import np_downsample_2d, np_downsample_3d, np_downsample_1d
 class TestGANmodels(unittest.TestCase):
     def test_cosmo(self):
         forward = fmap.stat_forward
-        # dataset = load.load_dataset(
-        #     nsamples=None, spix=32, Mpch=350, forward_map=forward, patch=True)
-        # it = dataset.iter(10)
-        # print(next(it).shape)
-        # assert (next(it).shape == (10, 32, 32, 4))
-        # del it, dataset
+        dataset = load.load_dataset(
+            nsamples=None, spix=32, Mpch=350, forward_map=forward, patch=True)
+        it = dataset.iter(10)
+        print(next(it).shape)
+        assert (next(it).shape == (10, 32, 32, 4))
+        del it, dataset
 
-        # dataset = load.load_dataset(
-        #     nsamples=None,
-        #     spix=32,
-        #     Mpch=350,
-        #     forward_map=forward,
-        #     patch=True,
-        #     is_3d=True)
-        # it = dataset.iter(4)
-        # print(next(it).shape)
-        # assert (next(it).shape == (4, 32, 32, 32, 8))
-        # del it, dataset
+        dataset = load.load_dataset(
+            nsamples=None,
+            spix=32,
+            Mpch=350,
+            forward_map=forward,
+            patch=True,
+            is_3d=True)
+        it = dataset.iter(4)
+        print(next(it).shape)
+        assert (next(it).shape == (4, 32, 32, 32, 8))
+        del it, dataset
 
-        # dataset = load.load_dataset(
-        #     nsamples=None, spix=32, Mpch=70, forward_map=None, patch=False)
-        # it = dataset.iter(10)
-        # print(next(it).shape)
+        dataset = load.load_dataset(
+            nsamples=None, spix=32, Mpch=70, forward_map=None, patch=False)
+        it = dataset.iter(10)
+        print(next(it).shape)
 
-        # assert (next(it).shape == (10, 32, 32))
-        # del it, dataset
+        assert (next(it).shape == (10, 32, 32))
+        del it, dataset
 
-        # dataset = load.load_dataset(
-        #     nsamples=2, spix=256, Mpch=70, forward_map=forward, patch=False)
-        # assert (dataset.get_all_data().shape[0] == 256 * 2)
-        # del dataset
+        dataset = load.load_dataset(
+            nsamples=2, spix=256, Mpch=70, forward_map=forward, patch=False)
+        assert (dataset.get_all_data().shape[0] == 256 * 2)
+        del dataset
 
-        # dataset = load.load_dataset(
-        #     nsamples=2, spix=128, Mpch=350, forward_map=forward, patch=False)
-        # it = dataset.iter(10)
-        # print(next(it).shape)
-        # assert (next(it).shape == (10, 128, 128))
-        # del it, dataset
+        dataset = load.load_dataset(
+            nsamples=2, spix=128, Mpch=350, forward_map=forward, patch=False)
+        it = dataset.iter(10)
+        print(next(it).shape)
+        assert (next(it).shape == (10, 128, 128))
+        del it, dataset
         dataset1 = load.load_dataset(
             nsamples=4, spix=128, Mpch=350, forward_map=forward, patch=False, shuffle=False, augmentation=False, scaling=2, is_3d=True)
         it1 = dataset1.iter(3)
@@ -111,12 +111,13 @@ class TestGANmodels(unittest.TestCase):
     def test_nsynth(self):
         dataset = load.load_nsynth_dataset(scaling=64*4)
         it = dataset.iter(5)
-        assert (next(it).shape == (5, 250))
+        assert (next(it).shape == (5, 128))
         del it, dataset
 
         dataset = load.load_nsynth_dataset(scaling=64)
         it = dataset.iter(5)
-        assert (next(it).shape == (5, 1000))
+        assert (next(it).shape == (5, 512))
+        Nel = dataset.N
         del it, dataset
 
         dataset = load.load_nsynth_dataset(scaling=64*4, shuffle=False)
@@ -130,6 +131,19 @@ class TestGANmodels(unittest.TestCase):
         del it, dataset
         np.testing.assert_allclose(np_downsample_1d(s2,4), s1)
 
+        dataset = load.load_nsynth_dataset(scaling=64, patch=True, augmentation=True, spix=128)
+        it = dataset.iter(5)
+        s = next(it)
+        assert(s.shape == (5, 128, 2))
+        assert(dataset.N==Nel*3)
+        del it, dataset
+
+        dataset = load.load_nsynth_dataset(scaling=32, patch=True, augmentation=True, spix=256)
+        it = dataset.iter(5)
+        s = next(it)
+        assert(s.shape == (5, 256, 2))
+        assert(dataset.N==Nel*3)
+        del it, dataset
 
 if __name__ == '__main__':
     unittest.main()

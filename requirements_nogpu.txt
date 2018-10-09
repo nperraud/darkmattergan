@@ -6,6 +6,7 @@ h5py
 sklearn
 scikit-image
 pyyaml
+-e .
 -e tfnntools
 matplotlib
 jupyter

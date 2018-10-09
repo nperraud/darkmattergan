@@ -463,17 +463,19 @@ def deconv3d(imgs,
         return deconv
 
 
-def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, is_3d=False, merge=False):
-    if is_3d:
+def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_size=2, merge=False):
+    if data_size == 3:
         output_shape = [bs, sx, sx, sx, n_filters]
         deconv = deconv3d
         shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
         concat_axis = 4
-    else:
+    elif data_size == 2:
         output_shape = [bs, sx, sx, n_filters]
         deconv = deconv2d
         shape = [[1, 1], [3, 3], [5, 5]]
         concat_axis = 3
+    else:
+        raise NotImplementedError
 
     tensor_1 = deconv(in_tensor,
                           output_shape=output_shape,
@@ -509,15 +511,17 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, is_3d=F
 
     return out_tensor
 
-def inception_conv(in_tensor, n_filters, stride, summary, num, is_3d=False, merge=False):
-    if is_3d:
+def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, merge=False):
+    if data_size == 3:
         conv = conv3d
         shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
         concat_axis = 4
-    else:
+    elif data_size == 2:
         conv = conv2d
         shape = [[1, 1], [3, 3], [5, 5]]
         concat_axis = 3
+    else:
+        raise NotImplementedError
 
     tensor_1 = conv(in_tensor,
                     nf_out=n_filters,

@@ -38,7 +38,7 @@ class Dataset(object):
 
         self._data_process = compose2(self._transform, self._slice_fn)
 
-        self._N = len(self._slice_fn(X))
+        self._N = len(self._data_process(X))
         if shuffle:
             self._p = np.random.permutation(self._N)
         else:

@@ -15,20 +15,27 @@ def test_resume(try_resume, params):
 
         Not sure we should implement this function that way.
     """
-
     resume = False
-
     if try_resume:
-        try:
-            with open(params['save_dir']+'params.pkl', 'rb') as f:
-                params = pickle.load(f)
-            resume = True
-            print('Resume, the training will start from the last iteration!')
-        except:
+        params_loaded = try_load_params(params['save_dir'])
+        if params_loaded is None:
             print('No resume, the training will start from the beginning!')
-
+        else:
+            params = params_loaded
+            print('Resume, the training will start from the last iteration!')
+            resume = True
     return resume, params
 
+def try_load_params(path):
+    try:
+        return load_params(path)
+    except:
+        return None
+
+def load_params(path):
+    with open(os.path.join(path,'params.pkl'), 'rb') as f:
+        params = pickle.load(f)
+    return params
 
 def load_gan(savepath, model, system=GANsystem):
     import gantools
