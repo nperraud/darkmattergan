@@ -590,6 +590,19 @@ def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
 
     return x
 
+def apply_phaseshuffle(x, rad=2, pad_type='reflect'):
+    b, x_len, nch = x.get_shape().as_list()
+
+    phase = tf.random_uniform([], minval=-rad, maxval=rad + 1, dtype=tf.int32)
+    pad_l = tf.maximum(phase, 0)
+    pad_r = tf.maximum(-phase, 0)
+    phase_start = pad_r
+    x = tf.pad(x, [[0, 0], [pad_l, pad_r], [0, 0]], mode=pad_type)
+
+    x = x[:, phase_start:phase_start+x_len]
+    x.set_shape([b, x_len, nch])
+
+    return x
 
 def tf_cdf(x, n_out, name='cdf_weight', diff_weight=10, use_first_channel=True):
 
