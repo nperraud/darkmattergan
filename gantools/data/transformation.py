@@ -3,19 +3,23 @@ import tensorflow as tf
 from scipy.signal import firwin
 
 
-def random_shift_1d(signals, spix):
+def random_shift_1d(signals, spix, force_equal=True):
     """Apply a random shift to 1 d signal.
 
     The shift is not circular and the data will be cropped accordingly.
     """
     nx = signals.shape[1]
     shiftx = np.random.randint(0, spix)
+    if force_equal:
+        signals = signals[:,:(nx//spix)*spix]
+
     if np.mod(nx, spix)==0:
         new_nx = ((nx//spix)-1)*spix
         out = signals[:, shiftx:shiftx+new_nx]
     else:
         out = signals[:, shiftx:]
-    return out
+
+    return out[:,:(out.shape[1]//spix)*spix]
 
 def random_shift_2d(images):
     ''' Apply a random circshift to 2d images'''
@@ -433,7 +437,7 @@ def slice_3d_patch(cubes, spix=32):
     return img_with_nbrs
 
 
-def downsample_1d(sig, s=2, Nwin=2):
+def downsample_1d(sig, s=2, Nwin=32):
     if len(sig.shape)==2:
         return np.apply_along_axis(downsample_1d,1, sig, s=s, Nwin=Nwin)
     win = firwin(numtaps=Nwin, cutoff=1/2)
@@ -446,7 +450,7 @@ def downsample_1d(sig, s=2, Nwin=2):
         new_sig = new_sig[1::2]
     return new_sig
 
-def upsamler_1d(sig, s=2, Nwin=2):
+def upsamler_1d(sig, s=2, Nwin=32):
     if len(sig.shape)==2:
         return np.apply_along_axis(upsamler_1d, 1, sig, s=s, Nwin=Nwin)
     win = firwin(numtaps=Nwin, cutoff=4/7)

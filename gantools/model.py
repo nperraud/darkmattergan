@@ -452,7 +452,7 @@ class UpscalePatchWGAN(WGAN):
             return X[slc]
 
     def preprocess_summaries(self, X_real, **kwargs):
-        super().preprocess_summaries(self._get_corner(X_real), **kwargs)
+        super().preprocess_summaries(self._get_corner(self.assert_image(X_real)), **kwargs)
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         feed_dict = super().compute_summaries(self._get_corner(X_real), self._get_corner(X_fake), feed_dict)
@@ -586,7 +586,7 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
             self.X_smooth = None
 
         if self.data_size==1:
-            middle = self.X_down_up.shape.as_list()[1]//2
+            middle = self.X_real.shape.as_list()[1]//2
             self.X_real_corner = self.X_real[:,middle:,:]
             borders = self.X_real[:,:middle,:]
 
@@ -1856,10 +1856,13 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                 x = tf.concat([x, X], axis=3)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
         else:
-            if X is not None:
-                sx = X.shape.as_list()[1]
+            if params.get('in_conv_shape', None):
+                sx = params['in_conv_shape']
             else:
-                sx = np.int(np.round(np.prod(x.shape.as_list()[1:])))
+                if X is not None:
+                    sx = X.shape.as_list()[1]
+                else:
+                    sx = np.int(np.round(np.prod(x.shape.as_list()[1:])))
             c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//sx
             x = tf.reshape(x, [bs, sx, c], name='vec2img')
             rprint('     Reshape to {}'.format(x.shape), reuse)
