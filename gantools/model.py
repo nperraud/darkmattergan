@@ -452,7 +452,7 @@ class UpscalePatchWGAN(WGAN):
             return X[slc]
 
     def preprocess_summaries(self, X_real, **kwargs):
-        super().preprocess_summaries(self._get_corner(X_real), **kwargs)
+        super().preprocess_summaries(self._get_corner(self.assert_image(X_real)), **kwargs)
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         feed_dict = super().compute_summaries(self._get_corner(X_real), self._get_corner(X_fake), feed_dict)
@@ -506,6 +506,34 @@ class UpscalePatchWGAN(WGAN):
 
 
 
+class UpscalePatchWGANBordersOld(UpscalePatchWGAN):
+    '''
+    Generate blocks, using top, left and top-left border information
+
+    This model will encode borders instead of flipping them.
+    '''
+
+    def default_params(self):
+        d_params = super().default_params()
+        bn = False
+        d_params['generator']['full'] = [512]
+        d_params['generator']['nfilter'] = [2, 32, 32, 1]
+        d_params['generator']['borders'] = dict()
+        d_params['generator']['borders']['width_full'] = None
+        d_params['generator']['borders']['nfilter'] = [2, 8, 1]
+        d_params['generator']['borders']['batch_norm'] = [bn, bn, bn]
+        d_params['generator']['borders']['shape'] = [[5, 5], [5, 5], [5, 5]]
+        d_params['generator']['borders']['stride'] = [2, 2, 2]
+        d_params['generator']['borders']['data_size'] = 2 # 1 for 1D signal, 2 for images, 3 for 3D
+        return d_params
+
+
+    def generator(self, z, y=None, **kwargs):
+        axis = self.data_size +1
+        newy = tf.concat(y, axis=axis)
+        return generator_border(z, y=newy, params=self.params['generator'], **kwargs)
+
+
 class UpscalePatchWGANBorders(UpscalePatchWGAN):
     '''
     Generate blocks, using top, left and top-left border information
@@ -526,6 +554,60 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
         d_params['generator']['borders']['stride'] = [2, 2, 2]
         d_params['generator']['borders']['data_size'] = 2 # 1 for 1D signal, 2 for images, 3 for 3D
         return d_params
+
+    def _build_generator(self):
+        shape = self.params['shape']
+        self.X_data = tf.placeholder(tf.float32, shape=[None, *shape], name='X_data')
+        self.z = tf.placeholder(
+            tf.float32,
+            shape=[None, self.params['generator']['latent_dim']],
+            name='z')
+        # A) Separate real data and border information
+        if self.data_size==3:
+            axis = 4
+            o = 7
+        elif self.data_size==2:
+            axis = 3
+            o = 3
+        else:
+            axis=2
+            o = 1
+        if self.params['upsampling']:
+            self.X_real, self.X_down_up = tf.split(self.X_data, [1,1], axis=axis)
+            if self.data_size==1:
+                middle = self.X_down_up.shape.as_list()[1]//2
+                X_smooth = self.X_down_up[:,middle:,:]
+            else:
+                raise NotImplementedError()
+            inshape = X_smooth.shape.as_list()[1:]
+            self.X_smooth = tf.placeholder_with_default(X_smooth, shape=[None, *inshape], name='y')
+        else:
+            self.X_real = self.X_data
+            self.X_smooth = None
+
+        if self.data_size==1:
+            middle = self.X_real.shape.as_list()[1]//2
+            self.X_real_corner = self.X_real[:,middle:,:]
+            borders = self.X_real[:,:middle,:]
+
+        else:
+            raise NotImplementedError()
+        inshape = borders.shape.as_list()[1:]
+        self.borders = tf.placeholder_with_default(borders, shape=[None, *inshape], name='borders')
+        
+        # B) Split the borders
+        border_list = tf.split(self.borders, o, axis=axis)
+
+        # D) Flip the borders
+
+        flipped_border_list = tf_flip_slices(*border_list, size=self.data_size)
+
+        # E) Generater the corner
+        self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list, X=self.X_smooth, reuse=False)
+        
+        #F) Recreate the big images
+        self.X_real = tf_patch2img(self.X_real_corner, *border_list, size=self.data_size)
+        self.X_fake = tf_patch2img(self.X_fake_corner, *border_list, size=self.data_size)
 
 
     def generator(self, z, y=None, **kwargs):
@@ -1640,6 +1722,11 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
 
         for i in range(nconv):
             # TODO: this really needs to be cleaned uy...
+
+            if params['data_size']==1 and not(i==0):
+                if params.get('apply_phaseshuffle', False):
+                    rprint('     Phase shuffle', reuse)               
+                    x=apply_phaseshuffle(x)
             if params['inception']:
                 x = inception_conv(in_tensor=x, 
                                     n_filters=params['nfilter'][i], 
@@ -1746,7 +1833,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
             if X is not None:
                 sx, sy, sz = X.shape.as_list()[1:4]
             else:
-                sx = np.int(np.round((np.prod(x.shape.as_list()[1:]) // params['nfilter'][0])**(1/3)))
+                sx = np.int(np.round((np.prod(x.shape.as_list()[1:]))**(1/3)))
                 sy, sz = sx, sx
             c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//(sx*sy*sz)
             x = tf.reshape(x, [bs, sx, sy, sz, c], name='vec2img')
@@ -1760,7 +1847,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                 sx, sy = X.shape.as_list()[1:3]
             else:
                 sx = np.int(np.round(
-                    np.sqrt(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0])))
+                    np.sqrt(np.prod(x.shape.as_list()[1:]))))
                 sy = sx
             c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//(sx*sy)
             x = tf.reshape(x, [bs, sx, sy, c], name='vec2img')
@@ -1769,10 +1856,13 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                 x = tf.concat([x, X], axis=3)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
         else:
-            if X is not None:
-                sx = X.shape.as_list()[1]
+            if params.get('in_conv_shape', None):
+                sx = params['in_conv_shape']
             else:
-                sx = np.int(np.round(np.prod(x.shape.as_list()[1:]) // params['nfilter'][0]))
+                if X is not None:
+                    sx = X.shape.as_list()[1]
+                else:
+                    sx = np.int(np.round(np.prod(x.shape.as_list()[1:])))
             c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//sx
             x = tf.reshape(x, [bs, sx, c], name='vec2img')
             rprint('     Reshape to {}'.format(x.shape), reuse)

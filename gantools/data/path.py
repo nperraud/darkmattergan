@@ -57,3 +57,16 @@ def nsynth_path():
 
         rootpath = utils_module_path + '/../../../data/'
     return rootpath
+
+
+def piano_path():
+    hostname = socket.gethostname()
+    if ('nid' in hostname) or ('daint' in hostname):
+        rootpath = '/scratch/snx1600/nperraud/data/'
+    elif 'omenx' in hostname:
+        rootpath = '/store/nati/datasets/piano/'
+    else:
+        utils_module_path = os.path.dirname(__file__)
+
+        rootpath = utils_module_path + '/../../../data/'
+    return rootpath

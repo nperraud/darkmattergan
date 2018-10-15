@@ -1,20 +1,25 @@
 import numpy as np
 import tensorflow as tf
+from scipy.signal import firwin
 
 
-def random_shift_1d(signals, spix):
+def random_shift_1d(signals, spix, force_equal=True):
     """Apply a random shift to 1 d signal.
 
     The shift is not circular and the data will be cropped accordingly.
     """
     nx = signals.shape[1]
     shiftx = np.random.randint(0, spix)
+    if force_equal:
+        signals = signals[:,:(nx//spix)*spix]
+
     if np.mod(nx, spix)==0:
         new_nx = ((nx//spix)-1)*spix
         out = signals[:, shiftx:shiftx+new_nx]
     else:
         out = signals[:, shiftx:]
-    return out
+
+    return out[:,:(out.shape[1]//spix)*spix]
 
 def random_shift_2d(images):
     ''' Apply a random circshift to 2d images'''
@@ -236,6 +241,26 @@ def slice_time(cubes, spix=64):
 
     return sliced_dim2
 
+def slice_1d(signal, spix=256):
+    '''
+    slice the signal
+    '''
+    s = signal.shape
+    if len(signal.shape)==1:
+        signal = np.reshape(signal, [1,len(signal)])
+    
+    # compute the number of slices (We assume square images)
+    num_slices = signal.shape[1] // spix
+
+    # To ensure left over pixels in each dimension are ignored
+    limit = num_slices * spix
+    cubes = signal[:, :limit]
+
+    # split along first dimension
+    sliced_signal = np.vstack(np.split(cubes, num_slices, axis=1))
+
+    return sliced_signal
+
 
 def slice_2d(cubes, spix=64):
     '''
@@ -299,25 +324,25 @@ def slice_1d_patch(img0, spix=64):
     if l < 1:
         ValueError('Not enough dimensions')
     elif l == 1:
-        img0 = img0.reshape([1, *img0.shape])
-    elif l == 3:
-        s = img0.shape
-        img0 = img0.reshape([s[0] * s[1], s[2]])
+        img0 = img0.reshape([1, *img0.shape, 1])
+    elif l == 2:
+        img0 = img0.reshape([*img0.shape, 1])
     elif l > 3:
         ValueError('To many dimensions')
-    _, sx = img0.shape
+    sx= img0.shape[1]
 
     nx = sx // spix
+    img0 = img0[:,:nx*spix]
 
     # 1) Create the different subparts
-    img1 = np.roll(img0, spix, axis=1)
+    img1 = np.roll(img0[:,:,0:1], spix, axis=1)
     img1[:, :spix] = 0
 
     # 2) Concatenate
-    img = np.stack([img0, img1], axis=2)
+    img = np.concatenate([img0, img1], axis=2)
 
     # 3) Slice the image
-    img = np.vstack(np.split(img, nx, axis=1))
+    img = np.squeeze(np.vstack(np.split(img, nx, axis=1)))
 
     return img
 
@@ -410,3 +435,33 @@ def slice_3d_patch(cubes, spix=32):
     img_with_nbrs = np.vstack(np.split(img_with_nbrs, nz, axis=3))
 
     return img_with_nbrs
+
+
+def downsample_1d(sig, s=2, Nwin=32):
+    if len(sig.shape)==2:
+        return np.apply_along_axis(downsample_1d,1, sig, s=s, Nwin=Nwin)
+    win = firwin(numtaps=Nwin, cutoff=1/2)
+    ntimes = np.log2(s)
+    assert(ntimes-np.int(ntimes)<1e-6)
+    ntimes = np.int(np.round(ntimes))
+    new_sig = sig.copy()
+    for _ in range(ntimes):
+        new_sig = np.convolve(new_sig,win, 'same')
+        new_sig = new_sig[1::2]
+    return new_sig
+
+def upsamler_1d(sig, s=2, Nwin=32):
+    if len(sig.shape)==2:
+        return np.apply_along_axis(upsamler_1d, 1, sig, s=s, Nwin=Nwin)
+    win = firwin(numtaps=Nwin, cutoff=4/7)
+    ntimes = np.log2(s)
+    assert(ntimes-np.int(ntimes)<1e-6)
+    ntimes = np.int(np.round(ntimes))
+    tsig = sig.copy()
+    for _ in range(ntimes):
+        new_sig = np.zeros(shape=[len(tsig)*2])
+        new_sig[1::2] = tsig
+        new_sig[::2] = tsig
+        new_sig = np.convolve(new_sig,win, 'same')
+        tsig = new_sig
+    return new_sig
