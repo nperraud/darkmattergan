@@ -43,7 +43,7 @@ def random_transpose_2d(images):
     '''
 
     # all possible transposes
-    transposes = [(0, 1, 2, 3), (0, 2, 1, 3)]
+    transposes = [(0, 1, 2), (0, 2, 1)]
     transpose = transposes[np.random.choice(len(transposes))]
     return np.transpose(images, axes=transpose)
 

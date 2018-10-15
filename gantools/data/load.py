@@ -161,10 +161,10 @@ def load_dataset(
     if augmentation:
         # With the current implementation, 3d augmentation is not supported
         # for 2d scaling
-        if scaling>1 and not is_3d:
-            t = transformation.random_transformation_2d
-        else:
+        if is_3d:
             t = transformation.random_transformation_3d
+        else:
+            t = transformation.random_transformation_2d
     else:
         t = None
     
