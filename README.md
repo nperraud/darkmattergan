@@ -16,6 +16,8 @@ Using Generative Adversarial Networks to generate replications of N-Body simulat
 10. jupyter
 11. PyYaml
 
+*We hightly recommend to work in a virtual environnement.*
+
 You can simply install those packages with the following command:
 ```
 pip install -r requirements.txt
@@ -25,11 +27,16 @@ or if you have no gpu:
 pip install -r requirements_nogpu.txt
 ```
 
+Then you should install gantools
+
 ## Dataset
 
-The dataset consists of 10 N-body simulations.
+The dataset consists of 30 N-body simulations at a scale of 500 MPch and 10 simulations at a scale of 100 Mpch. The dataset is availlable on Zenodo at: URL
 
-TBD
+To download the dataset, you can simply execute the code:
+```
+python download_nbody.py
+```
 
 ## Processing the simulations
 
@@ -42,14 +49,14 @@ https://github.com/nperraud/CodeGAN/blob/master/WGAN%20demo.ipynb
 
 ## Oganisation of the code
 
-* gan.py : implement the basic GAN and CosmoGAN class
-* modely.py : contains the different network architecture
-* data.py : to load the different datasets
-* blocks.py : basic tensorflow units
-* utils.py : useful functions
-* default.py : default parameters
-* metrics.py : computation of the different error functions
-* plot.py : helper for the different plots
+The code is composed of a package named *gantools*. It is composed of the following submodules:
+* gansystem: implement the basic training and generating system for a gan
+* modely: contains the different network architecture
+* data: data module
+* blocks: basic tensorflow units
+* utils: useful functions
+* metrics: computation of the different error functions
+* plot: helper for the different plots
 
 ## Paths
 
@@ -76,8 +83,5 @@ TBD
 
 ## TODO
 
-* Re-organise the file into a small package
-* Make the 3D dataset
-* Remake the 2D dataset
-* Merge the time datasets
-* Include all dataset loading routines into the module `data.py`
+* Put the data on zenodo
+* Experiment paper
