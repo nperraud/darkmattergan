@@ -494,16 +494,20 @@ class UpscalePatchWGAN(WGAN):
             print('Using old generator...')
             return generator_up(z, X=X, y=y, params=self.params['generator'], **kwargs, scope='generator')
         else:
-            axis = self.data_size +1
-            if self.params['upsampling']:
-                if self.data_size==1:
-                    newX = tf.concat([X, y], axis=axis)
-                else:
-                    newX = tf.concat([X, *y], axis=axis)
+            if self.params['generator'].get('borders', None):
+                axis = self.data_size + 1
+                newy = tf.concat(y, axis=axis)
+                return generator_border(z, X=X, y=newy, params=self.params['generator'], **kwargs)
             else:
-                newX = tf.concat(y, axis=axis)
-            return generator(z, X=newX, params=self.params['generator'], **kwargs)
-
+                axis = self.data_size +1
+                if self.params['upsampling']:
+                    if self.data_size==1:
+                        newX = tf.concat([X, y], axis=axis)
+                    else:
+                        newX = tf.concat([X, *y], axis=axis)
+                else:
+                    newX = tf.concat(y, axis=axis)
+                return generator(z, X=newX, params=self.params['generator'], **kwargs)
 
 
 class UpscalePatchWGANBordersOld(UpscalePatchWGAN):
@@ -1830,11 +1834,14 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         if params['data_size']==3:
             # nb pixel
-            if X is not None:
-                sx, sy, sz = X.shape.as_list()[1:4]
+            if params.get('in_conv_shape', None):
+                sx, sy, sz = params['in_conv_shape']
             else:
-                sx = np.int(np.round((np.prod(x.shape.as_list()[1:]))**(1/3)))
-                sy, sz = sx, sx
+                if X is not None:
+                    sx, sy, sz = X.shape.as_list()[1:4]
+                else:
+                    sx = np.int(np.round((np.prod(x.shape.as_list()[1:]))**(1/3)))
+                    sy, sz = sx, sx
             c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//(sx*sy*sz)
             x = tf.reshape(x, [bs, sx, sy, sz, c], name='vec2img')
             rprint('     Reshape to {}'.format(x.shape), reuse)
