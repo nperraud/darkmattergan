@@ -7,7 +7,7 @@ import scipy
 
 
 def medical_forward(x):
-    return np.clip(((x+1)/257.0), 1/257, 1-1/257)
+    return np.clip(((x+1)/257.0), 1/257, 1-1/257).astype(np.float32)
 
 def medical_backward(y):
     return np.round(np.clip(y*257.0-1, 0, 255))

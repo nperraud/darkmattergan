@@ -64,65 +64,91 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
 
         return bn
 
+
 def np_downsample_1d(x, scaling):
     unique = False
-    if len(x.shape)<1:
+    if len(x.shape) < 1:
         raise ValueError('Too few dimensions')
-    elif len(x.shape)==1:
-        x = x.reshape([1,*x.shape])
+    elif len(x.shape) == 1:
+        x = x.reshape([1, *x.shape, 1])
         unique = True
-    elif len(x.shape)>2:
+        unichannel = True
+    elif len(x.shape) == 2:
+        x = x.reshape([*x.shape, 1])
+        unichannel = True
+    elif len(x.shape) > 3:
         raise ValueError('Too many dimensions')
-        
-    n, sx = x.shape 
-    dsx = np.zeros([n,sx//scaling])
+
+    n, sx, c = x.shape
+    nx = sx // scaling
+    dsx = np.zeros([n, nx, c])
     for i in range(scaling):
-            dsx += x[:,i::scaling]
+        dsx += x[:, i:scaling * nx + i:scaling]
     dsx /= scaling
+    if unichannel:
+        dsx = dsx[:, :, 0]
     if unique:
         dsx = dsx[0]
     return dsx
+
 
 def np_downsample_2d(x, scaling):
     unique = False
-    if len(x.shape)<2:
+    unichannel = False
+    if len(x.shape) < 2:
         raise ValueError('Too few dimensions')
-    elif len(x.shape)==2:
-        x = x.reshape([1,*x.shape])
+    elif len(x.shape) == 2:
+        x = x.reshape([1, *x.shape, 1])
         unique = True
-    elif len(x.shape)>3:
+        unichannel = True
+    elif len(x.shape) == 3:
+        x = x.reshape([*x.shape, 1])
+        unichannel = True
+    elif len(x.shape) > 4:
         raise ValueError('Too many dimensions')
-        
-    n, sx, sy = x.shape 
-    dsx = np.zeros([n,sx//scaling,sy//scaling])
+    n, sx, sy, c = x.shape
+    nx = sx // scaling
+    ny = sy // scaling
+    dsx = np.zeros([n, nx, ny, c])
     for i in range(scaling):
         for j in range(scaling):
-            dsx += x[:,i::scaling,j::scaling]
+            dsx += x[:, i:scaling * nx + i:scaling, j:scaling * ny +
+                     j:scaling]
     dsx /= (scaling**2)
+    if unichannel:
+        dsx = dsx[:, :, :, 0]
     if unique:
         dsx = dsx[0]
     return dsx
 
+
 def np_downsample_3d(x, scaling):
     unique = False
-    if len(x.shape)<3:
+    unichannel = False
+    if len(x.shape) < 3:
         raise ValueError('Too few dimensions')
-    elif len(x.shape)==3:
-        x = x.reshape([1,*x.shape])
+    elif len(x.shape) == 3:
+        x = x.reshape([1, *x.shape, 1])
         unique = True
-    elif len(x.shape)>4:
+        unichannel = True
+    elif len(x.shape) == 4:
+        x = x.reshape([*x.shape, 1])
+        unichannel = True
+    elif len(x.shape) > 5:
         raise ValueError('Too many dimensions')
-        
-    n, sx, sy, sz = x.shape 
-    nx = sx//scaling
-    ny = sy//scaling
-    nz = sz//scaling
-    dsx = np.zeros([n,nx,ny,nz])
+
+    n, sx, sy, sz, c = x.shape
+    nx = sx // scaling
+    ny = sy // scaling
+    nz = sz // scaling
+    dsx = np.zeros([n, nx, ny, nz, c])
     for i in range(scaling):
         for j in range(scaling):
             for k in range(scaling):
                 dsx += x[:,i:scaling*nx+i:scaling,j:scaling*ny+j:scaling,k:scaling*nz+k:scaling]
     dsx /= (scaling**3)
+    if unichannel:
+        dsx = dsx[:, :, :, :, 0]
     if unique:
         dsx = dsx[0]
     return dsx

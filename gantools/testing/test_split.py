@@ -61,64 +61,18 @@ class TestSlice2d(unittest.TestCase):
                 np.testing.assert_array_equal(img_r,
                                               img[:2 * spix, :2 * spix])
 
-    def test_patch_realdata(self):
-        Mpch = 70
-        ns = 128
-        spix = 32
-
-        # This test might be a bit stupid
-        raw_data = data.load.load_samples_raw(Mpch=Mpch)
-        images = data.Dataset.slice_2d(raw_data, ns)
-        simg = slice_2d_patch(images[0], spix=spix)
-
-        img = images[0]
-        sx, sy = img.shape
-        nx = sx // spix
-        ny = sy // spix
-        img_test = np.zeros([nx * ny, spix, spix, 4], dtype=np.float32)
-        for i in range(nx):
-            for j in range(ny):
-                index = nx * j + i
-                img_test[index, :, :, 0] = img[i * spix:(
-                    i + 1) * spix, j * spix:(j + 1) * spix]
-                if i:
-                    img_test[index, :, :, 1] = img[(
-                        i - 1) * spix:i * spix, j * spix:(j + 1) * spix]
-                if j:
-                    img_test[index, :, :, 2] = img[i * spix:(i + 1) * spix, (
-                        j - 1) * spix:j * spix]
-                if i and j:
-                    img_test[index, :, :, 3] = img[(i - 1) * spix:i * spix, (
-                        j - 1) * spix:j * spix]
-
-        assert (np.sum(np.abs(img_test[:, :, :, 0] - simg[:, :, :, 0])) == 0)
-        assert (np.sum(np.abs(img_test[:, :, :, 1] - simg[:, :, :, 1])) == 0)
-        assert (np.sum(np.abs(img_test[:, :, :, 2] - simg[:, :, :, 2])) == 0)
-        assert (np.sum(np.abs(img_test[:, :, :, 3] - simg[:, :, :, 3])) == 0)
-
-        index = 5
-        img_d = np.concatenate(
-            [img_test[index, :, :, 1], img_test[index, :, :, 0]], axis=0)
-        img_u = np.concatenate(
-            [img_test[index, :, :, 3], img_test[index, :, :, 2]], axis=0)
-        img_r = np.concatenate([img_u, img_d], axis=1)
-        np.testing.assert_array_equal(img_r, img[:2 * spix, :2 * spix])
-
-        slice_2d_patch(images, spix=spix)
 
     def test_slice_2d_simple(self):
         nx = 4
         nc = 2
-        ni = 1
-        test_img = np.random.randn(nc, nx, nx, ni).astype(np.float32)
+        test_img = np.random.randn(nc, nx, nx).astype(np.float32)
         spix = 2
         sp = nx // spix
         res = []
 
         for i in range(nc):
-            for j in range(ni):
-                v = np.array(np.split(test_img[i, :, :, j], sp, axis=0))
-                res.append(v)
+            v = np.array(np.split(test_img[i, :, :], sp, axis=0))
+            res.append(v)
         res = np.vstack(res)
         res = np.vstack(np.split(res, sp, axis=2))
 

@@ -70,3 +70,14 @@ def piano_path():
 
         rootpath = utils_module_path + '/../../data/'
     return rootpath
+
+
+def berlin_path():
+    hostname = socket.gethostname()
+    if 'omenx' in hostname:
+        rootpath = '/store/nati/datasets/maps/berlin/'
+    else:
+        # This should be done in a different way
+        utils_module_path = os.path.dirname(__file__)
+        rootpath = utils_module_path + '/../../data/maps/berlin/'
+    return rootpath

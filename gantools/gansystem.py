@@ -112,7 +112,7 @@ class GANsystem(NNSystem):
         if self.params['Nstats']:
             assert(dataset.N>self.params['Nstats'])
             self.summary_dataset = itertools.cycle(dataset.iter(self.params['Nstats']))
-            self.net.preprocess_summaries(dataset.get_all_data(), rerun=False)
+            self.net.preprocess_summaries(dataset.get_samples(self.params['Nstats']), rerun=False)
         super().train(dataset, **kwargs)
 
     def _run_optimization(self, feed_dict, idx):
