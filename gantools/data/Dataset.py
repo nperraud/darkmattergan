@@ -4,7 +4,7 @@ from gantools.utils import compose2
 import functools
 from .transformation import slice_2d, slice_3d, slice_3d_patch, slice_2d_patch, slice_time
 
-def do_noting(x):
+def do_nothing(x):
     return x
 
 
@@ -30,11 +30,11 @@ class Dataset(object):
         if slice_fn:
             self._slice_fn = slice_fn
         else:
-            self._slice_fn = do_noting
+            self._slice_fn = do_nothing
         if transform:
             self._transform = transform
         else:
-            self._transform = do_noting
+            self._transform = do_nothing
 
         self._data_process = compose2(self._transform, self._slice_fn)
 
@@ -81,6 +81,26 @@ class Dataset(object):
     def N(self):
         ''' Number of element in the dataset '''
         return self._N
+
+class DatasetPostTransform(Dataset):
+    def __init__(self, *args, post_transform=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if post_transform:
+            self._post_transform = post_transform
+        else:
+            self._post_transform = do_nothing
+    def __iter__(self, *args, **kwargs):
+        it = super().__iter__(*args, **kwargs)
+        for el in it:
+            yield self._post_transform(el)
+
+    def get_all_data(self):
+        ''' Return all the data (shuffled) '''
+        return self._post_transform(super().get_all_data())
+
+    def get_samples(self, *args, **kwargs):
+        ''' Get the `N` first samples '''
+        return self._post_transform(super().get_samples(*args, **kwargs))
 
 
 class Dataset_3d(Dataset):

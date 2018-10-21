@@ -27,7 +27,7 @@ class TestMetric(unittest.TestCase):
         return maps
 
     def test_mapos(self):
-        dataset = data.load.load_dataset(nsamples=1, spix=32, resolution=256,Mpch=350)
+        dataset = data.load.load_nbody_dataset(nsamples=1, spix=32, resolution=256,Mpch=350)
         maps = self.list_map_to_test()
         X = dataset.get_all_data().flatten()
         for name, forward, backward in maps:

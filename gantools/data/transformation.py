@@ -3,34 +3,129 @@ import tensorflow as tf
 from scipy.signal import firwin
 
 
-def random_shift_1d(signals, spix, force_equal=True):
+def random_shift_1d(signals, roll=False, spix=None, force_equal=True):
     """Apply a random shift to 1 d signal.
 
-    The shift is not circular and the data will be cropped accordingly.
+    If the roll option is not activated, the shift will not be circular and the
+    data will be cropped accordingly.
+
+    Arguments
+    ---------
+    roll: rolled shift (default False)
+    spix: maximum size of the shift (if roll==False)
+    force_equal: force all the return signals to be the same size using cropping (if roll==False)
     """
     nx = signals.shape[1]
-    shiftx = np.random.randint(0, spix)
-    if force_equal:
-        signals = signals[:,:(nx//spix)*spix]
-
-    if np.mod(nx, spix)==0:
-        new_nx = ((nx//spix)-1)*spix
-        out = signals[:, shiftx:shiftx+new_nx]
+    if roll:
+        shiftx = np.random.randint(0, nx)
+        out = np.roll(signals, shift=shiftx, axis=1)
     else:
-        out = signals[:, shiftx:]
+        if spix is None:
+            raise ValueError('spix needs to be specified.')
+        shiftx = np.random.randint(0, spix)
+        if force_equal:
+            signals = signals[:,:(nx//spix)*spix]
 
-    return out[:,:(out.shape[1]//spix)*spix]
+        if np.mod(nx, spix)==0:
+            new_nx = ((nx//spix)-1)*spix
+            out = signals[:, shiftx:shiftx+new_nx]
+        else:
+            out = signals[:, shiftx:]
 
-def random_shift_2d(images):
-    ''' Apply a random circshift to 2d images'''
-    nx = images.shape[1]
-    ny = images.shape[2]
-    shiftx = np.random.randint(0, nx)
-    shifty = np.random.randint(0, ny)
-    out = np.roll(images, shift=shiftx, axis=1)
-    out = np.roll(out, shift=shifty, axis=2)
     return out
 
+def random_shift_2d(images, roll=False, spix=None,  force_equal=True):
+    """Apply a random shift to 2d images.
+
+    If the roll option is not activated, the shift will not be circular and the
+    data will be cropped accordingly.
+
+    Arguments
+    ---------
+    roll: rolled shift (default False)
+    spix: maximum size of the shift (if roll==False)
+    force_equal: force all the return signals to be the same size using cropping (if roll==False)
+    """
+    nx = images.shape[1]
+    ny = images.shape[2]
+    if roll:
+
+        shiftx = np.random.randint(0, nx)
+        shifty = np.random.randint(0, ny)
+        out = np.roll(images, shift=shiftx, axis=1)
+        out = np.roll(out, shift=shifty, axis=2)
+    else:
+        if spix is None:
+            raise ValueError('spix needs to be specified.')
+        shiftx = np.random.randint(0, spix)
+        shifty = np.random.randint(0, spix)
+        if force_equal:
+            images = images[:, :(nx//spix)*spix, :(ny//spix)*spix]
+
+        if np.mod(nx, spix)==0:
+            new_nx = ((nx//spix)-1)*spix
+            out = images[:, shiftx:shiftx+new_nx, :]
+        else:
+            out = images[:, shiftx:, :]
+
+        if np.mod(ny, spix)==0:
+            new_ny = ((ny//spix)-1)*spix
+            out = images[:, :, shifty:shifty+new_ny]
+        else:
+            out = images[:, :, shifty:]
+
+    return out
+
+
+def random_shift_3d(images, roll=False, spix=None, force_equal=True):
+    """Apply a random shift to 3d images.
+
+    If the roll option is not activated, the shift will not be circular and the
+    data will be cropped accordingly.
+
+    Arguments
+    ---------
+    roll: rolled shift (default False)
+    spix: maximum size of the shift (if roll==False)
+    force_equal: force all the return signals to be the same size using cropping (if roll==False)
+    """
+    nx = images.shape[1]
+    ny = images.shape[2]
+    nz = images.shape[3]
+    if roll:
+        shiftx = np.random.randint(0, nx)
+        shifty = np.random.randint(0, ny)
+        shiftz = np.random.randint(0, nz)
+        out = np.roll(images, shift=shiftx, axis=1)
+        out = np.roll(out, shift=shifty, axis=2)
+        out = np.roll(out, shift=shiftz, axis=3)
+    else:
+        if spix is None:
+            raise ValueError('spix needs to be specified.')
+        shiftx = np.random.randint(0, spix)
+        shifty = np.random.randint(0, spix)
+        shiftz = np.random.randint(0, spix)
+        if force_equal:
+            images = images[:, :(nx//spix)*spix, :(ny//spix)*spix, :(nz//spix)*spix]
+
+        if np.mod(nx, spix)==0:
+            new_nx = ((nx//spix)-1)*spix
+            out = images[:, shiftx:shiftx+new_nx, :, :]
+        else:
+            out = images[:, shiftx:, :, :]
+
+        if np.mod(ny, spix)==0:
+            new_ny = ((ny//spix)-1)*spix
+            out = images[:, :, shifty:shifty+new_ny, :]
+        else:
+            out = images[:, :, shifty:, :]
+
+        if np.mod(nz, spix)==0:
+            new_nz = ((ny//spix)-1)*spix
+            out = images[:, :, :, shiftz:shiftz+new_nz]
+        else:
+            out = images[:, :, :, shiftz:]
+    return out
 
 def random_flip_2d(images):
     ''' Apply a random flip to 2d images'''
@@ -58,8 +153,8 @@ def random_rotate_2d(images):
     '''
     return random_transpose_2d(random_flip_2d(images))
 
-def random_transformation_2d(images):
-    return random_rotate_2d(random_shift_2d(images))
+def random_transformation_2d(images, *args, **kwargs):
+    return random_rotate_2d(random_shift_2d(images, *args, **kwargs))
 
 
 
@@ -94,24 +189,8 @@ def random_rotate_3d(images):
     return random_transpose_3d(random_flip_3d(images))
 
 
-def random_translate_3d(images):
-    '''
-    random translation of 3d images along an axis by some pixels greater than shift_pix
-    '''
-    trans1 = np.random.choice(range(images.shape[1]))
-    images = np.roll(images, trans1, 1)
-
-    trans2 = np.random.choice(range(images.shape[2]))
-    images = np.roll(images, trans2, 1)
-
-    trans3 = np.random.choice(range(images.shape[3]))
-    images = np.roll(images, trans3, 1)
-
-    return images
-
-
-def random_transformation_3d(images):
-    return random_translate_3d(random_rotate_3d(images))
+def random_transformation_3d(images, *args, **kwargs):
+    return random_rotate_3d(random_shift_3d(images,  *args, **kwargs))
 
 
 def patch2img(patches, size=2):
@@ -375,6 +454,8 @@ def slice_2d_patch(img0, spix=64):
 
     # 2) Concatenate
     img = np.stack([img0, img1, img2, img3], axis=3)
+    
+    del img1, img2, img3
 
     # 3) Slice the image
     img = np.vstack(np.split(img, nx, axis=1))
@@ -427,6 +508,9 @@ def slice_3d_patch(cubes, spix=32):
 
     # 2) Concatenate
     img_with_nbrs = np.stack([cubes, img1, img2, img3, img4, img5, img6, img7], axis=4) # 7 neighbors plus the original cube
+    
+    # Clear variable to gain some RAM
+    del img1, img2, img3, img4, img5, img6, img7
 
 
     # 3) Slice the cubes
@@ -437,6 +521,7 @@ def slice_3d_patch(cubes, spix=32):
     return img_with_nbrs
 
 
+# This function is in testing mode...
 def downsample_1d(sig, s=2, Nwin=32):
     if len(sig.shape)==2:
         return np.apply_along_axis(downsample_1d,1, sig, s=s, Nwin=Nwin)
@@ -450,6 +535,7 @@ def downsample_1d(sig, s=2, Nwin=32):
         new_sig = new_sig[1::2]
     return new_sig
 
+# This function is in testing mode...
 def upsamler_1d(sig, s=2, Nwin=32):
     if len(sig.shape)==2:
         return np.apply_along_axis(upsamler_1d, 1, sig, s=s, Nwin=Nwin)

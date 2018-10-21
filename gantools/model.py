@@ -8,7 +8,7 @@ from gantools.plot import colorize
 from gantools.metric import ganlist
 from gantools.data.transformation import tf_flip_slices, tf_patch2img
 from gantools.plot.plot_summary import PlotSummaryPlot
-
+from copy import deepcopy
 
 class BaseGAN(BaseNet):
     """Abstract class for the model."""
@@ -55,7 +55,7 @@ class BaseGAN(BaseNet):
 
 class WGAN(BaseGAN):
     def default_params(self):
-        d_params = super().default_params()
+        d_params = deepcopy(super().default_params())
         d_params['shape'] = [16, 16, 1] # Shape of the image
         d_params['prior_distribution'] = 'gaussian' # prior distribution
         d_params['gamma_gp'] = 10 
@@ -64,7 +64,7 @@ class WGAN(BaseGAN):
 
         d_params['generator'] = dict()
         d_params['generator']['latent_dim'] = 100
-        d_params['generator']['full'] = [2 * 8 * 8]
+        d_params['generator']['full'] = [2*8 * 8]
         d_params['generator']['nfilter'] = [2, 32, 32, 1]
         d_params['generator']['batch_norm'] = [bn, bn, bn]
         d_params['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
@@ -77,7 +77,6 @@ class WGAN(BaseGAN):
         d_params['generator']['one_pixel_mapping'] = [] # One pixel mapping
         d_params['generator']['non_lin'] = tf.nn.relu # non linearity at the end of the generator
         d_params['generator']['spectral_norm'] = False # use spectral norm
-
 
         d_params['discriminator'] = dict()
         d_params['discriminator']['full'] = [32]
@@ -117,6 +116,10 @@ class WGAN(BaseGAN):
     def _build_net(self):
         self._data_size = self.params['generator']['data_size']
         assert(self.params['discriminator']['data_size'] == self.data_size)
+        reduction = np.prod(np.array(self.params['generator']['stride']))
+        in_conv_shape = [el//reduction for el in self.params['shape'][:-1]]
+        self._params['generator']['in_conv_shape'] = in_conv_shape
+  
         self._build_generator()
         self._D_fake = self.discriminator(self.X_fake, reuse=False)
         self._D_real = self.discriminator(self.X_real, reuse=True)
@@ -265,7 +268,7 @@ class WGAN(BaseGAN):
 
 class CosmoWGAN(WGAN):
     def default_params(self):
-        d_params = super().default_params()
+        d_params = deepcopy(super().default_params())
         d_params['cosmology'] = dict()
         d_params['cosmology']['forward_map'] = None
         d_params['cosmology']['backward_map'] = None
@@ -298,7 +301,7 @@ class CosmoWGAN(WGAN):
 class LapWGAN(WGAN):
     # TODO add summaries for the 1D case...
     def default_params(self):
-        d_params = super().default_params()
+        d_params = deepcopy(super().default_params())
         d_params['shape'] = [32, 32, 1] # Shape of the image
         bn = False
         d_params['upsampling'] = 2
@@ -367,7 +370,7 @@ class UpscalePatchWGAN(WGAN):
     '''
 
     def default_params(self):
-        d_params = super().default_params()
+        d_params = deepcopy(super().default_params())
         d_params['shape'] = [16, 16, 4] # Shape of the input data (1 image and 3 borders)
         bn = False
         d_params['upsampling'] = None
@@ -510,32 +513,32 @@ class UpscalePatchWGAN(WGAN):
                 return generator(z, X=newX, params=self.params['generator'], **kwargs)
 
 
-class UpscalePatchWGANBordersOld(UpscalePatchWGAN):
-    '''
-    Generate blocks, using top, left and top-left border information
+# class UpscalePatchWGANBordersOld(UpscalePatchWGAN):
+#     '''
+#     Generate blocks, using top, left and top-left border information
 
-    This model will encode borders instead of flipping them.
-    '''
+#     This model will encode borders instead of flipping them.
+#     '''
 
-    def default_params(self):
-        d_params = super().default_params()
-        bn = False
-        d_params['generator']['full'] = [512]
-        d_params['generator']['nfilter'] = [2, 32, 32, 1]
-        d_params['generator']['borders'] = dict()
-        d_params['generator']['borders']['width_full'] = None
-        d_params['generator']['borders']['nfilter'] = [2, 8, 1]
-        d_params['generator']['borders']['batch_norm'] = [bn, bn, bn]
-        d_params['generator']['borders']['shape'] = [[5, 5], [5, 5], [5, 5]]
-        d_params['generator']['borders']['stride'] = [2, 2, 2]
-        d_params['generator']['borders']['data_size'] = 2 # 1 for 1D signal, 2 for images, 3 for 3D
-        return d_params
+#     def default_params(self):
+#         d_params = deepcopy(super().default_params())
+#         bn = False
+#         d_params['generator']['full'] = [512]
+#         d_params['generator']['nfilter'] = [2, 32, 32, 1]
+#         d_params['generator']['borders'] = dict()
+#         d_params['generator']['borders']['width_full'] = None
+#         d_params['generator']['borders']['nfilter'] = [2, 8, 1]
+#         d_params['generator']['borders']['batch_norm'] = [bn, bn, bn]
+#         d_params['generator']['borders']['shape'] = [[5, 5], [5, 5], [5, 5]]
+#         d_params['generator']['borders']['stride'] = [2, 2, 2]
+#         d_params['generator']['borders']['data_size'] = 2 # 1 for 1D signal, 2 for images, 3 for 3D
+#         return d_params
 
 
-    def generator(self, z, y=None, **kwargs):
-        axis = self.data_size +1
-        newy = tf.concat(y, axis=axis)
-        return generator_border(z, y=newy, params=self.params['generator'], **kwargs)
+#     def generator(self, z, y=None, **kwargs):
+#         axis = self.data_size +1
+#         newy = tf.concat(y, axis=axis)
+#         return generator_border(z, y=newy, params=self.params['generator'], **kwargs)
 
 
 class UpscalePatchWGANBorders(UpscalePatchWGAN):
@@ -548,19 +551,42 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
     def default_params(self):
         d_params = super().default_params()
         bn = False
-        d_params['generator']['full'] = [512]
+        d_params['shape'] = [256, 1] # Shape of the image
+
+        d_params['generator']['latent_dim'] = 16
+        d_params['generator']['full'] = [32]
+        d_params['generator']['nfilter'] = [2, 32, 1]
+        d_params['generator']['batch_norm'] = [bn, bn, bn]
+        d_params['generator']['shape'] = [[21], [21], [21], [21]]
+        d_params['generator']['stride'] = [1, 2, 2, 1]
+        d_params['generator']['full'] = [64]
         d_params['generator']['nfilter'] = [2, 32, 32, 1]
+        d_params['generator']['data_size'] = 1 # 1 for 1D signal, 2 for images, 3 for 3D
+
         d_params['generator']['borders'] = dict()
         d_params['generator']['borders']['width_full'] = None
         d_params['generator']['borders']['nfilter'] = [2, 8, 1]
         d_params['generator']['borders']['batch_norm'] = [bn, bn, bn]
         d_params['generator']['borders']['shape'] = [[5, 5], [5, 5], [5, 5]]
         d_params['generator']['borders']['stride'] = [2, 2, 2]
-        d_params['generator']['borders']['data_size'] = 2 # 1 for 1D signal, 2 for images, 3 for 3D
+        d_params['generator']['borders']['data_size'] = 1 # 1 for 1D signal, 2 for images, 3 for 3D
+
+        d_params['discriminator']['full'] = [32]
+        d_params['discriminator']['nfilter'] = [16, 32, 32, 32]
+        d_params['discriminator']['batch_norm'] = [bn, bn, bn, bn]
+        d_params['discriminator']['shape'] = [[21], [21], [21], [21]]
+        d_params['discriminator']['stride'] = [2, 2, 2, 1]
+        d_params['discriminator']['data_size'] = 1 # 1 for 1D signal, 2 for images, 3 for 3D
+
+
+
         return d_params
 
     def _build_generator(self):
         shape = self.params['shape']
+        reduction = np.prod(np.array(self.params['generator']['stride']))*2
+        in_conv_shape = [el//reduction for el in shape[:-1]]
+        self._params['generator']['in_conv_shape'] = in_conv_shape
         self.X_data = tf.placeholder(tf.float32, shape=[None, *shape], name='X_data')
         self.z = tf.placeholder(
             tf.float32,
@@ -593,7 +619,6 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
             middle = self.X_real.shape.as_list()[1]//2
             self.X_real_corner = self.X_real[:,middle:,:]
             borders = self.X_real[:,:middle,:]
-
         else:
             raise NotImplementedError()
         inshape = borders.shape.as_list()[1:]
@@ -1832,16 +1857,17 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         bs = tf.shape(x)[0]  # Batch size
 
+        # The following code can probably be much more beautiful.
         if params['data_size']==3:
             # nb pixel
-            if params.get('in_conv_shape', None):
-                sx, sy, sz = params['in_conv_shape']
-            else:
-                if X is not None:
-                    sx, sy, sz = X.shape.as_list()[1:4]
-                else:
-                    sx = np.int(np.round((np.prod(x.shape.as_list()[1:]))**(1/3)))
-                    sy, sz = sx, sx
+            # if params.get('in_conv_shape', None) is not None:
+            sx, sy, sz = params['in_conv_shape']
+            # else:
+            #     if X is not None:
+            #         sx, sy, sz = X.shape.as_list()[1:4]
+            #     else:
+            #         sx = np.int(np.round((np.prod(x.shape.as_list()[1:]))**(1/3)))
+            #         sy, sz = sx, sx
             c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//(sx*sy*sz)
             x = tf.reshape(x, [bs, sx, sy, sz, c], name='vec2img')
             rprint('     Reshape to {}'.format(x.shape), reuse)
@@ -1849,13 +1875,16 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                 x = tf.concat([x, X], axis=4)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
         elif params['data_size']==2:
-            # nb pixel
-            if X is not None:
-                sx, sy = X.shape.as_list()[1:3]
-            else:
-                sx = np.int(np.round(
-                    np.sqrt(np.prod(x.shape.as_list()[1:]))))
-                sy = sx
+            # if params.get('in_conv_shape', None) is not None:
+            sx, sy = params['in_conv_shape']
+            # else:
+            #     # nb pixel
+            #     if X is not None:
+            #         sx, sy = X.shape.as_list()[1:3]
+            #     else:
+            #         sx = np.int(np.round(
+            #             np.sqrt(np.prod(x.shape.as_list()[1:]))))
+            #         sy = sx
             c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//(sx*sy)
             x = tf.reshape(x, [bs, sx, sy, c], name='vec2img')
             rprint('     Reshape to {}'.format(x.shape), reuse)
@@ -1863,13 +1892,13 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                 x = tf.concat([x, X], axis=3)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
         else:
-            if params.get('in_conv_shape', None):
-                sx = params['in_conv_shape']
-            else:
-                if X is not None:
-                    sx = X.shape.as_list()[1]
-                else:
-                    sx = np.int(np.round(np.prod(x.shape.as_list()[1:])))
+            # if params.get('in_conv_shape', None) is not None:
+            sx = params['in_conv_shape'][0]
+            # else:
+            #     if X is not None:
+            #         sx = X.shape.as_list()[1]
+            #     else:
+            #         sx = np.int(np.round(np.prod(x.shape.as_list()[1:])))
             c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//sx
             x = tf.reshape(x, [bs, sx, c], name='vec2img')
             rprint('     Reshape to {}'.format(x.shape), reuse)
@@ -1952,175 +1981,6 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
-    return x
-
-
-def generator_up(z, params, X=None, y=None, reuse=True, scope="generator_up"):
-    """
-    Arguments
-    ---------
-    X       : Low sampled image, or None
-    z       : Latent variable (same size as X)
-    y       : border added a layer param['y_layer']
-    """
-
-    # Change the name of the variable for compatibility_reason. This function will be deleted soon.
-    assert(len(params['stride']) == len(params['nfilter'])
-           == len(params['batch_norm'])+1)
-
-    conv = get_conv(params['data_size'])
-    nconv = len(params['stride'])
-    nfull = len(params['full'])
-
-    with tf.variable_scope(scope, reuse=reuse):
-        rprint('Generator \n'+''.join(['-']*50), reuse)
-        
-        if X is not None:
-            rprint('     The input X is of size {}'.format(X.shape), reuse)
-
-            # if params['downsampling']:
-            #     X = up_sampler(X, s=params['downsampling'], size=params['data_size'])
-            #     rprint('     The input X is upsampled to size {}'.format(X.shape), reuse)
-
-        rprint('     The input z is of size {}'.format(z.shape), reuse)
-        if y is not None:
-            rprint('     The input y is of size {}'.format(y.shape), reuse)
-        
-        ## Increase the dimensionality of the latent variable to that of borders, before adding the border information as channels
-        for i in range(nfull):
-            z = linear(z,
-                       params['full'][i],
-                       '{}_full'.format(i),
-                       summary=params['summary'])
-            z = params['activation'](z)
-            rprint('     {} Full layer with {} outputs'.format(i, params['full'][i]), reuse)
-            rprint('         Size of the variables: {}'.format(z.shape), reuse)
-
-
-        bs = tf.shape(z)[0]  # Batch size
-        if X is None:
-            sx = y.shape.as_list()[1]
-            sy = y.shape.as_list()[2]
-        else:
-            sx = X.shape.as_list()[1]
-            sy = X.shape.as_list()[2]
-        
-        if params['data_size']==3:
-            if X is None:
-                sz = y.shape.as_list()[3]
-            else:
-                sz = X.shape.as_list()[3]
-            z = tf.reshape(z, [bs, sx, sy, sz, 1], name='vec2img_3d')
-        else:
-            z = tf.reshape(z, [bs, sx, sy, 1], name='vec2img_2d')
-        rprint('     Reshape z to {}'.format(z.shape), reuse)
-
-        if X is None:
-            x = z
-        else:
-            if params['data_size']==3:
-                x = tf.concat([X, z], axis=4)
-            else:
-                x = tf.concat([X, z], axis=3)
-            rprint('     Concat X and z to {}'.format(x.shape), reuse)
-        if params.get('use_conv_over_deconv', True):
-            conv_over_deconv = np.all(np.array(params['stride']) == 1) # If true use conv, else deconv
-        else:
-            conv_over_deconv = False
-        print("     conv_over_deconv=", conv_over_deconv)
-
-        for i in range(nconv):
-            sx = sx * params['stride'][i]
-
-            if (y is not None) and (0 == i):
-                rprint('     Merge input y of size{}'.format(y.shape), reuse)
-
-                if params['data_size']==3:
-                    x = tf.concat([x, y], axis=4)
-                else:
-                    x = tf.concat([x, y], axis=3)
-                rprint('     Concat x and y to {}'.format(x.shape), reuse) 
-
-
-            if params['residual'] and (i%2 != 0) and (i < nconv-2): # save odd layer inputs for residual connections
-                residue = x
-
-            if params['inception']:
-                if conv_over_deconv:
-                    x = inception_conv(in_tensor=x, 
-                                    n_filters=params['nfilter'][i], 
-                                    stride=params['stride'][i], 
-                                    summary=params['summary'], 
-                                    num=i,
-                                    data_size=params['data_size'], 
-                                    merge= (True if params['residual'] else (i == (nconv-1)) )
-                                    )
-                    rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
-
-                else:
-                    x = inception_deconv(in_tensor=x, 
-                                        bs=bs, 
-                                        sx=sx, 
-                                        n_filters=params['nfilter'][i], 
-                                        stride=params['stride'][i], 
-                                        summary=params['summary'], 
-                                        num=i, 
-                                        data_size=params['data_size'], 
-                                        merge= (True if params['residual'] else (i == (nconv-1)) )
-                                        )
-                    rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
-
-            else:
-                if conv_over_deconv:
-                    x = conv(x,
-                         nf_out=params['nfilter'][i],
-                         shape=params['shape'][i],
-                         stride=params['stride'][i],
-                         name='{}_conv'.format(i),
-                         summary=params['summary'])
-                    rprint('     {} Conv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
-
-                else:
-                    x = deconv(in_tensor=x, 
-                               bs=bs, 
-                               sx=sx,
-                               n_filters=params['nfilter'][i],
-                               shape=params['shape'][i],
-                               stride=params['stride'][i],
-                               summary=params['summary'],
-                               conv_num=i,
-                               data_size=params['data_size']
-                               )
-                    rprint('     {} Deconv layer with {} channels'.format(i, params['nfilter'][i]), reuse)
-
-            # residual connections before ReLU of every even layer, except 0th and last layer
-            if params['residual'] and (i != 0) and (i != nconv-1) and (i%2 == 0):
-                x = x + residue
-                rprint('         Residual connection', reuse)
-
-            # Batch Norm and ReLU
-            if i < nconv-1:
-                if params['batch_norm'][i]:
-                    x = batch_norm(x, name='{}_bn'.format(i), train=True)
-                    rprint('         Batch norm', reuse)
-
-                x = params['activation'](x)
-                rprint('         Non linearity applied', reuse)
-                
-
-            rprint('         Size of the variables: {}'.format(x.shape), reuse)
-
-        if len(params['one_pixel_mapping']):
-            x = one_pixel_mapping(x,
-                                  params['one_pixel_mapping'],
-                                  summary=params['summary'],
-                                  reuse=reuse)
-
-        x = apply_non_lin(params['non_lin'], x, reuse)
-
-        rprint('     The output is of size {}'.format(x.shape), reuse)
-        rprint(''.join(['-']*50)+'\n', reuse)
-
     return x
 
 
@@ -2257,5 +2117,4 @@ def generator_border(x, params, X=None, y=None, reuse=True, scope="generator"):
         rprint(''.join(['-']*50)+'\n', reuse)
 
         return generator(x, params, X=X, y=y, reuse=reuse, scope=scope)
-
 
