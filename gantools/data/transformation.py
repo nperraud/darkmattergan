@@ -63,15 +63,19 @@ def random_shift_2d(images, roll=False, spix=None):
         ly = (ny//spix)*spix
         rx = nx - lx
         ry = ny - ly
-        shiftx = np.random.randint(0, rx)
-        shifty = np.random.randint(0, ry)
-        out = images[:, shiftx:shiftx+lx, shifty:shifty+ly]
+        if rx:
+            shiftx = np.random.randint(0, rx)
+            out = images[:, shiftx:shiftx+lx]
+
+        if ry:
+            shifty = np.random.randint(0, ry)
+            out = images[:,:, shifty:shifty+ly]
 
         if (nx//spix)>1:
             nx = out.shape[1]
             shiftx = np.random.randint(0, spix)
             new_nx = ((nx//spix)-1)*spix
-            out = out[:, shiftx:shiftx+new_nx, :]
+            out = out[:, shiftx:shiftx+new_nx]
 
         if ny//spix>1:
             ny = out.shape[2]
