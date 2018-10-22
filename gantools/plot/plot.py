@@ -18,8 +18,6 @@ import warnings
 def draw_images(images,
                 nx=1,
                 ny=1,
-                px=None,
-                py=None,
                 axes=None,
                 *args,
                 **kwargs):
@@ -30,8 +28,9 @@ def draw_images(images,
     Parameters
     ----------
     x : List of images
-        - Matrix [ nx*ny , px*py ]
         - Array  [ nx*ny , px, py ]
+        - Array  [ nx*ny , px, py , 3]
+        - Array  [ nx*ny , px, py , 4]
     nx : number of images to be ploted along the x axis (default = 1)
     ny : number of images to be ploted along the y axis (default = 1)
     px : number of pixel along the x axis (If the images are vectors)
@@ -43,23 +42,18 @@ def draw_images(images,
     nimg = images.shape[0]
 
     if ndim == 1:
-        raise ValueError('The input seems to contain only one image')
+        raise ValueError('Wrong data shape')
     elif ndim == 2:
-        if px and (not py):
-            py = int(images.shape[1] / px)
-        elif (not px) and py:
-            px = int(images.shape[1] / py)
-        elif (not px) and (not py):
-            raise ValueError('Please specify at least px or py')
-        if px * py != images.shape[1]:
-            raise ValueError('The sizes do not fit!')
+        images = np.expand_dims(np.expand_dims(images, axis=0), axis=3)
     elif ndim == 3:
-        px, py = images.shape[1:]
-    else:
-        raise ValueError('The input contains to many dimensions')
+        images = np.expand_dims(images, axis=3)
+    elif ndim > 4:
+        raise ValueError('The input contains too many dimensions')
 
-    images_tmp = images.reshape([nimg, px, py])
-    mat = np.zeros([nx * px, ny * py])
+    px, py, c = images.shape[1:]
+
+    images_tmp = images.reshape([nimg, px, py, c])
+    mat = np.zeros([nx * px, ny * py, c])
     for j in range(ny):
         for i in range(nx):
             if i + j * nx >= nimg:

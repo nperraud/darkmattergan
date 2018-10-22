@@ -25,6 +25,7 @@ def random_shift_1d(signals, roll=False, spix=None, force_equal=True):
         shiftx = np.random.randint(0, spix)
         if force_equal:
             signals = signals[:,:(nx//spix)*spix]
+            nx = signals.shape[1]
 
         if np.mod(nx, spix)==0:
             new_nx = ((nx//spix)-1)*spix
@@ -34,7 +35,7 @@ def random_shift_1d(signals, roll=False, spix=None, force_equal=True):
 
     return out
 
-def random_shift_2d(images, roll=False, spix=None,  force_equal=True):
+def random_shift_2d(images, roll=False, spix=None):
     """Apply a random shift to 2d images.
 
     If the roll option is not activated, the shift will not be circular and the
@@ -44,10 +45,11 @@ def random_shift_2d(images, roll=False, spix=None,  force_equal=True):
     ---------
     roll: rolled shift (default False)
     spix: maximum size of the shift (if roll==False)
-    force_equal: force all the return signals to be the same size using cropping (if roll==False)
     """
     nx = images.shape[1]
     ny = images.shape[2]
+    if nx<spix or ny<spix:
+        raise ValueError("Image too small")
     if roll:
 
         shiftx = np.random.randint(0, nx)
@@ -57,22 +59,25 @@ def random_shift_2d(images, roll=False, spix=None,  force_equal=True):
     else:
         if spix is None:
             raise ValueError('spix needs to be specified.')
-        shiftx = np.random.randint(0, spix)
-        shifty = np.random.randint(0, spix)
-        if force_equal:
-            images = images[:, :(nx//spix)*spix, :(ny//spix)*spix]
+        lx = (nx//spix)*spix
+        ly = (ny//spix)*spix
+        rx = nx - lx
+        ry = ny - ly
+        shiftx = np.random.randint(0, rx)
+        shifty = np.random.randint(0, ry)
+        out = images[:, shiftx:shiftx+lx, shifty:shifty+ly]
 
-        if np.mod(nx, spix)==0:
+        if (nx//spix)>1:
+            nx = out.shape[1]
+            shiftx = np.random.randint(0, spix)
             new_nx = ((nx//spix)-1)*spix
-            out = images[:, shiftx:shiftx+new_nx, :]
-        else:
-            out = images[:, shiftx:, :]
+            out = out[:, shiftx:shiftx+new_nx, :]
 
-        if np.mod(ny, spix)==0:
+        if ny//spix>1:
+            ny = out.shape[2]
+            shifty = np.random.randint(0, spix)
             new_ny = ((ny//spix)-1)*spix
-            out = images[:, :, shifty:shifty+new_ny]
-        else:
-            out = images[:, :, shifty:]
+            out = out[:, :, shifty:shifty+new_ny]
 
     return out
 
@@ -107,6 +112,9 @@ def random_shift_3d(images, roll=False, spix=None, force_equal=True):
         shiftz = np.random.randint(0, spix)
         if force_equal:
             images = images[:, :(nx//spix)*spix, :(ny//spix)*spix, :(nz//spix)*spix]
+            nx = images.shape[1]
+            ny = images.shape[2]
+            nz = images.shape[3]
 
         if np.mod(nx, spix)==0:
             new_nx = ((nx//spix)-1)*spix
@@ -141,9 +149,10 @@ def random_transpose_2d(images):
     '''
     Apply a random transpose to 2d images
     '''
-
+    if len(images.shape)==3:
+        images = np.expand_dims(images, axis=3)
     # all possible transposes
-    transposes = [(0, 1, 2), (0, 2, 1)]
+    transposes = [(0, 1, 2, 3), (0, 2, 1, 3)]
     transpose = transposes[np.random.choice(len(transposes))]
     return np.transpose(images, axes=transpose)
 
@@ -355,19 +364,23 @@ def slice_2d(cubes, spix=64):
     # cubes = cubes.reshape([s[0] * s[3], s[1], s[2]])
 
     # compute the number of slices (We assume square images)
-    num_slices = s[2] // spix
+    num_slices_x = s[1] // spix
+    num_slices_y = s[2] // spix
 
     # To ensure left over pixels in each dimension are ignored
-    limit = num_slices * spix
-    cubes = cubes[:, :limit, :limit]
+    limit_x = num_slices_x * spix
+    limit_y = num_slices_y * spix
+    out = cubes[:, :limit_x, :limit_y]
 
-    # split along first dimension
-    sliced_dim1 = np.vstack(np.split(cubes, num_slices, axis=1))
+    if num_slices_x>1:
+        # split along first dimension
+        out = np.vstack(np.split(out, num_slices_x, axis=1))
 
-    # split along second dimension
-    sliced_dim2 = np.vstack(np.split(sliced_dim1, num_slices, axis=2))
+    if num_slices_y>1:
+        # split along second dimension
+        out = np.vstack(np.split(out, num_slices_y, axis=2))
 
-    return sliced_dim2
+    return out
 
 
 def slice_3d(cubes, spix=64):
@@ -432,13 +445,12 @@ def slice_2d_patch(img0, spix=64):
     if l < 2:
         ValueError('Not enough dimensions')
     elif l == 2:
-        img0 = img0.reshape([1, *img0.shape])
-    elif l == 4:
-        s = img0.shape
-        img0 = img0.reshape([s[0] * s[1], s[2], s[3]])
+        img0 = img0.reshape([1, *img0.shape, 1])
+    elif l == 3:
+        img0 = np.expand_dims(img0, axis=3)
     elif l > 4:
         ValueError('To many dimensions')
-    _, sx, sy = img0.shape
+    _, sx, sy = img0.shape[:3]
     nx = sx // spix
     ny = sy // spix
 
@@ -453,13 +465,14 @@ def slice_2d_patch(img0, spix=64):
     img3[:, :, :spix] = 0
 
     # 2) Concatenate
-    img = np.stack([img0, img1, img2, img3], axis=3)
+    img = np.concatenate([img0, img1, img2, img3], axis=3)
     
     del img1, img2, img3
-
     # 3) Slice the image
-    img = np.vstack(np.split(img, nx, axis=1))
-    img = np.vstack(np.split(img, ny, axis=2))
+    if nx>1:
+        img = np.vstack(np.split(img, nx, axis=1))
+    if ny>1:
+        img = np.vstack(np.split(img, ny, axis=2))
 
     return img
 

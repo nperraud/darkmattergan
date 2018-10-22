@@ -77,34 +77,34 @@ class TestGANmodels(unittest.TestCase):
         np.testing.assert_allclose(np_downsample_2d(s1,4), s2)
 
 
-    # def test_maps(self):
-    #     dataset = load.load_maps_dataset(spix=64, scaling=8, patch=False, augmentation=False)
-    #     it = dataset.iter(5)
-    #     assert (next(it).shape == (5, 64, 64, 3))
-    #     del it, dataset
+    def test_maps(self):
+        dataset = load.load_maps_dataset(spix=64, scaling=8, patch=False, augmentation=False)
+        it = dataset.iter(5)
+        assert (next(it).shape == (5, 64, 64, 3))
+        del it, dataset
 
-    #     dataset = load.load_maps_dataset(spix=128, scaling=4, patch=False, augmentation=True)
-    #     it = dataset.iter(5)
-    #     assert (next(it).shape == (5, 128, 128, 3))
-    #     del it, dataset
+        dataset = load.load_maps_dataset(spix=128, scaling=4, patch=False, augmentation=True)
+        it = dataset.iter(5)
+        assert (next(it).shape == (5, 128, 128, 3))
+        del it, dataset
 
-    #     dataset = load.load_maps_dataset(spix=16, scaling=1, patch=True, augmentation=True)
-    #     it = dataset.iter(5)
-    #     assert (next(it).shape == (5, 16, 16, 9))
-    #     del it, dataset
+        dataset = load.load_maps_dataset(spix=16, scaling=1, patch=True, augmentation=True)
+        it = dataset.iter(5)
+        assert (next(it).shape == (5, 16, 16, 12))
+        del it, dataset
 
-    #     dataset = load.load_maps_dataset(
-    #         spix=128, patch=False, shuffle=False, augmentation=False, scaling=2)
-    #     it = dataset.iter(10)
-    #     s1 = next(it)
-    #     del it, dataset
+        dataset = load.load_maps_dataset(
+            spix=128, patch=False, shuffle=False, augmentation=False, scaling=2)
+        it = dataset.iter(10)
+        s1 = next(it)
+        del it, dataset
 
-    #     dataset = load.load_maps_dataset(
-    #         spix=32, patch=False, shuffle=False, augmentation=False, scaling=8)
-    #     it = dataset.iter(10)
-    #     s2 = next(it)
-    #     del it, dataset
-    #     np.testing.assert_allclose(np_downsample_3d(s1,4), s2)
+        dataset = load.load_maps_dataset(
+            spix=32, patch=False, shuffle=False, augmentation=False, scaling=8)
+        it = dataset.iter(10)
+        s2 = next(it)
+        del it, dataset
+        np.testing.assert_allclose(np_downsample_3d(s1,4), s2)
 
     def test_medical(self):
         dataset = load.load_medical_dataset(spix=32, scaling=8, patch=False, augmentation=False)

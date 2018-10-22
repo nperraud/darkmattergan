@@ -409,7 +409,9 @@ class UpscalePatchWGAN(WGAN):
         else:
             axis=2
             o = 1
-        self.X_real_corner, borders = tf.split(self.X_data, [1,o], axis=axis)
+        la = shape[-1]
+        mult = la//(1+o)
+        self.X_real_corner, borders = tf.split(self.X_data, [mult,o*mult], axis=axis)
         inshape = borders.shape.as_list()[1:]
         self.borders = tf.placeholder_with_default(borders, shape=[None, *inshape], name='borders')
         
@@ -1827,7 +1829,10 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             rprint('     {} Full layer with {} outputs'.format(nconv+i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
         if params['minibatch_reg']:
+            rprint('     Minibatch regularization', reuse)
             x = mini_batch_reg(x, n_kernels=150, dim_per_kernel=30)
+            rprint('       Size of the variables: {}'.format(x.shape), reuse)
+
         x = linear(x, 1, 'out', summary=params['summary'])
         # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)

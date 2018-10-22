@@ -30,6 +30,10 @@ def colorize(value, vmin=None, vmax=None, cmap=None):
     Returns a 3D tensor of shape [height, width, 3].
     """
 
+    # Ignore colored images
+    if value.shape[-1]==3:
+        # To be done in a better way
+        return value
     # normalize
     vmin = tf.reduce_min(value) if vmin is None else vmin
     vmax = tf.reduce_max(value) if vmax is None else vmax

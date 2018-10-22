@@ -368,7 +368,7 @@ def load_berlin_rawdata(nsamples=None):
     if nsamples is None:
         nsamples = len(filepaths)
     for filepath in filepaths[:nsamples]:
-        # Crop the data to have multiple of 16.
+        # Crop the data to have multiple of 256.
         imgs.append(io.imread(filepath)[:2304, :2560, :])
     imgs = np.array(imgs)
     return imgs
@@ -395,17 +395,22 @@ def load_maps_dataset(
     '''
 
     # 1) Load raw images
-    images = load_berlin_rawdata(nsamples=nsamples)/255
+    images = load_berlin_rawdata(nsamples=nsamples)
     print("images shape = ", images.shape)
 
 
     # 2p) Apply downscaling if necessary
+    dtype = np.uint8
+
     if scaling>1:
         data_shape = 2
         images = blocks.downsample(images, scaling, size=data_shape)
-
+        dtype = np.float32
     if augmentation:
-        t = partial(transformation.random_transformation_2d, roll=False, spix=spix)
+        if patch:
+            t = partial(transformation.random_transformation_2d, roll=False, spix=2*spix)
+        else:
+            t = partial(transformation.random_transformation_2d, roll=False, spix=spix)
     else:
         t = None
     
@@ -415,9 +420,9 @@ def load_maps_dataset(
     if patch:
         class SpecialDataset(DatasetPostTransform, Dataset_2d_patch):
             pass
-        dataset = SpecialDataset(images, spix=spix, shuffle=shuffle, transform=t, post_transform=post_transform)
+        dataset = SpecialDataset(images, spix=spix, shuffle=shuffle, transform=t, post_transform=post_transform, dtype=dtype)
     else:
         class SpecialDataset(DatasetPostTransform, Dataset_2d):
             pass
-        dataset = SpecialDataset(images, spix=spix, shuffle=shuffle, transform=t, post_transform=post_transform)
+        dataset = SpecialDataset(images, spix=spix, shuffle=shuffle, transform=t, post_transform=post_transform, dtype=dtype)
     return dataset

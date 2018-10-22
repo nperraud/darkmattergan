@@ -104,8 +104,8 @@ class DatasetPostTransform(Dataset):
 
 
 class Dataset_3d(Dataset):
-    def __init__(self, X, spix=64, shuffle=True, transform=None):
-        ''' Initialize a Dataset object
+    def __init__(self, *args, spix=32, **kwargs):
+        ''' Initialize a Dataset object for 3D images
         Arguments
         ---------
         * X         : numpy array containing the data
@@ -115,24 +115,17 @@ class Dataset_3d(Dataset):
         '''
 
         slice_fn = functools.partial(slice_3d, spix=spix)
-        super().__init__(
-            X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+        super().__init__(*args, slice_fn=slice_fn, **kwargs)
+
 
 
 class Dataset_2d(Dataset):
-    def __init__(self, X, spix=128, shuffle=True, transform=None):
-        ''' Initialize a Dataset object
-        Arguments
-        ---------
-        * X         : numpy array containing the data
-        * shuffle   : True if the data should be shuffled
-        * transform : Function to be applied to each bigger cube in the dataset
-                      for data augmentation
+    def __init__(self, *args, spix=128, **kwargs):
+        ''' Initialize a Dataset object for 2D images
         '''
 
         slice_fn = functools.partial(slice_2d, spix=spix)
-        super().__init__(
-            X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+        super().__init__(*args, slice_fn=slice_fn, **kwargs)
 
 class Dataset_time(Dataset):
     def __init__(self, X, spix=128, shuffle=True, transform=None):
@@ -150,7 +143,7 @@ class Dataset_time(Dataset):
             X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
 
 class Dataset_2d_patch(Dataset):
-    def __init__(self, X, spix=128, shuffle=True, transform=None):
+    def __init__(self, *args, spix=128, **kwargs):
         ''' Initialize a Dataset object for the 2d patch case
         Arguments
         ---------
@@ -161,8 +154,8 @@ class Dataset_2d_patch(Dataset):
         '''
 
         slice_fn = functools.partial(slice_2d_patch, spix=spix)
-        super().__init__(
-            X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+        super().__init__(*args, slice_fn=slice_fn, **kwargs)
+
 
     def get_samples_full(self, N=100):
         X = self.get_samples(N=N)
@@ -173,7 +166,7 @@ class Dataset_2d_patch(Dataset):
 
 
 class Dataset_3d_patch(Dataset):
-    def __init__(self, X, spix=32, shuffle=True, transform=None):
+    def __init__(self, *args, spix=32, **kwargs):
         ''' Initialize a Dataset object for the 3d patch case
         Arguments
         ---------
@@ -184,8 +177,7 @@ class Dataset_3d_patch(Dataset):
         '''
 
         slice_fn = functools.partial(slice_3d_patch, spix=spix)
-        super().__init__(
-            X=X, shuffle=shuffle, slice_fn=slice_fn, transform=transform)
+        super().__init__(*args, slice_fn=slice_fn, **kwargs)
 
 
 def grouper(iterable, n, fillvalue=None):
