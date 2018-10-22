@@ -48,28 +48,28 @@ def random_shift_2d(images, roll=False, spix=None):
     """
     nx = images.shape[1]
     ny = images.shape[2]
-    if nx<spix or ny<spix:
-        raise ValueError("Image too small")
     if roll:
-
         shiftx = np.random.randint(0, nx)
         shifty = np.random.randint(0, ny)
         out = np.roll(images, shift=shiftx, axis=1)
         out = np.roll(out, shift=shifty, axis=2)
     else:
+        if nx<spix or ny<spix:
+            raise ValueError("Image too small")
         if spix is None:
             raise ValueError('spix needs to be specified.')
         lx = (nx//spix)*spix
         ly = (ny//spix)*spix
         rx = nx - lx
         ry = ny - ly
+        out = images
         if rx:
             shiftx = np.random.randint(0, rx)
-            out = images[:, shiftx:shiftx+lx]
+            out = out[:, shiftx:shiftx+lx]
 
         if ry:
             shifty = np.random.randint(0, ry)
-            out = images[:,:, shifty:shifty+ly]
+            out = out[:,:, shifty:shifty+ly]
 
         if (nx//spix)>1:
             nx = out.shape[1]

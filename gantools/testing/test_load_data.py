@@ -36,7 +36,7 @@ class TestGANmodels(unittest.TestCase):
         it = dataset.iter(10)
         print(next(it).shape)
 
-        assert (next(it).shape == (10, 32, 32))
+        assert (next(it).shape == (10, 32, 32, 1))
         del it, dataset
 
         dataset = load.load_nbody_dataset(
@@ -48,7 +48,7 @@ class TestGANmodels(unittest.TestCase):
             nsamples=2, spix=128, Mpch=350, forward_map=forward, patch=False)
         it = dataset.iter(10)
         print(next(it).shape)
-        assert (next(it).shape == (10, 128, 128))
+        assert (next(it).shape == (10, 128, 128, 1))
         del it, dataset
         dataset1 = load.load_nbody_dataset(
             nsamples=4, spix=128, Mpch=350, forward_map=forward, patch=False, shuffle=False, augmentation=False, scaling=2, is_3d=True)
@@ -104,7 +104,7 @@ class TestGANmodels(unittest.TestCase):
         it = dataset.iter(10)
         s2 = next(it)
         del it, dataset
-        np.testing.assert_allclose(np_downsample_3d(s1,4), s2)
+        np.testing.assert_allclose(np_downsample_2d(s1,4), s2)
 
     def test_medical(self):
         dataset = load.load_medical_dataset(spix=32, scaling=8, patch=False, augmentation=False)
