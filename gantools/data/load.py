@@ -392,6 +392,9 @@ def load_maps_dataset(
     * augmentation : use data augmentation (default True)
     * scaling : downscale the image by a factor (default 1)
     * patch: experimental feature for patchgan
+
+    The images comes from 
+    https://zenodo.org/record/1154821#.W8WfkC0zbIo
     '''
 
     # 1) Load raw images
