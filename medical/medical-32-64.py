@@ -10,7 +10,7 @@ def non_lin(x):
 
 
 ns = 32
-try_resume = False
+try_resume = True
 latent_dim = 32 * 32 * 32
 
 time_str = '32_to_64'
