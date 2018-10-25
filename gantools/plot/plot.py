@@ -73,7 +73,7 @@ def draw_images(images,
 
     if axes is None:
         axes = plt.gca()
-    axes.imshow(mat, *args, **kwargs)
+    axes.imshow(np.squeeze(mat), *args, **kwargs)
     for x, y in zip(xx, yy):
         axes.plot(x, y, color='r', linestyle='-', linewidth=2)
     axes.get_xaxis().set_visible(False)

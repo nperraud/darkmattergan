@@ -52,13 +52,13 @@ class BaseGAN(BaseNet):
         raise NotImplementedError("This is a an abstract class.")
 
 
-
 class WGAN(BaseGAN):
     def default_params(self):
         d_params = deepcopy(super().default_params())
         d_params['shape'] = [16, 16, 1] # Shape of the image
         d_params['prior_distribution'] = 'gaussian' # prior distribution
         d_params['gamma_gp'] = 10 
+        d_params['loss_type'] = 'hinge'  # 'hinge' or 'wasserstein'
 
         bn = False
 
@@ -125,10 +125,21 @@ class WGAN(BaseGAN):
         self._D_real = self.discriminator(self.X_real, reuse=True)
         self._D_loss_f = tf.reduce_mean(self._D_fake)
         self._D_loss_r = tf.reduce_mean(self._D_real)
-        gamma_gp = self.params['gamma_gp']
-        self._D_gp = self.wgan_regularization(gamma_gp, [self.X_fake], [self.X_real])
-        self._D_loss = -(self._D_loss_r - self._D_loss_f) + self._D_gp
-        self._G_loss = -self._D_loss_f
+
+        if self.params['loss_type'] == 'wasserstein':
+            # Wasserstein loss
+            gamma_gp = self.params['gamma_gp']
+            print(' Wasserstein loss with gamma_gp={}'.format(gamma_gp))
+            self._D_gp = self.wgan_regularization(gamma_gp, [self.X_fake], [self.X_real])
+            self._D_loss = -(self._D_loss_r - self._D_loss_f) + self._D_gp
+            self._G_loss = -self._D_loss_f
+        elif self.params['loss_type'] == 'hinge':
+            # Hinge loss
+            print(' Hinge loss.')
+            self._D_loss = tf.nn.relu(1-self._D_loss_r) + tf.nn.relu(self._D_loss_f+1)
+            self._G_loss = -self._D_loss_f
+        else:
+            raise ValueError('Unknown loss type!')    
         self._inputs = (self.z)
         self._outputs = (self.X_fake)
 
@@ -1606,7 +1617,7 @@ def get_conv(data_size):
         raise ValueError("Wrong data_size")
 
 
-def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, data_size=2):
+def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, use_spectral_norm, data_size=2):
     if data_size==3:
         output_shape = [bs, sx, sx, sx, n_filters]
         out_tensor = deconv3d(in_tensor,
@@ -1614,6 +1625,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, data_
                               shape=shape,
                               stride=stride,
                               name='{}_deconv_3d'.format(conv_num),
+                              use_spectral_norm=use_spectral_norm,
                               summary=summary)
     elif data_size==2:
         output_shape = [bs, sx, sx, n_filters]
@@ -1622,6 +1634,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, data_
                               shape=shape,
                               stride=stride,
                               name='{}_deconv_2d'.format(conv_num),
+                              use_spectral_norm=use_spectral_norm,
                               summary=summary)
     elif data_size==1:
         output_shape = [bs, sx, n_filters]
@@ -1630,6 +1643,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, data_
                               shape=shape,
                               stride=stride,
                               name='{}_deconv_1d'.format(conv_num),
+                              use_spectral_norm=use_spectral_norm,
                               summary=summary)
     else:
         raise ValueError("Wrong data_size")
@@ -1764,7 +1778,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                                     stride=params['stride'][i], 
                                     summary=params['summary'], 
                                     num=i,
-                                    data_size=params['data_size'], 
+                                    data_size=params['data_size'],
+                                    use_spectral_norm=params['spectral_norm'],
                                     merge=(i == (nconv-1))
                                     )
                 rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1931,6 +1946,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                                     summary=params['summary'], 
                                     num=i,
                                     data_size=params['data_size'], 
+                                    use_spectral_norm=params['spectral_norm'],
                                     merge= (True if params['residual'] else (i == (nconv-1)) )
                                     )
                     rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1943,7 +1959,8 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                                         stride=params['stride'][i], 
                                         summary=params['summary'], 
                                         num=i, 
-                                        data_size=params['data_size'], 
+                                        data_size=params['data_size'],
+                                        use_spectral_norm=params['spectral_norm'],
                                         merge= (True if params['residual'] else (i == (nconv-1)) )
                                         )
                     rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1957,6 +1974,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                            stride=params['stride'][i],
                            summary=params['summary'],
                            conv_num=i,
+                           use_spectral_norm=params['spectral_norm'],
                            data_size=params['data_size']
                            )
                 rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)

@@ -80,11 +80,11 @@ class GANsystem(NNSystem):
                 grad_norm = [tf.reduce_sum(grads) for grads in grad_norms]
                 final_grad = tf.sqrt(tf.reduce_sum(grad_norm))
                 tf.summary.scalar(varsuffix+"/Gradient_Norm", final_grad, collections=["train"])
-                if self.params['optimization'][varsuffix]['optimizer'] == 'adam':
-                    beta1_power, beta2_power = optimizer._get_beta_accumulators()
-                    learning_rate = self.params['optimization'][varsuffix]['learning_rate']
-                    optim_learning_rate = learning_rate*(tf.sqrt(1 - beta2_power) /(1 - beta1_power))
-                    tf.summary.scalar(varsuffix+'/ADAM_learning_rate', optim_learning_rate, collections=["train"])
+                # if self.params['optimization'][varsuffix]['optimizer'] == 'adam':
+                #     beta1_power, beta2_power = optimizer._get_beta_accumulators()
+                #     learning_rate = self.params['optimization'][varsuffix]['learning_rate']
+                #     optim_learning_rate = learning_rate*(tf.sqrt(1.0 - beta2_power) /(1.0 - beta1_power))
+                #     tf.summary.scalar(varsuffix+'/ADAM_learning_rate', optim_learning_rate, collections=["train"])
 
     @staticmethod
     def build_optmizer(params):

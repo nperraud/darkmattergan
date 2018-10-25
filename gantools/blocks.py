@@ -4,6 +4,32 @@ from numpy import prod
 from gantools import utils
 
 
+def orthogonal_initializer(scale=1.1):
+    """From Lasagne and Keras. Reference: Saxe et al., http://arxiv.org/abs/1312.6120
+    """
+
+    def _initializer(shape, dtype=tf.float32, **kwargs):
+        flat_shape = (shape[0], np.prod(shape[1:]))
+        a = np.random.normal(0.0, 1.0, flat_shape)
+        u, _, v = np.linalg.svd(a, full_matrices=False)
+        # pick the one with the correct shape
+        q = u if u.shape == flat_shape else v
+        q = q.reshape(shape)  #this needs to be corrected to float32
+        # print('you have initialized one orthogonal matrix.')
+        return tf.constant(scale * q[:shape[0], :shape[1]], dtype=tf.float32)
+
+    return _initializer
+
+
+def select_initializer(type='orthogonal'):
+    if type=='orthogonal':
+        return orthogonal_initializer()
+    elif type=='xavier':
+        return tf.contrib.layers.xavier_initializer()
+    else:
+        raise ValueError('Unknown initializer type.')
+    return
+
 def _tf_variable(name, shape, initializer):
     """Create a tensorflow variable.
 
@@ -284,7 +310,7 @@ def spectral_norm(w, iteration=1):
 def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="conv1d", summary=True):
     '''Convolutional layer for square images'''
 
-    weights_initializer = tf.contrib.layers.xavier_initializer()
+    weights_initializer = select_initializer()
     const = tf.constant_initializer(0.0)
 
     with tf.variable_scope(name):
@@ -310,7 +336,7 @@ def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="con
 def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="conv2d", summary=True):
     '''Convolutional layer for square images'''
 
-    weights_initializer = tf.contrib.layers.xavier_initializer()
+    weights_initializer = select_initializer()
     const = tf.constant_initializer(0.0)
 
     with tf.variable_scope(name):
@@ -346,7 +372,7 @@ def conv3d(imgs,
     if use_spectral_norm:
         print("Warning spectral norm for conv3d set to True but may not be implemented!")
 
-    weights_initializer = tf.contrib.layers.xavier_initializer()
+    weights_initializer = select_initializer()
     const = tf.constant_initializer(0.0)
 
     with tf.variable_scope(name):
@@ -354,6 +380,8 @@ def conv3d(imgs,
             'w', [shape[0], shape[1], shape[2],
                   imgs.get_shape()[-1], nf_out],
             initializer=weights_initializer)
+        if use_spectral_norm:
+            w = spectral_norm(w)
         conv = tf.nn.conv3d(
             imgs, w, strides=[1, stride, stride, stride, 1], padding='SAME')
 
@@ -372,9 +400,10 @@ def deconv1d(imgs,
              shape=[5],
              stride=2,
              name="deconv1d",
+             use_spectral_norm=False,
              summary=True):
 
-    weights_initializer = tf.contrib.layers.xavier_initializer()
+    weights_initializer = select_initializer()
     # was
     # weights_initializer = tf.random_normal_initializer(stddev=stddev)
     const = tf.constant_initializer(0.0)
@@ -385,7 +414,8 @@ def deconv1d(imgs,
             'w', [shape[0], output_shape[-1],
                   imgs.get_shape()[-1]],
             initializer=weights_initializer)
-
+        if use_spectral_norm:
+            w = spectral_norm(w)
         deconv = tf.contrib.nn.conv1d_transpose(
             imgs,
             w,
@@ -413,9 +443,10 @@ def deconv2d(imgs,
              shape=[5, 5],
              stride=2,
              name="deconv2d",
+             use_spectral_norm=False,
              summary=True):
 
-    weights_initializer = tf.contrib.layers.xavier_initializer()
+    weights_initializer = select_initializer()
     # was
     # weights_initializer = tf.random_normal_initializer(stddev=stddev)
     const = tf.constant_initializer(0.0)
@@ -426,7 +457,8 @@ def deconv2d(imgs,
             'w', [shape[0], shape[1], output_shape[-1],
                   imgs.get_shape()[-1]],
             initializer=weights_initializer)
-
+        if use_spectral_norm:
+            w = spectral_norm(w)
         deconv = tf.nn.conv2d_transpose(
             imgs,
             w,
@@ -455,9 +487,10 @@ def deconv3d(imgs,
              shape=[5, 5, 5],
              stride=2,
              name="deconv3d",
+             use_spectral_norm=False,
              summary=True):
 
-    weights_initializer = tf.contrib.layers.xavier_initializer()
+    weights_initializer = select_initializer()
     # was
     # weights_initializer = tf.random_normal_initializer(stddev=stddev)
     const = tf.constant_initializer(0.0)
@@ -470,7 +503,8 @@ def deconv3d(imgs,
                 imgs.get_shape()[-1]
             ],
             initializer=weights_initializer)
-
+        if use_spectral_norm:
+            w = spectral_norm(w)
         deconv = tf.nn.conv3d_transpose(
             imgs,
             w,
@@ -489,7 +523,7 @@ def deconv3d(imgs,
         return deconv
 
 
-def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_size=2, merge=False):
+def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_size=2, use_spectral_norm=False, merge=False):
     if data_size == 3:
         output_shape = [bs, sx, sx, sx, n_filters]
         deconv = deconv3d
@@ -508,6 +542,7 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
                           shape=shape[0],
                           stride=stride,
                           name='{}_deconv_1_by_1'.format(num),
+                          use_spectral_norm=use_spectral_norm,
                           summary=summary)
 
     tensor_3 = deconv(in_tensor,
@@ -515,6 +550,8 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
                           shape=shape[1],
                           stride=stride,
                           name='{}_deconv_3_by_3'.format(num),
+                          use_spectral_norm=use_spectral_norm,
+
                           summary=summary)
 
     tensor_5 = deconv(in_tensor,
@@ -522,6 +559,7 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
                           shape=shape[2],
                           stride=stride,
                           name='{}_deconv_5_by_5'.format(num),
+                          use_spectral_norm=use_spectral_norm,
                           summary=summary)
 
     out_tensor = tf.concat([tensor_1, tensor_3, tensor_5], axis=concat_axis)
@@ -533,11 +571,12 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
                           shape=shape[0],
                           stride=1,
                           name='{}_deconv_1_by_1_merge'.format(num),
+                          use_spectral_norm=use_spectral_norm,
                           summary=summary)
 
     return out_tensor
 
-def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, merge=False):
+def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, use_spectral_norm=False, merge=False):
     if data_size == 3:
         conv = conv3d
         shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
@@ -554,6 +593,7 @@ def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, merg
                     shape=shape[0],
                     stride=stride,
                     name='{}_conv_1_by_1'.format(num),
+                    use_spectral_norm=use_spectral_norm,
                     summary=summary)
 
     tensor_3 = conv(in_tensor,
@@ -561,6 +601,7 @@ def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, merg
                     shape=shape[1],
                     stride=stride,
                     name='{}_conv_3_by_3'.format(num),
+                    use_spectral_norm=use_spectral_norm,
                     summary=summary)
 
     tensor_5 = conv(in_tensor,
@@ -568,6 +609,7 @@ def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, merg
                  shape=shape[2],
                  stride=stride,
                  name='{}_conv_5_by_5'.format(num),
+                 use_spectral_norm=use_spectral_norm,
                  summary=summary)
 
     out_tensor = tf.concat([tensor_1, tensor_3, tensor_5], axis=concat_axis)
@@ -579,6 +621,7 @@ def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, merg
                         shape=shape[0],
                         stride=1,
                         name='{}_conv_1_by_1_merge'.format(num),
+                        use_spectral_norm=use_spectral_norm,
                         summary=summary)
 
     return out_tensor
@@ -587,7 +630,7 @@ def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, merg
 def linear(input_, output_size, scope=None, summary=True):
     shape = input_.get_shape().as_list()
 
-    weights_initializer = tf.contrib.layers.xavier_initializer()
+    weights_initializer = select_initializer()
     const = tf.constant_initializer(0.0)
 
     with tf.variable_scope(scope or "Linear"):
@@ -644,7 +687,7 @@ def tf_cdf(x, n_out, name='cdf_weight', diff_weight=10, use_first_channel=True):
     #     tf.reshape(wi, shape=[1, 1, n_out]),
     #     name='cdf_weight_right',
     #     dtype=tf.float32)
-    weights_initializer = tf.contrib.layers.xavier_initializer()
+    weights_initializer = select_initializer()
     wr = _tf_variable(
         name+'_right',
         shape=[1, 1, n_out],
@@ -692,6 +735,43 @@ def tf_covmat(x, shape):
     c = 1/tf.cast(nx, tf.float32)*tf.matmul(tf.transpose(conv_vec,perm=[0,2,1]), conv_vec)
     return c
 
+
+# def learned_histogram(x, params):
+#     """A learned histogram layer.
+
+#     The center and width of each bin is optimized.
+#     One histogram is learned per feature map.
+#     """
+#     # Shape of x: #samples x #nodes x #features.
+#     bins = params.get('bins', 20)
+#     initial_range = params.get('initial_range', 2)
+#     data_size = params.get('data_size', 2)
+
+#         w = _tf_variable(
+#             'w', [shape[0], shape[1],
+#                   imgs.get_shape()[-1], nf_out],
+#             initializer=weights_initializer)
+#         conv = tf.nn.conv2d(x, w, strides=[1, 1, 1, 1], padding='SAME')
+
+#         biases = _tf_variable('biases', [nf_out], initializer=const)
+#         conv = tf.nn.bias_add(conv, biases)
+#     centers = tf.linspace(float(0), initial_range, bins, name='range')
+#     centers = tf.expand_dims(centers, axis=1)
+#     centers = tf.tile(centers, [1, n_features])  # One histogram per feature channel.
+#     centers = tf.Variable(
+#         tf.reshape(tf.transpose(centers), shape=[1, 1, n_features, bins]),
+#         name='centers', dtype=tf.float32)
+#     # width = bins * initial_range / 4  # 50% overlap between bins.
+#     width = 1 / initial_range  # 50% overlap between bins.
+#     widths = tf.get_variable(
+#         name='widths', shape=[1, 1, n_features, bins], dtype=tf.float32,
+#         initializer=tf.initializers.constant(value=width, dtype=tf.float32))
+#     x = tf.expand_dims(x, axis=3)
+#     # All are rank-4 tensors: samples, nodes, features, bins.
+#     widths = tf.abs(widths)
+#     dist = tf.abs(x - centers)
+#     hist = tf.reduce_mean(tf.nn.relu(1 - dist * widths), axis=1)
+#     return tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])
 
 def learned_histogram(x, params):
     """A learned histogram layer.
