@@ -5,7 +5,7 @@ from gantools.model import UpscalePatchWGAN, CosmoWGAN
 from gantools.gansystem import GANsystem
 
 ns = 32
-try_resume = False
+try_resume = True
 latent_dim = 32 * 32 * 32
 
 time_str = '32_to_64_new'
