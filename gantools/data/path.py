@@ -10,7 +10,7 @@ def root_path():
     hostname = socket.gethostname()
     # Check if we are on pizdaint
     if 'nid' in hostname:
-        rootpath = '/scratch/snx1600/nperraud/pre_processed_data/' 
+        rootpath = '/scratch/snx3000/nperraud/pre_processed_data/' 
     elif 'omenx' in hostname:
         rootpath = '/store/nati/datasets/cosmology/pre_processed_data/'         
     else:
@@ -25,7 +25,7 @@ def celeba_path():
     hostname = socket.gethostname()
     # Check if we are on pizdaint
     if 'nid' in hostname:
-        rootpath = '/scratch/snx1600/nperraud/celeba/'
+        rootpath = '/scratch/snx3000/nperraud/celeba/'
     elif 'omenx' in hostname:
         rootpath = '/store/nati/dataset/downsampled-celeba/'
     else:
@@ -37,7 +37,7 @@ def medical_path():
     hostname = socket.gethostname()
     # Check if we are on pizdaint
     if 'nid' in hostname:
-        rootpath = '/scratch/snx1600/nperraud/pre_processed_medical_data/'
+        rootpath = '/scratch/snx3000/nperraud/pre_processed_medical_data/'
     elif 'omenx' in hostname:
         rootpath = '/store/nati/datasets/pre_processed_medical_data/'
     else:
@@ -49,7 +49,7 @@ def medical_path():
 def nsynth_path():
     hostname = socket.gethostname()
     if ('nid' in hostname) or ('daint' in hostname):
-        rootpath = '/scratch/snx1600/nperraud/data/'
+        rootpath = '/scratch/snx3000/nperraud/data/'
     elif 'omenx' in hostname:
         rootpath = '/store/nati/datasets/Nsynth-gan/'
     else:
@@ -62,7 +62,7 @@ def nsynth_path():
 def piano_path():
     hostname = socket.gethostname()
     if ('nid' in hostname) or ('daint' in hostname):
-        rootpath = '/scratch/snx1600/nperraud/data/'
+        rootpath = '/scratch/snx3000/nperraud/data/'
     elif 'omenx' in hostname:
         rootpath = '/store/nati/datasets/piano/'
     else:
