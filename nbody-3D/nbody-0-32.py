@@ -8,9 +8,9 @@ from gantools.gansystem import GANsystem
 
 ns = 32
 try_resume = True
-latent_dim = 100
+latent_dim = 256
 
-time_str = '0_to_32'
+time_str = '0_to_32_new'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
@@ -27,6 +27,7 @@ params_discriminator['full'] = []
 params_discriminator['summary'] = True
 params_discriminator['minibatch_reg'] = False
 params_discriminator['data_size'] = 3
+params_discriminator['spectral_norm'] = True
 
 params_generator = dict()
 params_generator['stride'] = [1, 2, 2, 2, 1, 1, 1, 1]
@@ -38,12 +39,21 @@ params_generator['full'] = [4 * 4 * 4 * 8]
 params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
 params_generator['data_size'] = 3
-# params_generator['activation'] = blocks.selu
+params_generator['spectral_norm'] = True
 
 params_optimization = dict()
 params_optimization['n_critic'] = 10
 params_optimization['batch_size'] = 8
 params_optimization['epoch'] = 10000
+params_optimization['n_critic'] = 2
+params_optimization['generator'] = dict()
+params_optimization['generator']['optimizer'] = 'adam'
+params_optimization['generator']['kwargs'] = {'beta1':0, 'beta2':0.9}
+params_optimization['generator']['learning_rate'] = 0.0004
+params_optimization['discriminator'] = dict()
+params_optimization['discriminator']['optimizer'] = 'adam'
+params_optimization['discriminator']['kwargs'] = {'beta1':0, 'beta2':0.9}
+params_optimization['discriminator']['learning_rate'] = 0.0001
 
 params_cosmology = dict()
 params_cosmology['forward_map'] = data.fmap.log_norm_forward

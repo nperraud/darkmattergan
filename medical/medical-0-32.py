@@ -10,10 +10,10 @@ def non_lin(x):
 
 ns = 32
 try_resume = True
-latent_dim = 100
+latent_dim = 256
 
 time_str = '0_to_32_new'
-global_path = '../saved_result/medical/'
+global_path = '../saved_results/medical/'
 name = 'WGAN_' + time_str
 
 bn = False
@@ -76,7 +76,6 @@ resume, params = utils.test_resume(try_resume, params)
 
 wgan = GANsystem(WGAN, params)
 
-dataset = data.load.load_medical_dataset(
-    spix=ns, scaling=8, patch=False, augmentation=True)
+dataset = data.load.load_medical_dataset(spix=ns, scaling=8, patch=False, augmentation=True)
 
 wgan.train(dataset, resume=resume)

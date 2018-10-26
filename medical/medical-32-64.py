@@ -14,7 +14,7 @@ try_resume = True
 latent_dim = 32 * 32 * 32
 
 time_str = '32_to_64_new'
-global_path = '../saved_result/medical/'
+global_path = '../saved_results/medical/'
 name = 'WGAN_' + time_str
 
 bn = False
