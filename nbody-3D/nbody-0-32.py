@@ -7,7 +7,7 @@ from gantools.gansystem import GANsystem
 # In[5]:
 
 ns = 32
-try_resume = True
+try_resume = False
 latent_dim = 256
 
 time_str = '0_to_32_new'
@@ -37,7 +37,7 @@ params_generator['inception'] = True
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn]
 params_generator['full'] = [4 * 4 * 4 * 8]
 params_generator['summary'] = True
-params_generator['non_lin'] = tf.nn.relu
+params_generator['non_lin'] = None
 params_generator['data_size'] = 3
 params_generator['spectral_norm'] = True
 
