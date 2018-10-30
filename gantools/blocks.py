@@ -198,6 +198,7 @@ def down_sampler(x=None, s=2, size=None):
     Op to downsample 2D or 3D images by factor 's'.
     This method works for both inputs: tensor or placeholder
     '''
+
     if size is None:
         size = utils.get_data_size(x)
 
@@ -221,15 +222,21 @@ def down_sampler(x=None, s=2, size=None):
         down_sampler_x = x
         op_name = None
 
-
     if size==3:
         filt = tf.constant(1 / (s * s * s), dtype=tf.float32, shape=[s, s, s, 1, 1])
         return tf.nn.conv3d(down_sampler_x, filt, strides=[1, s, s, s, 1], padding='SAME', name=op_name)
 
     elif size==2:
         filt = tf.constant(1 / (s * s), dtype=tf.float32, shape=[s, s, 1, 1])
-        return tf.nn.conv2d(down_sampler_x, filt, strides=[1, s, s, 1], padding='SAME', name=op_name)
-
+        if down_sampler_x.shape[-1]==1:
+            return tf.nn.conv2d(down_sampler_x, filt, strides=[1, s, s, 1], padding='SAME', name=op_name)
+        else:
+            res = []
+            for sl in tf.split(down_sampler_x, down_sampler_x.shape[-1], axis=3):
+                if op_name is not None:
+                    op_name += 'I'
+                res.append(tf.nn.conv2d(sl, filt, strides=[1, s, s, 1], padding='SAME', name=op_name))
+            return tf.concat(res, axis=3)
     else:
         filt = tf.constant(1 / s, dtype=tf.float32, shape=[s, 1, 1])
         return tf.nn.conv1d(down_sampler_x, filt, stride=s, padding='SAME', name=op_name)
@@ -255,13 +262,24 @@ def up_sampler(x, s=2, size=None):
             padding='SAME')
     elif size == 2:
         filt = tf.constant(1, dtype=tf.float32, shape=[s, s, 1, 1])
-        output_shape = [bs, dims[0] * s, dims[1] * s, dims[2]]
-        return tf.nn.conv2d_transpose(
-            x,
-            filt,
-            output_shape=output_shape,
-            strides=[1, s, s, 1],
-            padding='SAME')
+        output_shape = [bs, dims[0] * s, dims[1] * s, 1]
+        if dims[-1]==1:
+            return tf.nn.conv2d_transpose(
+                x,
+                filt,
+                output_shape=output_shape,
+                strides=[1, s, s, 1],
+                padding='SAME')
+        else:
+            res = []
+            for sl in tf.split(x, dims[-1], axis=3):
+                res.append(tf.nn.conv2d_transpose(
+                    sl,
+                    filt,
+                    output_shape=output_shape,
+                    strides=[1, s, s, 1],
+                    padding='SAME'))
+            return tf.concat(res, axis=3)
     else:
         filt = tf.constant(1, dtype=tf.float32, shape=[s, 1, 1])
         output_shape = [bs, dims[0] * s, dims[1]]
