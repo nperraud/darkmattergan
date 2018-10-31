@@ -269,7 +269,10 @@ def load_medical_dataset(
     post_transform = fmap.medical_forward
 
     if augmentation:
-        t = partial(transformation.random_transformation_3d, roll=False, spix=spix)
+        if scaling==1:
+            t = partial(transformation.random_transformation_3d, roll=False, spix=512)
+        else:
+            t = partial(transformation.random_transformation_3d, roll=False, spix=spix)
     else:
         t = do_nothing
 
