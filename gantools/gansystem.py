@@ -414,10 +414,10 @@ class UpcaleGANsystem(GANsystem):
                 lz = small.shape[3]
 
             # Input dimension of the generator
-            sinx = soutx // self.params['net']['upsampling']
-            siny = souty // self.params['net']['upsampling']
+            sinx = soutx // self.params['net']['upscaling']
+            siny = souty // self.params['net']['upscaling']
             if self.net.data_size==3:
-                sinz = soutz // self.params['net']['upsampling']
+                sinz = soutz // self.params['net']['upscaling']
 
             # Number of part to be generated
             nx = lx // sinx
