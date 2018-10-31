@@ -315,7 +315,7 @@ class LapWGAN(WGAN):
         d_params = deepcopy(super().default_params())
         d_params['shape'] = [32, 32, 1] # Shape of the image
         bn = False
-        d_params['upsampling'] = 2
+        d_params['upscaling'] = 2
         d_params['generator']['latent_dim'] = 32*32
         d_params['generator']['full'] = []
         d_params['generator']['nfilter'] = [16, 32, 32, 1]
@@ -331,11 +331,11 @@ class LapWGAN(WGAN):
     def _build_generator(self):
         shape = self._params['shape']
         self.X_real = tf.placeholder(tf.float32, shape=[None, *shape], name='Xreal')
-        self.upsampling = self.params['upsampling']
-        X_down = down_sampler(self.X_real, s=self.upsampling)
+        self.upscaling = self.params['upscaling']
+        X_down = down_sampler(self.X_real, s=self.upscaling)
         inshape = X_down.shape.as_list()[1:]
         self.X_down = tf.placeholder_with_default(X_down, shape=[None, *inshape], name='y')
-        self.X_smooth = up_sampler(self.X_down, s=self.upsampling)
+        self.X_smooth = up_sampler(self.X_down, s=self.upscaling)
         self.z = tf.placeholder(
             tf.float32,
             shape=[None, self.params['generator']['latent_dim']],
@@ -384,7 +384,7 @@ class UpscalePatchWGAN(WGAN):
         d_params = deepcopy(super().default_params())
         d_params['shape'] = [16, 16, 4] # Shape of the input data (1 image and 3 borders)
         bn = False
-        d_params['upsampling'] = None
+        d_params['upscaling'] = None
         d_params['generator']['latent_dim'] = 16*16
         d_params['generator']['full'] = []
         d_params['generator']['nfilter'] = [16, 32, 32, 1]
@@ -397,8 +397,8 @@ class UpscalePatchWGAN(WGAN):
 
     def __init__(self, params, name='upscale_patch_wgan'):
         super().__init__(params=params, name=name)
-        assert(not(self.params['upsampling']==1))
-        if self.params['upsampling']:
+        assert(not(self.params['upscaling']==1))
+        if self.params['upscaling']:
             self._inputs = (self.z, self.borders)
         self._outputs = (self.X_fake_corner)
 
@@ -428,32 +428,35 @@ class UpscalePatchWGAN(WGAN):
         
         # B) Split the borders
         border_list = tf.split(self.borders, o, axis=axis)
-        # C) Handling downsampling
-        if self.params['upsampling']:
-            self.upsampling = self.params['upsampling']
-            X_down = down_sampler(self.X_real_corner, s=self.upsampling)
-            inshape = X_down.shape.as_list()[1:]
-            self.X_down = tf.placeholder_with_default(X_down, shape=[None, *inshape], name='y')
-            self.X_smooth = up_sampler(self.X_down, s=self.upsampling)
-        else:
-            self.X_smooth = None
-
         # D) Flip the borders
-
         flipped_border_list = tf_flip_slices(*border_list, size=self.data_size)
 
-        # E) Generater the corner
-        self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list, X=self.X_smooth, reuse=False)
+        # C) Handling downsampling
+        if self.params['upscaling']:
+            self.upscaling = self.params['upscaling']
+            X_down = down_sampler(self.X_real_corner, s=self.upscaling)
+            inshape = X_down.shape.as_list()[1:]
+            self.X_down = tf.placeholder_with_default(X_down, shape=[None, *inshape], name='y')
+            self.X_smooth = up_sampler(self.X_down, s=self.upscaling)
+            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list, X=self.X_smooth, reuse=False)
+
+        else:
+            self.X_smooth = None
+            # E) Generater the corner
+            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list, reuse=False)
+
+
+
         
         #F) Recreate the big images
         self.X_real = tf_patch2img(self.X_real_corner, *border_list, size=self.data_size)
         self.X_fake = tf_patch2img(self.X_fake_corner, *border_list, size=self.data_size)
 
-        if self.params['upsampling']:
-            self.X_down_up = up_sampler(down_sampler(self.X_real, s=self.upsampling),s=self.upsampling)
+        if self.params['upscaling']:
+            self.X_down_up = up_sampler(down_sampler(self.X_real, s=self.upscaling),s=self.upscaling)
 
     def discriminator(self, X, **kwargs):
-        if self.params['upsampling']:
+        if self.params['upscaling']:
             axis = self.data_size + 1
             v = tf.concat([X, self.X_down_up, X-self.X_down_up], axis=axis)
         else:
@@ -472,7 +475,7 @@ class UpscalePatchWGAN(WGAN):
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         feed_dict = super().compute_summaries(self._get_corner(X_real), self._get_corner(X_fake), feed_dict)
-        if self.data_size==1 and self.params['upsampling']:
+        if self.data_size==1 and self.params['upscaling']:
             X_smooth = self.X_smooth.eval(feed_dict=feed_dict)
             feed_dict = self._plot_down.compute_summary(np.squeeze(X_smooth), feed_dict=feed_dict)
         return feed_dict
@@ -486,7 +489,7 @@ class UpscalePatchWGAN(WGAN):
 
     def _build_image_summary(self):
         super()._build_image_summary()
-        if self.params['upsampling']:
+        if self.params['upscaling']:
             vmin = tf.reduce_min(self.X_real)
             vmax = tf.reduce_max(self.X_real)
             if self.data_size==3:
@@ -516,7 +519,7 @@ class UpscalePatchWGAN(WGAN):
                 return generator_border(z, X=X, y=newy, params=self.params['generator'], **kwargs)
             else:
                 axis = self.data_size +1
-                if self.params['upsampling']:
+                if self.params['upscaling']:
                     if self.data_size==1:
                         newX = tf.concat([X, y], axis=axis)
                     else:
@@ -615,7 +618,7 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
         else:
             axis=2
             o = 1
-        if self.params['upsampling']:
+        if self.params['upscaling']:
             self.X_real, self.X_down_up = tf.split(self.X_data, [1,1], axis=axis)
             if self.data_size==1:
                 middle = self.X_down_up.shape.as_list()[1]//2
