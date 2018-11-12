@@ -5,7 +5,7 @@ from gantools.model import UpscalePatchWGAN, CosmoWGAN
 from gantools.gansystem import GANsystem
 
 ns = 32
-try_resume = True
+try_resume = False
 latent_dim = 32 * 32 * 32
 
 time_str = '32_to_64'
@@ -35,7 +35,7 @@ params_generator['inception'] = True
 params_generator['batch_norm'] = [bn, bn, bn, bn, bn]
 params_generator['full'] = []
 params_generator['summary'] = True
-params_generator['non_lin'] = tf.nn.relu
+params_generator['non_lin'] = None
 params_generator['data_size'] = 3
 params_generator['spectral_norm'] = True
 

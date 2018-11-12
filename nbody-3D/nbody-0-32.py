@@ -7,7 +7,7 @@ from gantools.gansystem import GANsystem
 # In[5]:
 
 ns = 32
-try_resume = False
+try_resume = True
 latent_dim = 256
 
 time_str = '0_to_32'

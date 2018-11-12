@@ -1,6 +1,7 @@
 #!/bin/bash -l
 #SBATCH --time=23:59:00
 #SBATCH --nodes=1
+#SBATCH --account=sd01
 #SBATCH --ntasks=1
 #SBATCH --constraint=gpu
 #SBATCH --output=nbody-32-%j.log

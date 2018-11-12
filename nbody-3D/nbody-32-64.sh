@@ -3,6 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --constraint=gpu
+#SBATCH --account=sd01
 #SBATCH --output=nbody-64-%j.log
 #SBATCH --error=nbody-64-e-%j.log
 
