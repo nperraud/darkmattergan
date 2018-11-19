@@ -335,7 +335,7 @@ class LapWGAN(WGAN):
         X_down = down_sampler(self.X_real, s=self.upscaling)
         inshape = X_down.shape.as_list()[1:]
         self.X_down = tf.placeholder_with_default(X_down, shape=[None, *inshape], name='y')
-        self.X_smooth = up_sampler(self.X_down, s=self.upscaling)
+        self.X_smooth = up_sampler(self.X_down, s=self.upscaling, smoothout=True)
         self.z = tf.placeholder(
             tf.float32,
             shape=[None, self.params['generator']['latent_dim']],
@@ -521,6 +521,7 @@ class UpscalePatchWGAN(WGAN):
                 axis = self.data_size +1
                 if self.params['upscaling']:
                     if self.data_size==1:
+                        # y = remove_center(y, self.data_size)
                         newX = tf.concat([X, y], axis=axis)
                     else:
                         newX = tf.concat([X, *y], axis=axis)
@@ -528,6 +529,16 @@ class UpscalePatchWGAN(WGAN):
                     newX = tf.concat(y, axis=axis)
                 return generator(z, X=newX, params=self.params['generator'], **kwargs)
 
+# def remove_center(X, data_size):
+#     '''Only keep the last pixel and set the center to 0.'''
+#     zt = np.zeros([1,*X.shape[1:data_size+1], 1], dtype=tf.float32)
+#     for i in range(data_size):
+#         axis = i + 1
+#         slc = [slice(None)] * len(X.shape)
+#         slc[axis] = slice(0,X.shape[1+i], X.shape[1+i]-1)
+#         zt[slc] = 1
+#     zt = tf.convert_to_tensor(zt, np.float32)
+#     return X*zt
 
 # class UpscalePatchWGANBordersOld(UpscalePatchWGAN):
 #     '''

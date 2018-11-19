@@ -432,7 +432,8 @@ class UpcaleGANsystem(GANsystem):
             else:
                 nx = resolution // soutx
                 ny = resolution // souty
-                nz = resolution // soutz
+                if self.net.data_size==3:
+                    nz = resolution // soutz
 
         # If no session passed, create a new one and load a checkpoint.
         if sess is None:
@@ -455,6 +456,7 @@ class UpcaleGANsystem(GANsystem):
         return np.squeeze(output_image)
     def generate_3d_output(self, sess, N, nx, ny, nz, soutx, souty, soutz, small,
                            sinx, siny, sinz):
+        # this function does only support 1 channel image
         output_image = np.zeros(
             shape=[N, soutz * nz, souty * ny, soutx * nx, 1], dtype=np.float32)
         output_image[:] = np.nan
@@ -531,25 +533,26 @@ class UpcaleGANsystem(GANsystem):
 
     def generate_2d_output(self, sess, N, nx, ny, soutx, souty, small, sinx,
                            siny):
+        nc = self.net.params['shape'][-1]//4 # number of channel for the image
         output_image = np.zeros(
-            shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
+            shape=[N, soutx * nx, souty * ny, nc], dtype=np.float32)
         output_image[:] = np.nan
 
         for j in range(ny):
             for i in range(nx):
                 # 1) Generate the border
-                border = np.zeros([N, soutx, souty, 3])
+                border = np.zeros([N, soutx, souty, 3*nc])
                 if i:
-                    border[:, :, :, :1] = output_image[:, (i - 1) * soutx:i * soutx, j * souty:(j + 1) * souty, :]
+                    border[:, :, :, :nc] = output_image[:, (i - 1) * soutx:i * soutx, j * souty:(j + 1) * souty, :]
                 if j:
-                    border[:, :, :, 1:2] = output_image[:, i * soutx:(i + 1) * soutx, (j - 1) * souty:j * souty, :]
+                    border[:, :, :, nc:2*nc] = output_image[:, i * soutx:(i + 1) * soutx, (j - 1) * souty:j * souty, :]
                 if i and j:
-                    border[:, :, :, 2:3] = output_image[:, (i - 1) * soutx:i * soutx, (j - 1) * souty:j * souty, :]
+                    border[:, :, :, 2*nc:3*nc] = output_image[:, (i - 1) * soutx:i * soutx, (j - 1) * souty:j * souty, :]
 
                 if small is not None:
                     # 2) Prepare low resolution
                     downsampled = np.expand_dims(
-                        small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3)
+                        small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3*nc)
                 else:
                     downsampled = None
 

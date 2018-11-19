@@ -241,7 +241,7 @@ def down_sampler(x=None, s=2, size=None):
         filt = tf.constant(1 / s, dtype=tf.float32, shape=[s, 1, 1])
         return tf.nn.conv1d(down_sampler_x, filt, stride=s, padding='SAME', name=op_name)
 
-def up_sampler(x, s=2, size=None):
+def up_sampler(x, s=2, size=None, smoothout=False):
     if size is None:
         size = utils.get_data_size(x)
 
@@ -264,21 +264,39 @@ def up_sampler(x, s=2, size=None):
         filt = tf.constant(1, dtype=tf.float32, shape=[s, s, 1, 1])
         output_shape = [bs, dims[0] * s, dims[1] * s, 1]
         if dims[-1]==1:
-            return tf.nn.conv2d_transpose(
+            x = tf.nn.conv2d_transpose(
                 x,
                 filt,
                 output_shape=output_shape,
                 strides=[1, s, s, 1],
                 padding='SAME')
+            if smoothout:
+                paddings = tf.constant([[0,0],[s//2-1, s//2-1], [ s//2,  s//2], [0,0]])
+                x = tf.pad(x, paddings, "SYMMETRIC")
+                x = tf.nn.conv2d(
+                    x,
+                    filt/(s*s),
+                    strides=[1, 1, 1, 1],
+                    padding='VALID')
+            return x
         else:
             res = []
             for sl in tf.split(x, dims[-1], axis=3):
-                res.append(tf.nn.conv2d_transpose(
+                tx = tf.nn.conv2d_transpose(
                     sl,
                     filt,
                     output_shape=output_shape,
                     strides=[1, s, s, 1],
-                    padding='SAME'))
+                    padding='SAME')
+                if smoothout:
+                    paddings = tf.constant([[0,0],[s//2-1, s//2], [ s//2-1,  s//2], [0,0]])
+                    tx = tf.pad(tx, paddings, "SYMMETRIC")
+                    tx = tf.nn.conv2d(
+                        tx,
+                        filt/(s*s),
+                        strides=[1, 1, 1, 1],
+                        padding='VALID')
+                res.append(tx)
             return tf.concat(res, axis=3)
     else:
         filt = tf.constant(1, dtype=tf.float32, shape=[s, 1, 1])
