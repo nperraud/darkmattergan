@@ -5,6 +5,7 @@ import numpy as np
 import time
 import itertools
 from copy import deepcopy
+import yaml
 
 from tfnntools.nnsystem import NNSystem
 
@@ -57,19 +58,22 @@ class GANsystem(NNSystem):
 
         if self._net.has_encoder:
             varsuffixes = ['discriminator', 'generator', 'encoder']
-        else:            
+        else:
             varsuffixes = ['discriminator', 'generator']
 
         losses = self._net.loss
         t_vars = tf.trainable_variables()
-        self._optimize = [] 
+        self._optimize = []
 
         # global_step = tf.Variable(0, name="global_step", trainable=False)
+        print('\nBuild the optimizers: ')
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             for index, varsuffix in enumerate(varsuffixes):
+                print(' * {} '.format(varsuffix))
                 s_vars = [var for var in t_vars if varsuffix in var.name]
                 params = self.params['optimization'][varsuffix]
+                print(yaml.dump(params))
                 optimizer = self.build_optmizer(params)
                 grads_and_vars = optimizer.compute_gradients(losses[index], var_list=s_vars)
                 apply_opt = optimizer.apply_gradients(grads_and_vars)

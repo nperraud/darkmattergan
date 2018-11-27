@@ -117,8 +117,9 @@ class WGAN(BaseGAN):
         self._data_size = self.params['generator']['data_size']
         assert(self.params['discriminator']['data_size'] == self.data_size)
         reduction = np.prod(np.array(self.params['generator']['stride']))
-        in_conv_shape = [el//reduction for el in self.params['shape'][:-1]]
-        self._params['generator']['in_conv_shape'] = in_conv_shape
+        if 'in_conv_shape' not in self.params['generator'].keys():
+            in_conv_shape = [el//reduction for el in self.params['shape'][:-1]]
+            self._params['generator']['in_conv_shape'] = in_conv_shape
   
         self._build_generator()
         self._D_fake = self.discriminator(self.X_fake, reuse=False)
@@ -276,6 +277,47 @@ class WGAN(BaseGAN):
     @property
     def data_size(self):
         return self._data_size
+
+class InpaintingGAN(WGAN):
+    def default_params(self):
+        d_params = deepcopy(super().default_params())
+        d_params['inpainting'] = dict()
+        v = 4096 + 2048
+        d_params['inpainting']['split'] = [v, 4096, v]
+        return d_params
+
+    def __init__(self, params, name='inpaint_gan'):
+        # Only works with 1D signal for now
+        assert(params['generator']['data_size']==1)
+        super().__init__(params=params, name=name)
+        self._inputs = (self.z, self.borders)
+        self._outputs = (self.X_fake)
+
+    def _build_generator(self):
+        shape = self._params['shape']
+        self.X_real = tf.placeholder(tf.float32, shape=[None, *shape], name='Xreal')
+        self.z = tf.placeholder(
+            tf.float32,
+            shape=[None, self.params['generator']['latent_dim']],
+            name='z')
+
+        borderleft, self.center_real, borderright = tf.split(self.X_real, self.params['inpainting']['split'], axis=1)
+        borders = tf.concat([borderleft,borderright], axis=2)
+        inshape = borders.shape.as_list()[1:]
+        self.borders = tf.placeholder_with_default(borders, shape=[None, *inshape], name='borders')
+        
+        self.X_fake_center = self.generator(self.z,  y=self.borders, reuse=False)
+        self.X_fake = tf.concat([self.borders[:,:,0:1], self.X_fake_center, self.borders[:,:,1:2]], axis=1)
+
+    # def _build_net(self):
+    #     super()._build_net()
+
+    #     self._inputs = (self.z, self.borders)
+    #     self._outputs = (self.X_fake)
+
+    def generator(self, z, y, **kwargs):
+        return generator_border(z, y=y, params=self.params['generator'], **kwargs)
+
 
 class CosmoWGAN(WGAN):
     def default_params(self):
