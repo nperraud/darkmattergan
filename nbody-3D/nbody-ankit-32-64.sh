@@ -4,8 +4,8 @@
 #SBATCH --account=sd01
 #SBATCH --ntasks=1
 #SBATCH --constraint=gpu
-#SBATCH --output=nbody-ankit-32-%j.log
-#SBATCH --error=nbody-ankit-32-e-%j.log
+#SBATCH --output=nbody-ankit-64-%j.log
+#SBATCH --error=nbody-ankit-364-e-%j.log
 
 module load daint-gpu
 module load cray-python
@@ -14,4 +14,4 @@ module load TensorFlow/1.7.0-CrayGNU-18.08-cuda-9.1-python3
 source $HOME/upgan/bin/activate
 
 cd $SCRATCH/CodeGAN/nbody-3D/
-srun python nbody-ankit-0-32.py
+srun python nbody-ankit-32-64.py
