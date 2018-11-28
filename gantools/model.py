@@ -58,7 +58,7 @@ class WGAN(BaseGAN):
         d_params['shape'] = [16, 16, 1] # Shape of the image
         d_params['prior_distribution'] = 'gaussian' # prior distribution
         d_params['gamma_gp'] = 10 
-        d_params['loss_type'] = 'hinge'  # 'hinge' or 'wasserstein'
+        d_params['loss_type'] = 'wasserstein'  # 'hinge' or 'wasserstein'
 
         bn = False
 
