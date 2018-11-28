@@ -23,7 +23,7 @@ params_discriminator = {
     'non_lin': None,
     'one_pixel_mapping': [],
     'stride': [2, 2, 2, 1, 1, 1],
-    'summary': True},
+    'summary': True}
 
 params_generator = {
     'batch_norm': [False, False, False, False, False, False, False],
