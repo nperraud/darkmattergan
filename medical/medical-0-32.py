@@ -12,7 +12,7 @@ ns = 32
 try_resume = True
 latent_dim = 256
 
-time_str = '0_to_32_new'
+time_str = '0_to_32'
 global_path = '../saved_results/medical/'
 name = 'WGAN_' + time_str
 
@@ -45,7 +45,7 @@ params_generator['spectral_norm'] = True
 params_optimization = dict()
 params_optimization['n_critic'] = 10
 params_optimization['batch_size'] = 8
-params_optimization['epoch'] = 10000
+params_optimization['epoch'] = 100000
 params_optimization['n_critic'] = 2
 params_optimization['generator'] = dict()
 params_optimization['generator']['optimizer'] = 'adam'
@@ -73,6 +73,7 @@ params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 params['Nstats'] = 10
 
 resume, params = utils.test_resume(try_resume, params)
+params['optimization']['epoch'] = 100000
 
 wgan = GANsystem(WGAN, params)
 

@@ -13,7 +13,7 @@ ns = 32
 try_resume = True
 latent_dim = 32 * 32 * 32
 
-time_str = '32_to_64'
+time_str = 'uniscale'
 global_path = '../saved_results/medical/'
 name = 'WGAN_' + time_str
 
@@ -64,7 +64,6 @@ params['net']['shape'] = [ns, ns, ns, 8]
 params['net']['generator'] = params_generator
 params['net']['gamma'] = 10
 params['net']['discriminator'] = params_discriminator
-params['net']['upscaling'] = 2
 params['net']['loss'] = 'hinge' # loss ('hinge' or 'wasserstein')
 
 params['optimization'] = params_optimization
@@ -79,6 +78,6 @@ resume, params = utils.test_resume(try_resume, params)
 
 wgan = GANsystem(UpscalePatchWGAN, params)
 
-dataset = data.load.load_medical_dataset(spix=ns, scaling=4, patch=True, augmentation=True)
+dataset = data.load.load_medical_dataset(spix=ns, scaling=1, patch=True, augmentation=True)
 
 wgan.train(dataset, resume=resume)
