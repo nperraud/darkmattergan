@@ -190,7 +190,7 @@ class WGAN(BaseGAN):
             D_gp = gamma * tf.square(norm_gradient_pen - 1.0)
             tf.summary.scalar("Disc/GradPen", D_gp, collections=["train"])
             tf.summary.scalar("Disc/NormGradientPen", norm_gradient_pen, collections=["train"])
-            print(" Using gradients clipping")
+            print(" Using gradients penalty")
 
         return D_gp
 
@@ -551,25 +551,25 @@ class UpscalePatchWGAN(WGAN):
                 collections=['model'])
 
     def generator(self, z, y, X=None, **kwargs):
-        if self.params['generator']['use_old_gen']:
-            print('Using old generator...')
-            return generator_up(z, X=X, y=y, params=self.params['generator'], **kwargs, scope='generator')
+#         if self.params['generator']['use_old_gen']:
+#             print('Using old generator...')
+#             return generator_up(z, X=X, y=y, params=self.params['generator'], **kwargs, scope='generator')
+#         else:
+        if self.params['generator'].get('borders', None):
+            axis = self.data_size + 1
+            newy = tf.concat(y, axis=axis)
+            return generator_border(z, X=X, y=newy, params=self.params['generator'], **kwargs)
         else:
-            if self.params['generator'].get('borders', None):
-                axis = self.data_size + 1
-                newy = tf.concat(y, axis=axis)
-                return generator_border(z, X=X, y=newy, params=self.params['generator'], **kwargs)
-            else:
-                axis = self.data_size +1
-                if self.params['upscaling']:
-                    if self.data_size==1:
-                        # y = remove_center(y, self.data_size)
-                        newX = tf.concat([X, y], axis=axis)
-                    else:
-                        newX = tf.concat([X, *y], axis=axis)
+            axis = self.data_size +1
+            if self.params['upscaling']:
+                if self.data_size==1:
+                    # y = remove_center(y, self.data_size)
+                    newX = tf.concat([X, y], axis=axis)
                 else:
-                    newX = tf.concat(y, axis=axis)
-                return generator(z, X=newX, params=self.params['generator'], **kwargs)
+                    newX = tf.concat([X, *y], axis=axis)
+            else:
+                newX = tf.concat(y, axis=axis)
+            return generator(z, X=newX, params=self.params['generator'], **kwargs)
 
 # def remove_center(X, data_size):
 #     '''Only keep the last pixel and set the center to 0.'''
