@@ -10,7 +10,7 @@ def medical_forward(x):
     return np.clip(((x+1)/257.0), 1/257, 1-1/257).astype(np.float32)
 
 def medical_backward(y):
-    return np.round(np.clip(y*257.0-1, 0, 255))
+    return np.clip(y*257.0-1, 0, 255)
 
 def log_norm_forward_0(x, c=8000.0):
     if not type(x).__module__ == np.__name__:
@@ -43,7 +43,7 @@ def log_norm_backward_0(y, c=8000.0):
 
     res[maski] = np.exp(y[maski] + np.log(c + 1)) - 1
     res[mask] = ((y[mask] + 1) * (c + 1)) - 1
-    return np.round(res)
+    return res
 
 def log_norm_backward(y, c=8000.0, scale=6.0):
     shift = log_norm_forward_0(0.0, c)
@@ -95,7 +95,7 @@ def gauss_backward(x, shift=0, clip_max=1e6):
         c = 0.0
     cg = scipy.special.erf(np.sqrt(2) * (x + c))
     y = 1 / (1 - cg)
-    return np.round(y - 1 - shift)
+    return y - 1 - shift
 
 
 def log_forward(X, shift=1.0):
@@ -104,7 +104,7 @@ def log_forward(X, shift=1.0):
 def log_backward(Xmap, clip_max=1e7, shift=1.0):
     Xmap = np.clip(Xmap, 0, log_forward(clip_max))
     tmp = np.exp(Xmap + shift) - np.e**shift
-    return np.round(tmp * tmp)
+    return tmp * tmp
 
 
 def nati_forward(X):
@@ -115,7 +115,7 @@ def nati_forward(X):
 def nati_backward(Xmap, clip_max=1e8):
     Xmap = np.clip(Xmap, -1.0, nati_forward(clip_max))
     tmp = np.exp((Xmap + 2)) - np.e
-    return np.round(tmp * tmp)
+    return tmp * tmp
 
 
 def uniform_forward(X, shift=20):
@@ -126,7 +126,7 @@ def uniform_forward(X, shift=20):
 def uniform_backward(X, shift=20, clip_max=1e6):
     """Inverse transform a power law distribution with k=2 into a uniform distribution."""
     X = np.clip(X, 0.0, uniform_forward(clip_max, shift=shift))
-    return np.round((shift + 1) * X / (1.0 - X))
+    return (shift + 1) * X / (1.0 - X)
 
 
 def tanh_forward(X, shift=20):
@@ -204,7 +204,7 @@ def stat_backward_0(x, c=2e4):
     maski = mask == False
     res[maski] = np.exp(x[maski]) - 1
     res[mask] = c * (x[mask] - np.log(c + 1) + 1)
-    return np.round(res)
+    return res
 
 
 def stat_forward(x, c=2e4, shift=3):
