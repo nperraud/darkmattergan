@@ -59,7 +59,7 @@ params['net']['gamma'] = 5
 params['net']['discriminator'] = params_discriminator
 params['net']['cosmology'] = params_cosmology
 params['net']['prior_distribution'] = 'gaussian'
-params['net']['upsampling'] =  4
+params['net']['upscaling'] =  4
 
 params['optimization'] = params_optimization
 params['summary_every'] = 100  # Tensorboard summaries every ** iterations
