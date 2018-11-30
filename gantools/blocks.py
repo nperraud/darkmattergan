@@ -21,7 +21,7 @@ def orthogonal_initializer(scale=1.1):
     return _initializer
 
 
-def select_initializer(type='orthogonal'):
+def select_initializer(type='xavier'):
     if type=='orthogonal':
         return orthogonal_initializer()
     elif type=='xavier':
