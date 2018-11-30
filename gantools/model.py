@@ -238,6 +238,40 @@ class WGAN(BaseGAN):
         if self.data_size==3:
             X_real = utils.tf_cube_slices(self.X_real)
             X_fake = utils.tf_cube_slices(self.X_fake)
+            # Plot some slices
+            sl = X_real.shape[3]//2
+            tf.summary.image(
+                "images/Real_Image_slice_middle",
+                colorize(X_real[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            tf.summary.image(
+                "images/Fake_Image_slice_middle",
+                colorize(X_fake[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            sl = X_real.shape[3]-1
+            tf.summary.image(
+                "images/Real_Image_slice_end",
+                colorize(X_real[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            tf.summary.image(
+                "images/Fake_Image_slice_end",
+                colorize(X_fake[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            sl = (X_real.shape[3]*3)//4
+            tf.summary.image(
+                "images/Real_Image_slice_3/4",
+                colorize(X_real[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            tf.summary.image(
+                "images/Fake_Image_slice_3/4",
+                colorize(X_fake[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
         elif self.data_size==2:
             X_real = self.X_real
             X_fake = self.X_fake
