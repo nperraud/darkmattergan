@@ -68,8 +68,8 @@ params_optimization['n_critic'] = 5
 
 # Cosmology parameters
 params_cosmology = dict()
-params_cosmology['forward_map'] = forward
-params_cosmology['backward_map'] = backward
+params_cosmology['forward_map'] = data.fmap.log_forward
+params_cosmology['backward_map'] = data.fmap.log_backward
 
 
 # all parameters
@@ -109,7 +109,7 @@ dataset = data.load.load_nbody_dataset(
     Mpch=350,
     patch=True,
     augmentation=True,
-    forward_map=data.fmap.log_norm_forward,
+    forward_map=data.fmap.log_forward,
     is_3d=True)
 
 wgan.train(dataset, resume=resume)
