@@ -470,7 +470,7 @@ class UpscalePatchWGAN(WGAN):
         d_params['generator']['batch_norm'] = [bn, bn, bn]
         d_params['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
         d_params['generator']['stride'] = [1, 1, 1, 1]
-        d_params['generator']['use_old_gen'] = False
+        d_params['generator']['use_Xdown'] = False
 
         return d_params
 
@@ -517,12 +517,16 @@ class UpscalePatchWGAN(WGAN):
             inshape = X_down.shape.as_list()[1:]
             self.X_down = tf.placeholder_with_default(X_down, shape=[None, *inshape], name='y')
             self.X_smooth = up_sampler(self.X_down, s=self.upscaling)
-            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list, X=self.X_smooth, reuse=False)
-
         else:
             self.X_smooth = None
+            self.X_down = None
+        # E) Generater the corner
+        if self.params['generator']['use_Xdown']:
+            print('Using X_down instead of X_smooth')
+            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list,X=self.X_down, reuse=False)
+        else:
             # E) Generater the corner
-            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list, reuse=False)
+            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list,X=self.X_smooth, reuse=False)
 
 
 
@@ -597,6 +601,8 @@ class UpscalePatchWGAN(WGAN):
             newy = tf.concat(y, axis=axis)
             return generator_border(z, X=X, y=newy, params=self.params['generator'], **kwargs)
         else:
+            if self.params['generator']['use_Xdown']:
+                raise ValueError('X_down has to be used with borders parameters')
             axis = self.data_size +1
             if self.params['upscaling']:
                 if self.data_size==1:
