@@ -288,7 +288,7 @@ class InpaintingGAN(WGAN):
 
     def __init__(self, params, name='inpaint_gan'):
         # Only works with 1D signal for now
-        assert(params['generator']['data_size']==1)
+        assert(params['generator']['data_size'] in [1,2])
         super().__init__(params=params, name=name)
         self._inputs = (self.z, self.borders)
         self._outputs = (self.X_fake)
@@ -302,18 +302,20 @@ class InpaintingGAN(WGAN):
             name='z')
 
         borderleft, self.center_real, borderright = tf.split(self.X_real, self.params['inpainting']['split'], axis=1)
-        borders = tf.concat([borderleft,borderright], axis=2)
+        borders = tf.concat([borderleft,borderright], axis=self.data_size+1)
         inshape = borders.shape.as_list()[1:]
+
         self.borders = tf.placeholder_with_default(borders, shape=[None, *inshape], name='borders')
-        
+
+
         self.X_fake_center = self.generator(self.z,  y=self.borders, reuse=False)
-        self.X_fake = tf.concat([self.borders[:,:,0:1], self.X_fake_center, self.borders[:,:,1:2]], axis=1)
-
-    # def _build_net(self):
-    #     super()._build_net()
-
-    #     self._inputs = (self.z, self.borders)
-    #     self._outputs = (self.X_fake)
+        # Those line should be done in a better way
+        if self.data_size == 1:
+            self.X_fake = tf.concat([self.borders[:,:,0:1], self.X_fake_center, self.borders[:,:,1:2]], axis=1)
+        elif self.data_size == 2:
+            self.X_fake = tf.concat([self.borders[:,:,:,0:1], self.X_fake_center, self.borders[:,:,:,1:2]], axis=1)
+        else:
+            raise NotImplementedError()
 
     def generator(self, z, y, **kwargs):
         return generator_border(z, y=y, params=self.params['generator'], **kwargs)
@@ -1673,9 +1675,13 @@ def get_conv(data_size):
         raise ValueError("Wrong data_size")
 
 
-def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, use_spectral_norm, data_size=2):
+def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, use_spectral_norm, sy=None, sz=None, data_size=2):
+    if sy is None:
+        sy = sx
+    if sz is None:
+        sz = sx
     if data_size==3:
-        output_shape = [bs, sx, sx, sx, n_filters]
+        output_shape = [bs, sx, sy, sz, n_filters]
         out_tensor = deconv3d(in_tensor,
                               output_shape=output_shape,
                               shape=shape,
@@ -1684,7 +1690,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, use_s
                               use_spectral_norm=use_spectral_norm,
                               summary=summary)
     elif data_size==2:
-        output_shape = [bs, sx, sx, n_filters]
+        output_shape = [bs, sx, sy, n_filters]
         out_tensor = deconv2d(in_tensor,
                               output_shape=output_shape,
                               shape=shape,
@@ -1953,6 +1959,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
         elif params['data_size']==2:
             # if params.get('in_conv_shape', None) is not None:
             sx, sy = params['in_conv_shape']
+            sz = None
             # else:
             #     # nb pixel
             #     if X is not None:
@@ -1970,6 +1977,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
         else:
             # if params.get('in_conv_shape', None) is not None:
             sx = params['in_conv_shape'][0]
+            sy, sz = None, None
             # else:
             #     if X is not None:
             #         sx = X.shape.as_list()[1]
@@ -1991,6 +1999,10 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         for i in range(nconv):
             sx = sx * params['stride'][i]
+            if params['data_size']>2:
+                sz = sz * params['stride'][i]
+            if params['data_size']>1:
+                sy = sy * params['stride'][i]
             if params['residual'] and (i%2 != 0) and (i < nconv-2): # save odd layer inputs for residual connections
                 residue = x
 
@@ -2031,6 +2043,8 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                            summary=params['summary'],
                            conv_num=i,
                            use_spectral_norm=params['spectral_norm'],
+                           sy = sy,
+                           sz = sz,
                            data_size=params['data_size']
                            )
                 rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
@@ -2180,7 +2194,10 @@ def generator_border(x, params, X=None, y=None, reuse=True, scope="generator"):
                 # We take the begining or the signal as it is flipped.
                 border = reshape2d(tf.slice(y, [0, 0, 0], [-1, wf, st[2]]), name='border2vec')
             elif params_border['data_size']==2:
-                raise NotImplementedError()
+                print('Warning slicing only on side')
+                # This is done for the model inpaintingGAN that is supposed to work with spectrograms...
+                # We take the begining or the signal as it is flipped.
+                border = reshape2d(tf.slice(y, [0, 0, 0, 0], [-1, wf, st[2], -1]), name='border2vec')
                 # border = reshape2d(tf.slice(img, [0, st[1]-wf, 0, 0], [-1, wf, st[2], st[3]]), name='border2vec')
             elif params_border['data_size']==3:
                 raise NotImplementedError()
