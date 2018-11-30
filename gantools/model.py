@@ -116,7 +116,8 @@ class WGAN(BaseGAN):
     def _build_net(self):
         self._data_size = self.params['generator']['data_size']
         assert(self.params['discriminator']['data_size'] == self.data_size)
-        reduction = np.prod(np.array(self.params['generator']['stride']))
+        
+        reduction = stride2reduction(self.params['generator']['stride'])
         if 'in_conv_shape' not in self.params['generator'].keys():
             in_conv_shape = [el//reduction for el in self.params['shape'][:-1]]
             self._params['generator']['in_conv_shape'] = in_conv_shape
@@ -1793,6 +1794,11 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     nconv = len(params['stride'])
     nfull = len(params['full'])
 
+    for it, st in enumerate(params['stride']):
+        if not(isinstance(st ,list) or isinstance(st ,tuple)):
+            params['stride'][it] = [st]*params['data_size']
+
+
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Discriminator \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
@@ -1922,6 +1928,11 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
     nfull = len(params['full'])
+    for it, st in enumerate(params['stride']):
+        if not(isinstance(st ,list) or isinstance(st ,tuple)):
+            params['stride'][it] = [st]*params['data_size']
+
+
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
@@ -1993,16 +2004,16 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         
         if params.get('use_conv_over_deconv', True):
-            conv_over_deconv = np.all(np.array(params['stride']) == 1) # If true use conv, else deconv
+            conv_over_deconv = stride2reduction(params['stride'])==1 # If true use conv, else deconv
         else:
             conv_over_deconv = False
 
         for i in range(nconv):
-            sx = sx * params['stride'][i]
-            if params['data_size']>2:
-                sz = sz * params['stride'][i]
+            sx = sx * params['stride'][i][0]
             if params['data_size']>1:
-                sy = sy * params['stride'][i]
+                sy = sy * params['stride'][i][1]
+            if params['data_size']>2:
+                sz = sz * params['stride'][i][2]
             if params['residual'] and (i%2 != 0) and (i < nconv-2): # save odd layer inputs for residual connections
                 residue = x
 
@@ -2214,3 +2225,9 @@ def generator_border(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         return generator(x, params, X=X, y=y, reuse=reuse, scope=scope)
 
+def stride2reduction(stride):
+    # This code works with array and single element in stride
+    reduction = 1
+    for st in stride:
+        reduction *= np.array([st]).flatten()[0]
+    return reduction

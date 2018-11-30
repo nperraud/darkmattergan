@@ -345,7 +345,8 @@ def spectral_norm(w, iteration=1):
 
 def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="conv1d", summary=True):
     '''Convolutional layer for square images'''
-
+    if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
+        stride = [stride]
     weights_initializer = select_initializer()
     const = tf.constant_initializer(0.0)
 
@@ -357,7 +358,7 @@ def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="con
         if use_spectral_norm:
             w = spectral_norm(w)
         conv = tf.nn.conv1d(
-            imgs, w, stride=stride, padding='SAME')
+            imgs, w, stride=stride[0], padding='SAME')
 
         biases = _tf_variable('biases', [nf_out], initializer=const)
         conv = tf.nn.bias_add(conv, biases)
@@ -372,6 +373,9 @@ def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="con
 def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="conv2d", summary=True):
     '''Convolutional layer for square images'''
 
+    if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
+        stride = [stride, stride]
+
     weights_initializer = select_initializer()
     const = tf.constant_initializer(0.0)
 
@@ -383,7 +387,7 @@ def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="
         if use_spectral_norm:
             w = spectral_norm(w)
         conv = tf.nn.conv2d(
-            imgs, w, strides=[1, stride, stride, 1], padding='SAME')
+            imgs, w, strides=[1, *stride, 1], padding='SAME')
 
         biases = _tf_variable('biases', [nf_out], initializer=const)
         conv = tf.nn.bias_add(conv, biases)
@@ -404,7 +408,8 @@ def conv3d(imgs,
            name="conv3d",
            summary=True):
     '''Convolutional layer for square images'''
-
+    if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
+        stride = [stride, stride, stride]
     if use_spectral_norm:
         print("Warning spectral norm for conv3d set to True but may not be implemented!")
 
@@ -419,7 +424,7 @@ def conv3d(imgs,
         if use_spectral_norm:
             w = spectral_norm(w)
         conv = tf.nn.conv3d(
-            imgs, w, strides=[1, stride, stride, stride, 1], padding='SAME')
+            imgs, w, strides=[1, *stride, 1], padding='SAME')
 
         biases = _tf_variable('biases', [nf_out], initializer=const)
         conv = tf.nn.bias_add(conv, biases)
@@ -438,7 +443,8 @@ def deconv1d(imgs,
              name="deconv1d",
              use_spectral_norm=False,
              summary=True):
-
+    if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
+        stride = [stride]
     weights_initializer = select_initializer()
     # was
     # weights_initializer = tf.random_normal_initializer(stddev=stddev)
@@ -456,7 +462,7 @@ def deconv1d(imgs,
             imgs,
             w,
             output_shape=output_shape,
-            stride=stride)
+            stride=stride[0])
 
         biases = _tf_variable(
             'biases', [output_shape[-1]], initializer=const)
@@ -481,7 +487,8 @@ def deconv2d(imgs,
              name="deconv2d",
              use_spectral_norm=False,
              summary=True):
-
+    if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
+        stride = [stride, stride]
     weights_initializer = select_initializer()
     # was
     # weights_initializer = tf.random_normal_initializer(stddev=stddev)
@@ -499,7 +506,7 @@ def deconv2d(imgs,
             imgs,
             w,
             output_shape=output_shape,
-            strides=[1, stride, stride, 1])
+            strides=[1, *stride, 1])
 
         biases = _tf_variable(
             'biases', [output_shape[-1]], initializer=const)
@@ -525,7 +532,8 @@ def deconv3d(imgs,
              name="deconv3d",
              use_spectral_norm=False,
              summary=True):
-
+    if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
+        stride = [stride, stride, stride]
     weights_initializer = select_initializer()
     # was
     # weights_initializer = tf.random_normal_initializer(stddev=stddev)
@@ -545,7 +553,7 @@ def deconv3d(imgs,
             imgs,
             w,
             output_shape=output_shape,
-            strides=[1, stride, stride, stride, 1])
+            strides=[1, *stride, 1])
 
         biases = _tf_variable(
             'biases', [output_shape[-1]],
