@@ -61,7 +61,7 @@ params_generator['borders']['width_full'] = None
 
 params_optimization = dict()
 params_optimization['batch_size'] = 8
-params_optimization['epoch'] = 100
+params_optimization['epoch'] = 100000
 params_optimization['n_critic'] = 5
 # params_optimization['generator'] = dict()
 # params_optimization['generator']['optimizer'] = 'adam'
@@ -100,6 +100,7 @@ params['Nstats'] = 30
 
 
 resume, params = utils.test_resume(try_resume, params)
+params['optimization']['epoch'] = 50000
 
 
 class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
