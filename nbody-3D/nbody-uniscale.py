@@ -18,7 +18,7 @@ md=64
 
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [md, md, md, md, md]
+params_discriminator['nfilter'] = [md, md, md, 2*md, md]
 params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn ]
 params_discriminator['full'] = []
@@ -29,10 +29,10 @@ params_discriminator['inception'] = False
 params_discriminator['spectral_norm'] = False
 
 params_generator = dict()
-params_generator['stride'] = [1, 1, 1, 1, 1]
-params_generator['latent_dim'] = 100
-params_generator['in_conv_shape'] =[32, 32, 32]
-params_generator['nfilter'] = [md, md, md, md, 1]
+params_generator['stride'] = [1, 2, 1, 1, 1]
+params_generator['latent_dim'] = 256
+params_generator['in_conv_shape'] =[16, 16, 16]
+params_generator['nfilter'] = [md, 2*md, md, md, 1]
 params_generator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn]
 params_generator['full'] = [32*32*32]
@@ -41,6 +41,13 @@ params_generator['non_lin'] = None
 params_generator['data_size'] = 3
 params_generator['inception'] = False
 params_generator['spectral_norm'] = False
+params_generator['borders'] = dict()
+params_generator['borders']['stride'] = [2, 2, 2]
+params_generator['borders']['nfilter'] = [md, md, 16]
+params_generator['borders']['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5]]
+params_generator['borders']['batch_norm'] = [bn, bn, bn]
+params_generator['borders']['data_size'] = 3
+params_generator['borders']['width_full'] = None
 
 # Optimization parameters inspired from 'Self-Attention Generative Adversarial Networks'
 # - Spectral normalization GEN DISC
@@ -68,8 +75,8 @@ params_optimization['n_critic'] = 5
 
 # Cosmology parameters
 params_cosmology = dict()
-params_cosmology['forward_map'] = data.fmap.log_forward
-params_cosmology['backward_map'] = data.fmap.log_backward
+params_cosmology['forward_map'] = data.fmap.log_norm_forward
+params_cosmology['backward_map'] = data.fmap.log_norm_backward
 
 
 # all parameters
@@ -109,7 +116,7 @@ dataset = data.load.load_nbody_dataset(
     Mpch=350,
     patch=True,
     augmentation=True,
-    forward_map=data.fmap.log_forward,
+    forward_map=data.fmap.log_norm_forward,
     is_3d=True)
 
 wgan.train(dataset, resume=resume)
