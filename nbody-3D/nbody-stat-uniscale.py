@@ -7,7 +7,7 @@ from gantools.gansystem import GANsystem
 ns = 32
 try_resume = True
 
-time_str = 'uniscale'
+time_str = 'stat-uniscale'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
@@ -25,7 +25,7 @@ params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 params_discriminator['data_size'] = 3
 params_discriminator['inception'] = False
-params_discriminator['spectral_norm'] = False
+params_discriminator['spectral_norm'] = True
 
 params_generator = dict()
 params_generator['stride'] = [1, 2, 1, 1, 1]
@@ -39,7 +39,7 @@ params_generator['summary'] = True
 params_generator['non_lin'] = None
 params_generator['data_size'] = 3
 params_generator['inception'] = False
-params_generator['spectral_norm'] = False
+params_generator['spectral_norm'] = True
 params_generator['borders'] = dict()
 params_generator['borders']['stride'] = [2, 2, 2]
 params_generator['borders']['nfilter'] = [md, md, 16]
@@ -74,8 +74,8 @@ params_optimization['n_critic'] = 5
 
 # Cosmology parameters
 params_cosmology = dict()
-params_cosmology['forward_map'] = data.fmap.log_norm_forward
-params_cosmology['backward_map'] = data.fmap.log_norm_backward
+params_cosmology['forward_map'] = data.fmap.stat_forward
+params_cosmology['backward_map'] = data.fmap.stat_backward
 
 
 # all parameters
@@ -115,7 +115,7 @@ dataset = data.load.load_nbody_dataset(
     Mpch=350,
     patch=True,
     augmentation=True,
-    forward_map=data.fmap.log_norm_forward,
+    forward_map=data.fmap.stat_forward,
     is_3d=True)
 
 wgan.train(dataset, resume=resume)
