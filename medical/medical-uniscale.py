@@ -83,7 +83,7 @@ params['net']['discriminator'] = params_discriminator
 params['net']['cosmology'] = params_cosmology # Parameters for the cosmological summaries
 params['net']['prior_distribution'] = 'gaussian'
 params['net']['shape'] = [ns, ns, ns, 8] # Shape of the image
-params['net']['loss'] = 'wasserstein' # loss ('hinge' or 'wasserstein')
+params['net']['loss_type'] = 'wasserstein' # loss ('hinge' or 'wasserstein')
 params['net']['gamma_gp'] = 10 # Gradient penalty
 params['net']['upsampling'] = None 
 
