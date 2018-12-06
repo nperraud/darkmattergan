@@ -27,7 +27,7 @@ params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 params_discriminator['data_size'] = 3
 params_discriminator['inception'] = False
-params_discriminator['spectral_norm'] = False
+params_discriminator['spectral_norm'] = True
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 1, 1]
@@ -41,7 +41,7 @@ params_generator['summary'] = True
 params_generator['non_lin'] = None
 params_generator['data_size'] = 3
 params_generator['inception'] = False
-params_generator['spectral_norm'] = False
+params_generator['spectral_norm'] = True
 
 params_optimization = dict()
 params_optimization['batch_size'] = 8
