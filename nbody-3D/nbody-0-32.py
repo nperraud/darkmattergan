@@ -8,7 +8,6 @@ from gantools.gansystem import GANsystem
 
 ns = 32
 try_resume = True
-latent_dim = 256
 
 time_str = '0_to_32'
 global_path = '../saved_results/nbody/'
