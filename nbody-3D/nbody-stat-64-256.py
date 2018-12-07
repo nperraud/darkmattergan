@@ -75,7 +75,7 @@ params_optimization['n_critic'] = 5
 
 # Cosmology parameters
 params_cosmology = dict()
-params_cosmology['forward_map'] = data.fmap.statforward
+params_cosmology['forward_map'] = data.fmap.stat_forward
 params_cosmology['backward_map'] = data.fmap.stat_backward
 
 
