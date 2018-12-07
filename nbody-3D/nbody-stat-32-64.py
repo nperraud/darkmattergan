@@ -8,7 +8,7 @@ ns = 32
 try_resume = True
 
 
-time_str = 'stat-64_to_256'
+time_str = 'stat-32_to_64'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
