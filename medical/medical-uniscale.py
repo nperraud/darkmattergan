@@ -80,7 +80,6 @@ params = dict()
 params['net'] = dict() # All the parameters for the model
 params['net']['generator'] = params_generator
 params['net']['discriminator'] = params_discriminator
-params['net']['cosmology'] = params_cosmology # Parameters for the cosmological summaries
 params['net']['prior_distribution'] = 'gaussian'
 params['net']['shape'] = [ns, ns, ns, 8] # Shape of the image
 params['net']['loss_type'] = 'wasserstein' # loss ('hinge' or 'wasserstein')
