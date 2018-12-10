@@ -18,7 +18,7 @@ md=64
 
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [md, md, md, 2*md, 4*md]
+params_discriminator['nfilter'] = [md, md, md, md, 2*md]
 params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn ]
 params_discriminator['full'] = []
@@ -29,10 +29,10 @@ params_discriminator['inception'] = False
 params_discriminator['spectral_norm'] = True
 
 params_generator = dict()
-params_generator['stride'] = [2, 2, 1, 1, 1]
+params_generator['stride'] = [2, 1, 1, 1, 1]
 params_generator['latent_dim'] = 256
 params_generator['in_conv_shape'] =[8, 8, 8]
-params_generator['nfilter'] = [4*md, 2*md, md, md, 1]
+params_generator['nfilter'] = [2*md, md, md, md, 1]
 params_generator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn]
 params_generator['full'] = [8*8*md]
@@ -89,7 +89,7 @@ params['net']['prior_distribution'] = 'gaussian'
 params['net']['shape'] = [ns, ns, ns, 8] # Shape of the image
 params['net']['loss_type'] = 'wasserstein' # loss ('hinge' or 'wasserstein')
 params['net']['gamma_gp'] = 10 # Gradient penalty
-params['net']['upscaling'] = 4 
+params['net']['upscaling'] = 2
 
 params['optimization'] = params_optimization
 params['summary_every'] = 100 # Tensorboard summaries every ** iterations
