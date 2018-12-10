@@ -18,7 +18,7 @@ md=64
 
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [md, md, md, md, 2*md]
+params_discriminator['nfilter'] = [md, md, md, 2*md, md]
 params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn ]
 params_discriminator['full'] = []
@@ -29,13 +29,13 @@ params_discriminator['inception'] = False
 params_discriminator['spectral_norm'] = True
 
 params_generator = dict()
-params_generator['stride'] = [2, 1, 1, 1, 1]
+params_generator['stride'] = [1, 2, 1, 1, 1]
 params_generator['latent_dim'] = 256
-params_generator['in_conv_shape'] =[8, 8, 8]
-params_generator['nfilter'] = [2*md, md, md, md, 1]
+params_generator['in_conv_shape'] =[16, 16, 16]
+params_generator['nfilter'] = [md, 2*md, md, md, 1]
 params_generator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn]
-params_generator['full'] = [8*8*md]
+params_generator['full'] = [16*16*md]
 params_generator['summary'] = True
 params_generator['non_lin'] = None
 params_generator['data_size'] = 3
@@ -110,7 +110,7 @@ wgan = GANsystem(CosmoUpscalePatchWGAN, params)
 
 dataset = data.load.load_nbody_dataset(
     spix=ns,
-    scaling=1,
+    scaling=4,
     resolution=256,
     Mpch=350,
     patch=True,
