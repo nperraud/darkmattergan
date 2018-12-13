@@ -52,13 +52,13 @@ class BaseGAN(BaseNet):
         raise NotImplementedError("This is a an abstract class.")
 
 
-
 class WGAN(BaseGAN):
     def default_params(self):
         d_params = deepcopy(super().default_params())
         d_params['shape'] = [16, 16, 1] # Shape of the image
         d_params['prior_distribution'] = 'gaussian' # prior distribution
         d_params['gamma_gp'] = 10 
+        d_params['loss_type'] = 'wasserstein'  # 'hinge' or 'wasserstein'
 
         bn = False
 
@@ -116,19 +116,32 @@ class WGAN(BaseGAN):
     def _build_net(self):
         self._data_size = self.params['generator']['data_size']
         assert(self.params['discriminator']['data_size'] == self.data_size)
-        reduction = np.prod(np.array(self.params['generator']['stride']))
-        in_conv_shape = [el//reduction for el in self.params['shape'][:-1]]
-        self._params['generator']['in_conv_shape'] = in_conv_shape
+        
+        reduction = stride2reduction(self.params['generator']['stride'])
+        if 'in_conv_shape' not in self.params['generator'].keys():
+            in_conv_shape = [el//reduction for el in self.params['shape'][:-1]]
+            self._params['generator']['in_conv_shape'] = in_conv_shape
   
         self._build_generator()
         self._D_fake = self.discriminator(self.X_fake, reuse=False)
         self._D_real = self.discriminator(self.X_real, reuse=True)
         self._D_loss_f = tf.reduce_mean(self._D_fake)
         self._D_loss_r = tf.reduce_mean(self._D_real)
-        gamma_gp = self.params['gamma_gp']
-        self._D_gp = self.wgan_regularization(gamma_gp, [self.X_fake], [self.X_real])
-        self._D_loss = -(self._D_loss_r - self._D_loss_f) + self._D_gp
-        self._G_loss = -self._D_loss_f
+
+        if self.params['loss_type'] == 'wasserstein':
+            # Wasserstein loss
+            gamma_gp = self.params['gamma_gp']
+            print(' Wasserstein loss with gamma_gp={}'.format(gamma_gp))
+            self._D_gp = self.wgan_regularization(gamma_gp, [self.X_fake], [self.X_real])
+            self._D_loss = -(self._D_loss_r - self._D_loss_f) + self._D_gp
+            self._G_loss = -self._D_loss_f
+        elif self.params['loss_type'] == 'hinge':
+            # Hinge loss
+            print(' Hinge loss.')
+            self._D_loss = tf.nn.relu(1-self._D_loss_r) + tf.nn.relu(self._D_loss_f+1)
+            self._G_loss = -self._D_loss_f
+        else:
+            raise ValueError('Unknown loss type!')    
         self._inputs = (self.z)
         self._outputs = (self.X_fake)
 
@@ -178,7 +191,7 @@ class WGAN(BaseGAN):
             D_gp = gamma * tf.square(norm_gradient_pen - 1.0)
             tf.summary.scalar("Disc/GradPen", D_gp, collections=["train"])
             tf.summary.scalar("Disc/NormGradientPen", norm_gradient_pen, collections=["train"])
-            print(" Using gradients clipping")
+            print(" Using gradients penalty")
 
         return D_gp
 
@@ -225,6 +238,40 @@ class WGAN(BaseGAN):
         if self.data_size==3:
             X_real = utils.tf_cube_slices(self.X_real)
             X_fake = utils.tf_cube_slices(self.X_fake)
+            # Plot some slices
+            sl = self.X_real.shape[3]//2
+            tf.summary.image(
+                "images/Real_Image_slice_middle",
+                colorize(self.X_real[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            tf.summary.image(
+                "images/Fake_Image_slice_middle",
+                colorize(self.X_fake[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            sl = self.X_real.shape[3]-1
+            tf.summary.image(
+                "images/Real_Image_slice_end",
+                colorize(self.X_real[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            tf.summary.image(
+                "images/Fake_Image_slice_end",
+                colorize(self.X_fake[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            sl = (self.X_real.shape[3]*3)//4
+            tf.summary.image(
+                "images/Real_Image_slice_3/4",
+                colorize(self.X_real[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
+            tf.summary.image(
+                "images/Fake_Image_slice_3/4",
+                colorize(self.X_fake[:,:,:,sl,:], vmin, vmax),
+                max_outputs=4,
+                collections=['model'])
         elif self.data_size==2:
             X_real = self.X_real
             X_fake = self.X_fake
@@ -266,6 +313,49 @@ class WGAN(BaseGAN):
     def data_size(self):
         return self._data_size
 
+class InpaintingGAN(WGAN):
+    def default_params(self):
+        d_params = deepcopy(super().default_params())
+        d_params['inpainting'] = dict()
+        v = 4096 + 2048
+        d_params['inpainting']['split'] = [v, 4096, v]
+        return d_params
+
+    def __init__(self, params, name='inpaint_gan'):
+        # Only works with 1D signal for now
+        assert(params['generator']['data_size'] in [1,2])
+        super().__init__(params=params, name=name)
+        self._inputs = (self.z, self.borders)
+        self._outputs = (self.X_fake)
+
+    def _build_generator(self):
+        shape = self._params['shape']
+        self.X_real = tf.placeholder(tf.float32, shape=[None, *shape], name='Xreal')
+        self.z = tf.placeholder(
+            tf.float32,
+            shape=[None, self.params['generator']['latent_dim']],
+            name='z')
+
+        borderleft, self.center_real, borderright = tf.split(self.X_real, self.params['inpainting']['split'], axis=1)
+        borders = tf.concat([borderleft,borderright], axis=self.data_size+1)
+        inshape = borders.shape.as_list()[1:]
+
+        self.borders = tf.placeholder_with_default(borders, shape=[None, *inshape], name='borders')
+
+
+        self.X_fake_center = self.generator(self.z,  y=self.borders, reuse=False)
+        # Those line should be done in a better way
+        if self.data_size == 1:
+            self.X_fake = tf.concat([self.borders[:,:,0:1], self.X_fake_center, self.borders[:,:,1:2]], axis=1)
+        elif self.data_size == 2:
+            self.X_fake = tf.concat([self.borders[:,:,:,0:1], self.X_fake_center, self.borders[:,:,:,1:2]], axis=1)
+        else:
+            raise NotImplementedError()
+
+    def generator(self, z, y, **kwargs):
+        return generator_border(z, y=y, params=self.params['generator'], **kwargs)
+
+
 class CosmoWGAN(WGAN):
     def default_params(self):
         d_params = deepcopy(super().default_params())
@@ -304,7 +394,7 @@ class LapWGAN(WGAN):
         d_params = deepcopy(super().default_params())
         d_params['shape'] = [32, 32, 1] # Shape of the image
         bn = False
-        d_params['upsampling'] = 2
+        d_params['upscaling'] = 2
         d_params['generator']['latent_dim'] = 32*32
         d_params['generator']['full'] = []
         d_params['generator']['nfilter'] = [16, 32, 32, 1]
@@ -320,11 +410,11 @@ class LapWGAN(WGAN):
     def _build_generator(self):
         shape = self._params['shape']
         self.X_real = tf.placeholder(tf.float32, shape=[None, *shape], name='Xreal')
-        self.upsampling = self.params['upsampling']
-        X_down = down_sampler(self.X_real, s=self.upsampling)
+        self.upscaling = self.params['upscaling']
+        X_down = down_sampler(self.X_real, s=self.upscaling)
         inshape = X_down.shape.as_list()[1:]
         self.X_down = tf.placeholder_with_default(X_down, shape=[None, *inshape], name='y')
-        self.X_smooth = up_sampler(self.X_down, s=self.upsampling)
+        self.X_smooth = up_sampler(self.X_down, s=self.upscaling, smoothout=True)
         self.z = tf.placeholder(
             tf.float32,
             shape=[None, self.params['generator']['latent_dim']],
@@ -373,21 +463,21 @@ class UpscalePatchWGAN(WGAN):
         d_params = deepcopy(super().default_params())
         d_params['shape'] = [16, 16, 4] # Shape of the input data (1 image and 3 borders)
         bn = False
-        d_params['upsampling'] = None
+        d_params['upscaling'] = None
         d_params['generator']['latent_dim'] = 16*16
         d_params['generator']['full'] = []
         d_params['generator']['nfilter'] = [16, 32, 32, 1]
         d_params['generator']['batch_norm'] = [bn, bn, bn]
         d_params['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
         d_params['generator']['stride'] = [1, 1, 1, 1]
-        d_params['generator']['use_old_gen'] = False
+        d_params['generator']['use_Xdown'] = False
 
         return d_params
 
     def __init__(self, params, name='upscale_patch_wgan'):
         super().__init__(params=params, name=name)
-        assert(not(self.params['upsampling']==1))
-        if self.params['upsampling']:
+        assert(not(self.params['upscaling']==1))
+        if self.params['upscaling']:
             self._inputs = (self.z, self.borders)
         self._outputs = (self.X_fake_corner)
 
@@ -417,32 +507,39 @@ class UpscalePatchWGAN(WGAN):
         
         # B) Split the borders
         border_list = tf.split(self.borders, o, axis=axis)
-        # C) Handling downsampling
-        if self.params['upsampling']:
-            self.upsampling = self.params['upsampling']
-            X_down = down_sampler(self.X_real_corner, s=self.upsampling)
-            inshape = X_down.shape.as_list()[1:]
-            self.X_down = tf.placeholder_with_default(X_down, shape=[None, *inshape], name='y')
-            self.X_smooth = up_sampler(self.X_down, s=self.upsampling)
-        else:
-            self.X_smooth = None
-
         # D) Flip the borders
-
         flipped_border_list = tf_flip_slices(*border_list, size=self.data_size)
 
+        # C) Handling downsampling
+        if self.params['upscaling']:
+            self.upscaling = self.params['upscaling']
+            X_down = down_sampler(self.X_real_corner, s=self.upscaling)
+            inshape = X_down.shape.as_list()[1:]
+            self.X_down = tf.placeholder_with_default(X_down, shape=[None, *inshape], name='y')
+            self.X_smooth = up_sampler(self.X_down, s=self.upscaling)
+        else:
+            self.X_smooth = None
+            self.X_down = None
         # E) Generater the corner
-        self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list, X=self.X_smooth, reuse=False)
+        if self.params['generator']['use_Xdown']:
+            print('Using X_down instead of X_smooth')
+            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list,X=self.X_down, reuse=False)
+        else:
+            # E) Generater the corner
+            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list,X=self.X_smooth, reuse=False)
+
+
+
         
         #F) Recreate the big images
         self.X_real = tf_patch2img(self.X_real_corner, *border_list, size=self.data_size)
         self.X_fake = tf_patch2img(self.X_fake_corner, *border_list, size=self.data_size)
 
-        if self.params['upsampling']:
-            self.X_down_up = up_sampler(down_sampler(self.X_real, s=self.upsampling),s=self.upsampling)
+        if self.params['upscaling']:
+            self.X_down_up = up_sampler(down_sampler(self.X_real, s=self.upscaling),s=self.upscaling)
 
     def discriminator(self, X, **kwargs):
-        if self.params['upsampling']:
+        if self.params['upscaling']:
             axis = self.data_size + 1
             v = tf.concat([X, self.X_down_up, X-self.X_down_up], axis=axis)
         else:
@@ -461,7 +558,7 @@ class UpscalePatchWGAN(WGAN):
 
     def compute_summaries(self, X_real, X_fake, feed_dict={}):
         feed_dict = super().compute_summaries(self._get_corner(X_real), self._get_corner(X_fake), feed_dict)
-        if self.data_size==1 and self.params['upsampling']:
+        if self.data_size==1 and self.params['upscaling']:
             X_smooth = self.X_smooth.eval(feed_dict=feed_dict)
             feed_dict = self._plot_down.compute_summary(np.squeeze(X_smooth), feed_dict=feed_dict)
         return feed_dict
@@ -475,7 +572,7 @@ class UpscalePatchWGAN(WGAN):
 
     def _build_image_summary(self):
         super()._build_image_summary()
-        if self.params['upsampling']:
+        if self.params['upscaling']:
             vmin = tf.reduce_min(self.X_real)
             vmax = tf.reduce_max(self.X_real)
             if self.data_size==3:
@@ -495,25 +592,38 @@ class UpscalePatchWGAN(WGAN):
                 collections=['model'])
 
     def generator(self, z, y, X=None, **kwargs):
-        if self.params['generator']['use_old_gen']:
-            print('Using old generator...')
-            return generator_up(z, X=X, y=y, params=self.params['generator'], **kwargs, scope='generator')
+#         if self.params['generator']['use_old_gen']:
+#             print('Using old generator...')
+#             return generator_up(z, X=X, y=y, params=self.params['generator'], **kwargs, scope='generator')
+#         else:
+        if self.params['generator'].get('borders', None):
+            axis = self.data_size + 1
+            newy = tf.concat(y, axis=axis)
+            return generator_border(z, X=X, y=newy, params=self.params['generator'], **kwargs)
         else:
-            if self.params['generator'].get('borders', None):
-                axis = self.data_size + 1
-                newy = tf.concat(y, axis=axis)
-                return generator_border(z, X=X, y=newy, params=self.params['generator'], **kwargs)
-            else:
-                axis = self.data_size +1
-                if self.params['upsampling']:
-                    if self.data_size==1:
-                        newX = tf.concat([X, y], axis=axis)
-                    else:
-                        newX = tf.concat([X, *y], axis=axis)
+            if self.params['generator']['use_Xdown']:
+                raise ValueError('X_down has to be used with borders parameters')
+            axis = self.data_size +1
+            if self.params['upscaling']:
+                if self.data_size==1:
+                    # y = remove_center(y, self.data_size)
+                    newX = tf.concat([X, y], axis=axis)
                 else:
-                    newX = tf.concat(y, axis=axis)
-                return generator(z, X=newX, params=self.params['generator'], **kwargs)
+                    newX = tf.concat([X, *y], axis=axis)
+            else:
+                newX = tf.concat(y, axis=axis)
+            return generator(z, X=newX, params=self.params['generator'], **kwargs)
 
+# def remove_center(X, data_size):
+#     '''Only keep the last pixel and set the center to 0.'''
+#     zt = np.zeros([1,*X.shape[1:data_size+1], 1], dtype=tf.float32)
+#     for i in range(data_size):
+#         axis = i + 1
+#         slc = [slice(None)] * len(X.shape)
+#         slc[axis] = slice(0,X.shape[1+i], X.shape[1+i]-1)
+#         zt[slc] = 1
+#     zt = tf.convert_to_tensor(zt, np.float32)
+#     return X*zt
 
 # class UpscalePatchWGANBordersOld(UpscalePatchWGAN):
 #     '''
@@ -604,7 +714,7 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
         else:
             axis=2
             o = 1
-        if self.params['upsampling']:
+        if self.params['upscaling']:
             self.X_real, self.X_down_up = tf.split(self.X_data, [1,1], axis=axis)
             if self.data_size==1:
                 middle = self.X_down_up.shape.as_list()[1]//2
@@ -1606,22 +1716,28 @@ def get_conv(data_size):
         raise ValueError("Wrong data_size")
 
 
-def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, data_size=2):
+def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, use_spectral_norm, sy=None, sz=None, data_size=2):
+    if sy is None:
+        sy = sx
+    if sz is None:
+        sz = sx
     if data_size==3:
-        output_shape = [bs, sx, sx, sx, n_filters]
+        output_shape = [bs, sx, sy, sz, n_filters]
         out_tensor = deconv3d(in_tensor,
                               output_shape=output_shape,
                               shape=shape,
                               stride=stride,
                               name='{}_deconv_3d'.format(conv_num),
+                              use_spectral_norm=use_spectral_norm,
                               summary=summary)
     elif data_size==2:
-        output_shape = [bs, sx, sx, n_filters]
+        output_shape = [bs, sx, sy, n_filters]
         out_tensor = deconv2d(in_tensor,
                               output_shape=output_shape,
                               shape=shape,
                               stride=stride,
                               name='{}_deconv_2d'.format(conv_num),
+                              use_spectral_norm=use_spectral_norm,
                               summary=summary)
     elif data_size==1:
         output_shape = [bs, sx, n_filters]
@@ -1630,6 +1746,7 @@ def deconv(in_tensor, bs, sx, n_filters, shape, stride, summary, conv_num, data_
                               shape=shape,
                               stride=stride,
                               name='{}_deconv_1d'.format(conv_num),
+                              use_spectral_norm=use_spectral_norm,
                               summary=summary)
     else:
         raise ValueError("Wrong data_size")
@@ -1717,6 +1834,11 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
     nconv = len(params['stride'])
     nfull = len(params['full'])
 
+    for it, st in enumerate(params['stride']):
+        if not(isinstance(st ,list) or isinstance(st ,tuple)):
+            params['stride'][it] = [st]*params['data_size']
+
+
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Discriminator \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
@@ -1764,7 +1886,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                                     stride=params['stride'][i], 
                                     summary=params['summary'], 
                                     num=i,
-                                    data_size=params['data_size'], 
+                                    data_size=params['data_size'],
+                                    use_spectral_norm=params['spectral_norm'],
                                     merge=(i == (nconv-1))
                                     )
                 rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1845,6 +1968,11 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
     nfull = len(params['full'])
+    for it, st in enumerate(params['stride']):
+        if not(isinstance(st ,list) or isinstance(st ,tuple)):
+            params['stride'][it] = [st]*params['data_size']
+
+
     with tf.variable_scope(scope, reuse=reuse):
         rprint('Generator \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
@@ -1882,6 +2010,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
         elif params['data_size']==2:
             # if params.get('in_conv_shape', None) is not None:
             sx, sy = params['in_conv_shape']
+            sz = None
             # else:
             #     # nb pixel
             #     if X is not None:
@@ -1899,6 +2028,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
         else:
             # if params.get('in_conv_shape', None) is not None:
             sx = params['in_conv_shape'][0]
+            sy, sz = None, None
             # else:
             #     if X is not None:
             #         sx = X.shape.as_list()[1]
@@ -1914,12 +2044,16 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         
         if params.get('use_conv_over_deconv', True):
-            conv_over_deconv = np.all(np.array(params['stride']) == 1) # If true use conv, else deconv
+            conv_over_deconv = stride2reduction(params['stride'])==1 # If true use conv, else deconv
         else:
             conv_over_deconv = False
 
         for i in range(nconv):
-            sx = sx * params['stride'][i]
+            sx = sx * params['stride'][i][0]
+            if params['data_size']>1:
+                sy = sy * params['stride'][i][1]
+            if params['data_size']>2:
+                sz = sz * params['stride'][i][2]
             if params['residual'] and (i%2 != 0) and (i < nconv-2): # save odd layer inputs for residual connections
                 residue = x
 
@@ -1931,6 +2065,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                                     summary=params['summary'], 
                                     num=i,
                                     data_size=params['data_size'], 
+                                    use_spectral_norm=params['spectral_norm'],
                                     merge= (True if params['residual'] else (i == (nconv-1)) )
                                     )
                     rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1943,7 +2078,8 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                                         stride=params['stride'][i], 
                                         summary=params['summary'], 
                                         num=i, 
-                                        data_size=params['data_size'], 
+                                        data_size=params['data_size'],
+                                        use_spectral_norm=params['spectral_norm'],
                                         merge= (True if params['residual'] else (i == (nconv-1)) )
                                         )
                     rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
@@ -1957,6 +2093,9 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                            stride=params['stride'][i],
                            summary=params['summary'],
                            conv_num=i,
+                           use_spectral_norm=params['spectral_norm'],
+                           sy = sy,
+                           sz = sz,
                            data_size=params['data_size']
                            )
                 rprint('     {} Deconv layer with {} channels'.format(i+nfull, params['nfilter'][i]), reuse)
@@ -2106,7 +2245,10 @@ def generator_border(x, params, X=None, y=None, reuse=True, scope="generator"):
                 # We take the begining or the signal as it is flipped.
                 border = reshape2d(tf.slice(y, [0, 0, 0], [-1, wf, st[2]]), name='border2vec')
             elif params_border['data_size']==2:
-                raise NotImplementedError()
+                print('Warning slicing only on side')
+                # This is done for the model inpaintingGAN that is supposed to work with spectrograms...
+                # We take the begining or the signal as it is flipped.
+                border = reshape2d(tf.slice(y, [0, 0, 0, 0], [-1, wf, st[2], -1]), name='border2vec')
                 # border = reshape2d(tf.slice(img, [0, st[1]-wf, 0, 0], [-1, wf, st[2], st[3]]), name='border2vec')
             elif params_border['data_size']==3:
                 raise NotImplementedError()
@@ -2123,3 +2265,9 @@ def generator_border(x, params, X=None, y=None, reuse=True, scope="generator"):
 
         return generator(x, params, X=X, y=y, reuse=reuse, scope=scope)
 
+def stride2reduction(stride):
+    # This code works with array and single element in stride
+    reduction = 1
+    for st in stride:
+        reduction *= np.array([st]).flatten()[0]
+    return reduction

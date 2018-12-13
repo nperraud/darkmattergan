@@ -62,18 +62,23 @@ def draw_images(images,
             mat[i * px:(i + 1) * px, j * py:(
                 j + 1) * py] = images_tmp[i + j * nx, ]
     # make lines to separate the different images
+    # Code used to check the lines...
+    #     imgs2 = np.zeros([25,32,32])
+    #     imgs2[::2,:,:] =1
+    #     plt.figure(figsize=(15, 15))
+    #     plot.draw_images(imgs2,5,5)
     xx = []
     yy = []
     for j in range(1, ny):
-        xx.append([py * j, py * j])
+        xx.append([py * j-0.5, py * j-0.5])
         yy.append([0, nx * px - 1])
     for j in range(1, nx):
         xx.append([0, ny * py - 1])
-        yy.append([px * j, px * j])
+        yy.append([px * j-0.5, px * j-0.5])
 
     if axes is None:
         axes = plt.gca()
-    axes.imshow(mat, *args, **kwargs)
+    axes.imshow(np.squeeze(mat), *args, **kwargs)
     for x, y in zip(xx, yy):
         axes.plot(x, y, color='r', linestyle='-', linewidth=2)
     axes.get_xaxis().set_visible(False)

@@ -5,6 +5,7 @@ import numpy as np
 import time
 import itertools
 from copy import deepcopy
+import yaml
 
 from tfnntools.nnsystem import NNSystem
 
@@ -57,19 +58,22 @@ class GANsystem(NNSystem):
 
         if self._net.has_encoder:
             varsuffixes = ['discriminator', 'generator', 'encoder']
-        else:            
+        else:
             varsuffixes = ['discriminator', 'generator']
 
         losses = self._net.loss
         t_vars = tf.trainable_variables()
-        self._optimize = [] 
+        self._optimize = []
 
         # global_step = tf.Variable(0, name="global_step", trainable=False)
+        print('\nBuild the optimizers: ')
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             for index, varsuffix in enumerate(varsuffixes):
+                print(' * {} '.format(varsuffix))
                 s_vars = [var for var in t_vars if varsuffix in var.name]
                 params = self.params['optimization'][varsuffix]
+                print(yaml.dump(params))
                 optimizer = self.build_optmizer(params)
                 grads_and_vars = optimizer.compute_gradients(losses[index], var_list=s_vars)
                 apply_opt = optimizer.apply_gradients(grads_and_vars)
@@ -80,11 +84,11 @@ class GANsystem(NNSystem):
                 grad_norm = [tf.reduce_sum(grads) for grads in grad_norms]
                 final_grad = tf.sqrt(tf.reduce_sum(grad_norm))
                 tf.summary.scalar(varsuffix+"/Gradient_Norm", final_grad, collections=["train"])
-                if self.params['optimization'][varsuffix]['optimizer'] == 'adam':
-                    beta1_power, beta2_power = optimizer._get_beta_accumulators()
-                    learning_rate = self.params['optimization'][varsuffix]['learning_rate']
-                    optim_learning_rate = learning_rate*(tf.sqrt(1 - beta2_power) /(1 - beta1_power))
-                    tf.summary.scalar(varsuffix+'/ADAM_learning_rate', optim_learning_rate, collections=["train"])
+                #if self.params['optimization'][varsuffix]['optimizer'] == 'adam':
+                #    beta1_power, beta2_power = optimizer._get_beta_accumulators()
+                #    learning_rate = self.params['optimization'][varsuffix]['learning_rate']
+                #    optim_learning_rate = learning_rate*(tf.sqrt(1 - beta2_power) /(1 - beta1_power))
+                #    tf.summary.scalar(varsuffix+'/ADAM_learning_rate', optim_learning_rate, collections=["train"])
 
     @staticmethod
     def build_optmizer(params):
@@ -432,7 +436,8 @@ class UpcaleGANsystem(GANsystem):
             else:
                 nx = resolution // soutx
                 ny = resolution // souty
-                nz = resolution // soutz
+                if self.net.data_size==3:
+                    nz = resolution // soutz
 
         # If no session passed, create a new one and load a checkpoint.
         if sess is None:
@@ -455,6 +460,7 @@ class UpcaleGANsystem(GANsystem):
         return np.squeeze(output_image)
     def generate_3d_output(self, sess, N, nx, ny, nz, soutx, souty, soutz, small,
                            sinx, siny, sinz):
+        # this function does only support 1 channel image
         output_image = np.zeros(
             shape=[N, soutz * nz, souty * ny, soutx * nx, 1], dtype=np.float32)
         output_image[:] = np.nan
@@ -531,25 +537,26 @@ class UpcaleGANsystem(GANsystem):
 
     def generate_2d_output(self, sess, N, nx, ny, soutx, souty, small, sinx,
                            siny):
+        nc = self.net.params['shape'][-1]//4 # number of channel for the image
         output_image = np.zeros(
-            shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
+            shape=[N, soutx * nx, souty * ny, nc], dtype=np.float32)
         output_image[:] = np.nan
 
         for j in range(ny):
             for i in range(nx):
                 # 1) Generate the border
-                border = np.zeros([N, soutx, souty, 3])
+                border = np.zeros([N, soutx, souty, 3*nc])
                 if i:
-                    border[:, :, :, :1] = output_image[:, (i - 1) * soutx:i * soutx, j * souty:(j + 1) * souty, :]
+                    border[:, :, :, :nc] = output_image[:, (i - 1) * soutx:i * soutx, j * souty:(j + 1) * souty, :]
                 if j:
-                    border[:, :, :, 1:2] = output_image[:, i * soutx:(i + 1) * soutx, (j - 1) * souty:j * souty, :]
+                    border[:, :, :, nc:2*nc] = output_image[:, i * soutx:(i + 1) * soutx, (j - 1) * souty:j * souty, :]
                 if i and j:
-                    border[:, :, :, 2:3] = output_image[:, (i - 1) * soutx:i * soutx, (j - 1) * souty:j * souty, :]
+                    border[:, :, :, 2*nc:3*nc] = output_image[:, (i - 1) * soutx:i * soutx, (j - 1) * souty:j * souty, :]
 
                 if small is not None:
                     # 2) Prepare low resolution
                     downsampled = np.expand_dims(
-                        small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3)
+                        small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3*nc)
                 else:
                     downsampled = None
 

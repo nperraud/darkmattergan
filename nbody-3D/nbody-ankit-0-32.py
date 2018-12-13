@@ -11,43 +11,45 @@ try_resume = True
 
 time_str = '0_to_32'
 global_path = '../saved_results/nbody/'
-name = 'WGAN_' + time_str
+name = 'WGAN_ankit_' + time_str
 
+params_discriminator = {
+    'batch_norm': [False, False, False, False, False, False],
+    'data_size': 3,
+    'full': [64, 16],
+    'inception': True,
+    'minibatch_reg': False,
+    'nfilter': [64, 64, 32, 16, 8, 2],
+    'non_lin': None,
+    'one_pixel_mapping': [],
+    'stride': [2, 2, 1, 1, 1, 1],
+    'summary': True}
 
-bn = False
+params_generator = {'batch_norm': [False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False],
+   'data_size': 3,
+   'full': [64],
+   'inception': True,
+   'latent_dim': 100,
+   'nfilter': [8, 32, 64, 64, 64, 32, 32, 1],
+   'non_lin': tf.nn.relu,
+   'one_pixel_mapping': [],
+   'residual': False,
+   'stride': [2, 2, 2, 2, 1, 1, 1, 1],
+   'summary': True}
 
-md=64
+params_optimization =  {
+    'batch_size': 8,
+    'discriminator': {'kwargs': {}, 'learning_rate': 3e-05, 'optimizer': 'rmsprop'},
+    'epoch': 10000,
+    'generator': {'kwargs': {}, 'learning_rate': 3e-05, 'optimizer': 'rmsprop'},
+    'n_critic': 10}
 
-params_discriminator = dict()
-params_discriminator['stride'] = [1, 1, 2, 2, 2]
-params_discriminator['nfilter'] = [md, md, 2*md, 4*md, 8*md]
-params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
-params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn ]
-params_discriminator['full'] = []
-params_discriminator['minibatch_reg'] = False
-params_discriminator['summary'] = True
-params_discriminator['data_size'] = 3
-params_discriminator['inception'] = False
-params_discriminator['spectral_norm'] = False
-
-params_generator = dict()
-params_generator['stride'] = [2, 2, 2, 1, 1]
-params_generator['latent_dim'] = 100
-params_generator['in_conv_shape'] =[4, 4, 4]
-params_generator['nfilter'] = [4*md, 2*md, md, md, 1]
-params_generator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
-params_generator['batch_norm'] = [bn, bn, bn, bn]
-params_generator['full'] = [4*4*4*8*md]
-params_generator['summary'] = True
-params_generator['non_lin'] = None
-params_generator['data_size'] = 3
-params_generator['inception'] = False
-params_generator['spectral_norm'] = False
-
-params_optimization = dict()
-params_optimization['batch_size'] = 8
-params_optimization['epoch'] = 100000
-params_optimization['n_critic'] = 5
 
 params_cosmology = dict()
 params_cosmology['forward_map'] = data.fmap.log_norm_forward
@@ -57,9 +59,10 @@ params = dict()
 params['net'] = dict()
 params['net']['shape'] = [ns, ns, ns, 1]
 params['net']['generator'] = params_generator
-params['net']['gamma'] = 10
+params['net']['gamma'] = 5
 params['net']['discriminator'] = params_discriminator
 params['net']['cosmology'] = params_cosmology
+params['net']['prior_distribution'] = 'gaussian'
 
 params['optimization'] = params_optimization
 params['summary_every'] = 100  # Tensorboard summaries every ** iterations

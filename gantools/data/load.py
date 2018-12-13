@@ -269,7 +269,10 @@ def load_medical_dataset(
     post_transform = fmap.medical_forward
 
     if augmentation:
-        t = partial(transformation.random_transformation_3d, roll=False, spix=spix)
+        if scaling==1:
+            t = partial(transformation.random_transformation_3d, roll=False, spix=512)
+        else:
+            t = partial(transformation.random_transformation_3d, roll=False, spix=spix)
     else:
         t = do_nothing
 
@@ -392,6 +395,9 @@ def load_maps_dataset(
     * augmentation : use data augmentation (default True)
     * scaling : downscale the image by a factor (default 1)
     * patch: experimental feature for patchgan
+
+    The images comes from 
+    https://zenodo.org/record/1154821#.W8WfkC0zbIo
     '''
 
     # 1) Load raw images

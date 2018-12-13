@@ -1,15 +1,16 @@
 import tensorflow as tf
 import os
 from gantools import data, utils
-from gantools.model import WGAN
+from gantools.model import CosmoWGAN
 from gantools.gansystem import GANsystem
 
+# In[5]:
 
 ns = 32
 try_resume = True
 
-time_str = '0_to_32'
-global_path = '../saved_results/medical/'
+time_str = 'stat-0_to_32'
+global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
 
@@ -48,12 +49,17 @@ params_optimization['batch_size'] = 8
 params_optimization['epoch'] = 100000
 params_optimization['n_critic'] = 5
 
+params_cosmology = dict()
+params_cosmology['forward_map'] = data.fmap.stat_forward
+params_cosmology['backward_map'] = data.fmap.stat_backward
+
 params = dict()
 params['net'] = dict()
 params['net']['shape'] = [ns, ns, ns, 1]
 params['net']['generator'] = params_generator
 params['net']['gamma'] = 10
 params['net']['discriminator'] = params_discriminator
+params['net']['cosmology'] = params_cosmology
 
 params['optimization'] = params_optimization
 params['summary_every'] = 100  # Tensorboard summaries every ** iterations
@@ -64,10 +70,17 @@ params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 params['Nstats'] = 10
 
 resume, params = utils.test_resume(try_resume, params)
-params['optimization']['epoch'] = 100000
 
-wgan = GANsystem(WGAN, params)
+wgan = GANsystem(CosmoWGAN, params)
 
-dataset = data.load.load_medical_dataset(spix=ns, scaling=8, patch=False, augmentation=True)
+dataset = data.load.load_nbody_dataset(
+    spix=ns,
+    Mpch=350,
+    resolution=256,
+    scaling=8,
+    patch=False,
+    augmentation=True,
+    forward_map=data.fmap.stat_forward,
+    is_3d=True)
 
 wgan.train(dataset, resume=resume)

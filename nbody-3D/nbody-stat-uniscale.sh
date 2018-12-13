@@ -4,8 +4,8 @@
 #SBATCH --ntasks=1
 #SBATCH --account=sd01
 #SBATCH --constraint=gpu
-#SBATCH --output=medical-32-%j.log
-#SBATCH --error=medical-32-e-%j.log
+#SBATCH --output=nbody-stat-uniscale-%j.log
+#SBATCH --error=nbody-stat-uniscale-e-%j.log
 
 module load daint-gpu
 module load cray-python
@@ -13,5 +13,5 @@ module load TensorFlow/1.7.0-CrayGNU-18.08-cuda-9.1-python3
 
 source $HOME/upgan/bin/activate
 
-cd $SCRATCH/CodeGAN/medical/
-srun python medical-0-32.py
+cd $SCRATCH/CodeGAN/nbody-3D/
+srun python nbody-stat-uniscale.py

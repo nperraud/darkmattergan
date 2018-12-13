@@ -246,16 +246,21 @@ def peak_count_hist(dat, bins=20, lim=None):
     """
     num_workers = mp.cpu_count() - 1
     with mp.Pool(processes=num_workers) as pool:
-        peak = np.array(pool.map(peak_count, dat))
+        peak = pool.map(peak_count, dat)
     peak = np.log(np.hstack(peak)+np.e)
-    if lim is None:
-        lim = (np.min(peak), np.max(peak))
+    if np.size(peak)==0:
+        y = np.zeros([bins])
+        x = None
     else:
-        lim = tuple(map(type(peak[0]), lim))
-    y, x = np.histogram(peak, bins=bins, range=lim)
-    x = np.exp((x[1:] + x[:-1]) / 2)-np.e
-    # Normalization
-    y = y / dat.shape[0]
+        if lim is None:
+            lim = (np.min(peak), np.max(peak))
+        else:
+            lim = tuple(map(type(peak[0]), lim))
+        y, x = np.histogram(peak, bins=bins, range=lim)
+        x = np.exp((x[1:] + x[:-1]) / 2)-np.e
+
+        # Normalization
+        y = y / dat.shape[0]
     return y, x, lim
 
 
