@@ -108,6 +108,45 @@ class TestGANmodels(unittest.TestCase):
         img = wgan.generate(500)
         assert (len(img) == 500)
 
+    def test_hinge(self):
+        bn = False
+        params = dict()
+        params['optimization'] = dict()
+        params['optimization']['epoch'] = 1
+        params['summary_every'] = 4
+        params['save_every'] = 5
+        params['print_every'] = 3
+        params['net'] = dict()
+        params['net']['shape'] = [16, 16, 1]  # Shape of the image
+        params['net']['loss_type'] = 'hinge'  # Shape of the image
+        params['net']['generator'] = dict()
+        params['net']['generator']['latent_dim'] = 100
+        params['net']['generator']['full'] = [2 * 8 * 8]
+        params['net']['generator']['nfilter'] = [2, 32, 32, 1]
+        params['net']['generator']['batch_norm'] = [bn, bn, bn]
+        params['net']['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
+        params['net']['generator']['stride'] = [1, 2, 1, 1]
+        params['net']['generator']['data_size'] = 2
+        params['net']['discriminator'] = dict()
+        params['net']['discriminator']['full'] = [32]
+        params['net']['discriminator']['nfilter'] = [16, 32, 32, 32]
+        params['net']['discriminator']['batch_norm'] = [bn, bn, bn, bn]
+        params['net']['discriminator']['shape'] = [[5, 5], [5, 5], [5, 5],
+                                                   [3, 3]]
+        params['net']['discriminator']['stride'] = [2, 2, 2, 1]
+        params['net']['discriminator']['data_size'] = 2
+
+        X = np.random.rand(101, 16, 16)
+        dataset = Dataset(X)
+        wgan = GANsystem(WGAN, params)
+        wgan.train(dataset)
+        img = wgan.generate(2)
+        assert (len(img) == 2)
+        assert (img.shape[1:] == (16, 16, 1))
+        img = wgan.generate(500)
+        assert (len(img) == 500)
+
+
     def test_3d(self):
         bn = False
         params = dict()

@@ -104,7 +104,7 @@ class TestGANmodels(unittest.TestCase):
         it = dataset.iter(10)
         s2 = next(it)
         del it, dataset
-        np.testing.assert_allclose(np_downsample_2d(s1,4), s2)
+        np.testing.assert_allclose(np_downsample_2d(s1,4), s2, rtol=0.01)
 
     def test_medical(self):
         dataset = load.load_medical_dataset(spix=32, scaling=8, patch=False, augmentation=False)

@@ -34,7 +34,7 @@ class TestMetric(unittest.TestCase):
             print('Test map: {}'.format(name))
             x = forward(X)
             print(np.sum(np.abs(forward(backward(x))-x)))
-            assert(np.sum(np.abs(forward(backward(x))-x))< 1)
+            assert(np.sum(np.abs(forward(np.round(backward(x)))-x))< 1)
 
 
 
