@@ -28,7 +28,7 @@ params_discriminator['data_size'] = 3
 params_discriminator['inception'] = False
 params_discriminator['spectral_norm'] = True
 params_discriminator['histogram'] = dict()
-params_discriminator['histogram']['bins'] = 100
+params_discriminator['histogram']['bins'] = 32
 params_discriminator['histogram']['data_size'] = 3
 params_discriminator['histogram']['full'] = 128
 
