@@ -110,7 +110,8 @@ def plot_with_shade(ax, x, y, label, color, **linestyle):
 
     n = y.shape[0]
     y_mean = np.mean(y, axis=0)
-    error = (np.var(y, axis=0) / n)**0.5
+#     error = (np.var(y, axis=0) / n)**0.5
+    error = np.std(y, axis=0)
     ax.plot(x, y_mean, label=label, color=color, **linestyle)
     ax.fill_between(
         x, y_mean - error, y_mean + error, alpha=transparency, color=color)
