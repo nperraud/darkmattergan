@@ -825,8 +825,9 @@ def learned_histogram(x, params):
     """
     # Shape of x: #samples x #nodes x #features.
     bins = params.get('bins', 20)
+    print(bins)
     initial_range = params.get('initial_range', 2)
-    is_3d = params.get('is_3d', False)
+    is_3d = params['data_size']==3
     if is_3d:
         x = tf.reshape(x, [tf.shape(x)[0], x.shape[1] * x.shape[2] * x.shape[3], x.shape[4]])
     else:
