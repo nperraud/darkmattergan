@@ -235,7 +235,7 @@ def diff_vec(y_real, y_fake):
     return l2, logel2, l1, logel1
 
 
-def peak_count_hist(dat, bins=20, lim=None):
+def peak_count_hist(dat, bins=20, lim=None, persample=False):
     """Make the histogram of the peak count of data.
 
     Arguments
@@ -247,30 +247,43 @@ def peak_count_hist(dat, bins=20, lim=None):
     num_workers = mp.cpu_count() - 1
     with mp.Pool(processes=num_workers) as pool:
         peak = pool.map(peak_count, dat)
-    peak = np.log(np.hstack(peak)+np.e)
+    peak_stack = np.log(np.hstack(peak)+np.e)
     if np.size(peak)==0:
         y = np.zeros([bins])
         x = None
     else:
         if lim is None:
-            lim = (np.min(peak), np.max(peak))
+            lim = (np.min(peak_stack), np.max(peak_stack))
         else:
-            lim = tuple(map(type(peak[0]), lim))
-        y, x = np.histogram(peak, bins=bins, range=lim)
+            lim = tuple(map(type(peak_stack[0]), lim))
+        if persample:
+            raise NotImplementedError('This code is not working. I do not know where the bug is.')
+            y = []
+            print(len(peak))
+            for peak_t in peak:
+                y_tmp, x = np.histogram(peak_t, bins=bins, range=lim)
+                # Normalization
+                y_tmp = y_tmp/peak_t.size
+                y.append(y_tmp)
+            y = np.array(y)
+          
+        else:
+            y, x = np.histogram(peak_stack, bins=bins, range=lim)
+            # Normalization
+            y = y/ peak_stack.size
+
         x = np.exp((x[1:] + x[:-1]) / 2)-np.e
 
-        # Normalization
-        y = y / dat.shape[0]
     return y, x, lim
 
 
-def peak_count_hist_real_fake(real, fake, bins=20, lim=None):
-    y_real, x, lim = peak_count_hist(real, bins=bins, lim=lim)
-    y_fake, _, _ = peak_count_hist(fake, bins=bins, lim=lim)
+def peak_count_hist_real_fake(real, fake, bins=20, lim=None, persample=False):
+    y_real, x, lim = peak_count_hist(real, bins=bins, lim=lim, persample=persample)
+    y_fake, _, _ = peak_count_hist(fake, bins=bins, lim=lim, persample=persample)
     return y_real, y_fake, x
 
 
-def mass_hist(dat, bins=20, lim=None):
+def mass_hist(dat, bins=20, lim=None, persample=False):
     """Make the histogram of log10(data) data.
 
     Arguments
@@ -279,27 +292,40 @@ def mass_hist(dat, bins=20, lim=None):
     bins : number of bins for the histogram (default 20)
     lim  : limit for the histogram, if None then min(log10(dat)), max(dat)
     """
-    log_data = np.log10(dat.flatten() + 1)
+    log_data = np.log10(dat + 1)    
+
     if lim is None:
-        lim = (np.min(log_data), np.max(log_data))
-    y, x = np.histogram(log_data, bins=bins, range=lim)
+        lim = (np.min(log_data.flatten()), np.max(log_data.flatten()))
+    if persample:
+        y = []
+        for i in range(log_data.shape[0]):
+            y_tmp, x = np.histogram(log_data[i].flatten(), bins=bins, range=lim)
+            y_tmp = y_tmp / log_data[i].size
+            y.append(y_tmp)
+        y = np.array(y)
+
+    else:
+        y, x = np.histogram(log_data.flatten(), bins=bins, range=lim)
+        y = y / log_data.size
+
     x = 10**((x[1:] + x[:-1]) / 2) - 1
-    y = y / dat.shape[0]
     return y, x, lim
 
 
-def mass_hist_real_fake(real, fake, bins=20, lim=None):
+
+
+def mass_hist_real_fake(real, fake, bins=20, lim=None, persample=False):
     if lim is None:
         new_lim = True
     else:
         new_lim = False
-    y_real, x, lim = mass_hist(real, bins=bins, lim=lim)
+    y_real, x, lim = mass_hist(real, bins=bins, lim=lim, persample=persample)
     if new_lim:
         lim = list(lim)
-        lim[1] = lim[1]+1
-        y_real, x, lim = mass_hist(real, bins=bins, lim=lim)
+        lim[1] = lim[1]*1.1
+        y_real, x, lim = mass_hist(real, bins=bins, lim=lim, persample=persample)
 
-    y_fake, _, _ = mass_hist(fake, bins=bins, lim=lim)
+    y_fake, _, _ = mass_hist(fake, bins=bins, lim=lim, persample=persample)
     return y_real, y_fake, x
 
 

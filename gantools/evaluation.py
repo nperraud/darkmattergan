@@ -50,72 +50,46 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, display=True):
               'L2 PSD loss: {}\n'
               'Log l1 PSD loss: {}\n'
               'L1 PSD loss: {}'.format(logel2, l2, logel1, l1))
-
-        plt.figure(figsize=(5,3))
-        ax = plt.gca()
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        linestyle = {
-            "linewidth": 1,
-            "markeredgewidth": 0,
-            "markersize": 3,
-            "marker": "o",
-            "linestyle": "-"
-        }
-
-        plot.plot_with_shade(
-            ax,
-            x,
-            psd_gen,
-            color='r',
-            label="Fake",
-            **linestyle)
-        plot.plot_with_shade(
-            ax,
-            x,
-            psd_real,
-            color='b',
-            label="Real",
-            **linestyle)
-        # ax.set_ylim(bottom=0.1)
-        ax.title.set_text("Power spectral density")
-        ax.title.set_fontsize(16)
-        ax.set_xlabel('k [h Mpc$^{-1}$]', fontsize=14)
-        ax.set_ylabel('$P(k)$', fontsize=14)
-        ax.tick_params(axis='both', which='major', labelsize=12)
-        ax.legend(fontsize=14, loc=3)
-
+        loglog_cmp_plot(x, psd_real, psd_gen,title="Power spectral density", xlabel='k [h Mpc$^{-1}$]', ylabel='$P(k)$')
     return logel2, l2, logel1, l1
 
 
-def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True):
+def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True, persample=False):
     """Compute and plot peak count histogram from raw images."""
-    y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw)
-    l2, logel2, l1, logel1 = stats.diff_vec(y_real, y_fake)
+    y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw, persample=persample)
+    if persample:
+        l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))        
+    else:
+        l2, logel2, l1, logel1 = stats.diff_vec(y_real, y_fake)
     if display:
         print('Log l2 Peak Count loss: {}\n'
               'L2 Peak Count loss: {}\n'
               'Log l1 Peak Count loss: {}\n'
               'L1 Peak Count loss: {}'.format(logel2, l2, logel1, l1))
-    loglog_cmp_plot(x, y_real, y_fake,title= 'Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count')
+        loglog_cmp_plot(x, y_real, y_fake,title= 'Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count')
     return l2, logel2, l1, logel1
 
 
-def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True):
+def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, persample=True):
     """Compute and plot mass histogram from raw images."""
-    y_real, y_fake, x = stats.mass_hist_real_fake(raw_images, gen_sample_raw)
-    l2, logel2, l1, logel1 = stats.diff_vec(y_real, y_fake)
+    y_real, y_fake, x = stats.mass_hist_real_fake(raw_images, gen_sample_raw, persample=persample)
+    if persample:
+        l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))        
+    else:
+        l2, logel2, l1, logel1 = stats.diff_vec(y_real, y_fake)
     if display:
         print('Log l2 Mass histogram loss: {}\n'
               'L2 Peak Mass histogram: {}\n'
               'Log l1 Mass histogram loss: {}\n'
               'L1 Mass histogram loss: {}'.format(logel2, l2, logel1, l1))
-    loglog_cmp_plot(x, y_real, y_fake,title= 'Mass histogram', xlabel='Number of particles', ylabel='Pixel count')
+        loglog_cmp_plot(x, y_real, y_fake,title= 'Mass histogram', xlabel='Number of particles', ylabel='Pixel count')
     return l2, logel2, l1, logel1
 
-def loglog_cmp_plot(x, y_real, y_fake, title='', xlabel='', ylabel=''):
+def loglog_cmp_plot(x, y_real, y_fake, title='', xlabel='', ylabel='', persample=None):
+    if persample is None:
+        persample = len(y_real.shape)>1
+    
     fig = plt.figure(figsize=(5,3))
-
     ax = plt.gca()
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -126,8 +100,24 @@ def loglog_cmp_plot(x, y_real, y_fake, title='', xlabel='', ylabel=''):
         "marker": "o",
         "linestyle": "-"
     }
-    ax.plot(x, y_fake, label="Fake", color='r', **linestyle)
-    ax.plot(x, y_real, label="Real", color='b', **linestyle)
+    if persample:
+        plot.plot_with_shade(
+            ax,
+            x,
+            y_fake,
+            color='r',
+            label="Fake",
+            **linestyle)
+        plot.plot_with_shade(
+            ax,
+            x,
+            y_real,
+            color='b',
+            label="Real",
+            **linestyle)
+    else:
+        ax.plot(x, y_fake, label="Fake", color='r', **linestyle)
+        ax.plot(x, y_real, label="Real", color='b', **linestyle)
 
     # ax.set_ylim(bottom=0.1)
     ax.title.set_text(title)

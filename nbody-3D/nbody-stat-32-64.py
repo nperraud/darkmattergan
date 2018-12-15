@@ -100,7 +100,7 @@ params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 params['Nstats'] = 30
 
 resume, params = utils.test_resume(try_resume, params)
-
+params['optimization']['epoch']=100000
 
 class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
     pass
