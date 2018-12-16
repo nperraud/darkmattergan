@@ -361,9 +361,9 @@ def total_stats_error(feed_dict, params=dict()):
     v += params.get("w_l1_log_psd", 0) * feed_dict['log_l1_psd']
     v += params.get("w_l2_log_psd", 1) * feed_dict['log_l2_psd']
     v += params.get("w_l1_log_mass_hist", 0) * feed_dict['log_l1_mass_hist']
-    v += params.get("w_l2_log_mass_hist", 1) * feed_dict['log_l2_mass_hist']
+    v += params.get("w_l2_log_mass_hist", 50) * feed_dict['log_l2_mass_hist']
     v += params.get("w_l1_log_peak_hist", 0) * feed_dict['log_l1_peak_hist']
-    v += params.get("w_l2_log_peak_hist", 1) * feed_dict['log_l2_peak_hist']
+    v += params.get("w_l2_log_peak_hist", 25) * feed_dict['log_l2_peak_hist']
     v += params.get("w_wasserstein_mass_hist", 0)\
          * np.log10(feed_dict['wasserstein_mass_hist'] + 1)
 
