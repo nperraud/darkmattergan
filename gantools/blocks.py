@@ -780,6 +780,8 @@ def tf_covmat(x, shape):
     return c
 
 
+# Here I try to make the implementation with convolution. But I do not think it is actually less ram problematic so I gave up...
+
 # def learned_histogram(x, params):
 #     """A learned histogram layer.
 
@@ -791,31 +793,38 @@ def tf_covmat(x, shape):
 #     initial_range = params.get('initial_range', 2)
 #     data_size = params.get('data_size', 2)
 
-#         w = _tf_variable(
-#             'w', [shape[0], shape[1],
-#                   imgs.get_shape()[-1], nf_out],
-#             initializer=weights_initializer)
-#         conv = tf.nn.conv2d(x, w, strides=[1, 1, 1, 1], padding='SAME')
+#     if data_size==3:
+#         x = tf.reshape(x, [tf.shape(x)[0], x.shape[1] * x.shape[2] * x.shape[3], x.shape[4]])
+#     elif data_size==2:
+#         x = tf.reshape(x, [tf.shape(x)[0], x.shape[1] * x.shape[2], x.shape[3]])
 
-#         biases = _tf_variable('biases', [nf_out], initializer=const)
-#         conv = tf.nn.bias_add(conv, biases)
-#     centers = tf.linspace(float(0), initial_range, bins, name='range')
-#     centers = tf.expand_dims(centers, axis=1)
-#     centers = tf.tile(centers, [1, n_features])  # One histogram per feature channel.
-#     centers = tf.Variable(
-#         tf.reshape(tf.transpose(centers), shape=[1, 1, n_features, bins]),
-#         name='centers', dtype=tf.float32)
+#     n_features = int(x.get_shape()[2])
+
+#     w = tf.constant(1.0, shape=[1, 1, bins])
+#     initial_centers = tf.linspace(float(0), initial_range, bins, name='range')
 #     # width = bins * initial_range / 4  # 50% overlap between bins.
 #     width = 1 / initial_range  # 50% overlap between bins.
-#     widths = tf.get_variable(
-#         name='widths', shape=[1, 1, n_features, bins], dtype=tf.float32,
-#         initializer=tf.initializers.constant(value=width, dtype=tf.float32))
-#     x = tf.expand_dims(x, axis=3)
-#     # All are rank-4 tensors: samples, nodes, features, bins.
-#     widths = tf.abs(widths)
-#     dist = tf.abs(x - centers)
-#     hist = tf.reduce_mean(tf.nn.relu(1 - dist * widths), axis=1)
+    
+#     hist = []
+#     for i in range(n_features):
+#         conv = tf.nn.conv1d(x[:,:,i], w, strides=1, padding='SAME')
+#         centers = tf.Variable(nitial_centers, shape=[bins], name='centers_{}', dtype=tf.float32)
+#         # centers = _tf_variable('biases_{}'.format(i), [bins], initializer=const)
+#         hist.append(tf.nn.bias_add(conv, centers))
+#         hist[i] = tf.abs(hist[i])
+        
+#         # The size here is actually wrong. we do not want cross product... To be improved...
+#         widths = tf.get_variable(
+#             name='widths_{i}', shape=[1, bins, bins], dtype=tf.float32,
+#             initializer=tf.initializers.constant(value=width, dtype=tf.float32))
+#         hist[i] = tf.nn.conv1d(hist[i], widths, strides=1, padding='SAME')
+
+#         hist[i] = tf.reduce_mean(tf.nn.relu(1 - hist[i]), axis=1)
+#     hist = tf.concat(...)
 #     return tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])
+
+
+
 
 def learned_histogram(x, params):
     """A learned histogram layer.
@@ -850,3 +859,5 @@ def learned_histogram(x, params):
     dist = tf.abs(x - centers)
     hist = tf.reduce_mean(tf.nn.relu(1 - dist * widths), axis=1)
     return tf.reshape(hist, [tf.shape(hist)[0], hist.shape[1] * hist.shape[2]])
+
+
