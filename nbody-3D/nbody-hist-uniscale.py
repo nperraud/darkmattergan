@@ -4,6 +4,10 @@ from gantools import data, utils
 from gantools.model import UpscalePatchWGAN, CosmoWGAN
 from gantools.gansystem import GANsystem
 
+from functools import partial
+forward = partial(data.fmap.stat_forward, c=20000, shift=6)
+backward = partial(data.fmap.stat_backward, c=20000, shift=6)
+
 ns = 32
 try_resume = True
 
@@ -26,11 +30,11 @@ params_discriminator['summary'] = True
 params_discriminator['data_size'] = 3
 params_discriminator['inception'] = False
 params_discriminator['spectral_norm'] = True
-params_discriminator['histogram'] = dict()
-params_discriminator['histogram']['bins'] = 100
-params_discriminator['histogram']['data_size'] = 3
-params_discriminator['histogram']['full'] = 128
-params_discriminator['histogram']['spectral_norm'] = True
+# params_discriminator['histogram'] = dict()
+# params_discriminator['histogram']['bins'] = 100
+# params_discriminator['histogram']['data_size'] = 3
+# params_discriminator['histogram']['full'] = 128
+# params_discriminator['histogram']['spectral_norm'] = True
 
 params_generator = dict()
 params_generator['stride'] = [1, 2, 1, 1, 1]
@@ -41,7 +45,7 @@ params_generator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]
 params_generator['batch_norm'] = [bn, bn, bn, bn]
 params_generator['full'] = [32*32*32]
 params_generator['summary'] = True
-params_generator['non_lin'] = tf.nn.relu
+params_generator['non_lin'] = None
 params_generator['data_size'] = 3
 params_generator['inception'] = False
 params_generator['spectral_norm'] = True
@@ -68,19 +72,19 @@ params_optimization = dict()
 params_optimization['batch_size'] = 8
 params_optimization['epoch'] = 100
 params_optimization['n_critic'] = 5
-params_optimization['generator'] = dict()
-params_optimization['generator']['optimizer'] = 'adam'
-params_optimization['generator']['kwargs'] = {'beta1':0, 'beta2':0.9}
-params_optimization['generator']['learning_rate'] = 0.0004
-params_optimization['discriminator'] = dict()
-params_optimization['discriminator']['optimizer'] = 'adam'
-params_optimization['discriminator']['kwargs'] = {'beta1':0, 'beta2':0.9}
-params_optimization['discriminator']['learning_rate'] = 0.0001
+# params_optimization['generator'] = dict()
+# params_optimization['generator']['optimizer'] = 'adam'
+# params_optimization['generator']['kwargs'] = {'beta1':0, 'beta2':0.9}
+# params_optimization['generator']['learning_rate'] = 0.0004
+# params_optimization['discriminator'] = dict()
+# params_optimization['discriminator']['optimizer'] = 'adam'
+# params_optimization['discriminator']['kwargs'] = {'beta1':0, 'beta2':0.9}
+# params_optimization['discriminator']['learning_rate'] = 0.0001
 
 # Cosmology parameters
 params_cosmology = dict()
-params_cosmology['forward_map'] = data.fmap.stat_forward
-params_cosmology['backward_map'] = data.fmap.stat_backward
+params_cosmology['forward_map'] = forward
+params_cosmology['backward_map'] = backward
 
 
 # all parameters
@@ -91,7 +95,7 @@ params['net']['discriminator'] = params_discriminator
 params['net']['cosmology'] = params_cosmology # Parameters for the cosmological summaries
 params['net']['prior_distribution'] = 'gaussian'
 params['net']['shape'] = [ns, ns, ns, 8] # Shape of the image
-params['net']['loss_type'] = 'wasserstein' # loss ('hinge' or 'wasserstein')
+params['net']['loss_type'] = 'normalized_wasserstein' # loss ('hinge' or 'wasserstein')
 params['net']['gamma_gp'] = 10 # Gradient penalty
 params['net']['upsampling'] = None 
 
@@ -120,7 +124,7 @@ dataset = data.load.load_nbody_dataset(
     Mpch=350,
     patch=True,
     augmentation=True,
-    forward_map=data.fmap.stat_forward,
+    forward_map=forward,
     is_3d=True)
 
 wgan.train(dataset, resume=resume)
