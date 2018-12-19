@@ -140,7 +140,7 @@ class WGAN(BaseGAN):
             print(' Hinge loss.')
             self._D_loss = tf.nn.relu(1-self._D_loss_r) + tf.nn.relu(self._D_loss_f+1)
             self._G_loss = -self._D_loss_f
-        elif self.params['loss_type'] == 'normalized_wasserstein'            # Wasserstein loss
+        elif self.params['loss_type'] == 'normalized_wasserstein':            # Wasserstein loss
             gamma_gp = self.params['gamma_gp']
             print(' Wasserstein loss with gamma_gp={}'.format(gamma_gp))
             self._D_gp = self.wgan_regularization(gamma_gp, [self.X_fake], [self.X_real])
