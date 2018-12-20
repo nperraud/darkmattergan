@@ -54,6 +54,7 @@ params['net']['shape'] = [ns, ns, ns, 1]
 params['net']['generator'] = params_generator
 params['net']['gamma'] = 10
 params['net']['discriminator'] = params_discriminator
+params['net']['loss_type'] = 'normalized_wasserstein' # loss ('hinge' or 'wasserstein')
 
 params['optimization'] = params_optimization
 params['summary_every'] = 100  # Tensorboard summaries every ** iterations
