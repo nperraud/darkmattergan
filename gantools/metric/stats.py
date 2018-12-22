@@ -248,7 +248,7 @@ def peak_count_hist(dat, bins=20, lim=None, persample=False):
     with mp.Pool(processes=num_workers) as pool:
         peak = pool.map(peak_count, dat)
     peak_stack = np.log(np.hstack(peak)+np.e)
-    if np.size(peak)==0:
+    if np.size(peak_stack)==0:
         y = np.zeros([bins])
         x = None
     else:
@@ -257,13 +257,11 @@ def peak_count_hist(dat, bins=20, lim=None, persample=False):
         else:
             lim = tuple(map(type(peak_stack[0]), lim))
         if persample:
-            raise NotImplementedError('This code is not working. I do not know where the bug is.')
             y = []
-            print(len(peak))
             for peak_t in peak:
-                y_tmp, x = np.histogram(peak_t, bins=bins, range=lim)
+                y_tmp, x = np.histogram(np.log(peak_t+np.e), bins=bins, range=lim)
                 # Normalization
-                y_tmp = y_tmp/peak_t.size
+                y_tmp = y_tmp/peak_stack.size*dat.shape[0]
                 y.append(y_tmp)
             y = np.array(y)
           
