@@ -8,7 +8,7 @@ ns = 32
 try_resume = True
 
 
-time_str = 'stat-64_to_256'
+time_str = 'stat2-64_to_256'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
@@ -87,7 +87,7 @@ params['net']['discriminator'] = params_discriminator
 params['net']['cosmology'] = params_cosmology # Parameters for the cosmological summaries
 params['net']['prior_distribution'] = 'gaussian'
 params['net']['shape'] = [ns, ns, ns, 8] # Shape of the image
-params['net']['loss_type'] = 'wasserstein' # loss ('hinge' or 'wasserstein')
+params['net']['loss_type'] = 'normalized_wasserstein' # loss ('hinge' or 'wasserstein')
 params['net']['gamma_gp'] = 10 # Gradient penalty
 params['net']['upscaling'] = 4 
 

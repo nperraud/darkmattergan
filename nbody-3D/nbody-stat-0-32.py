@@ -9,7 +9,7 @@ from gantools.gansystem import GANsystem
 ns = 32
 try_resume = True
 
-time_str = 'stat-0_to_32'
+time_str = 'stat2-0_to_32'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
@@ -60,6 +60,7 @@ params['net']['generator'] = params_generator
 params['net']['gamma'] = 10
 params['net']['discriminator'] = params_discriminator
 params['net']['cosmology'] = params_cosmology
+params['net']['loss_type'] = 'normalized_wasserstein' # loss ('hinge' or 'wasserstein')
 
 params['optimization'] = params_optimization
 params['summary_every'] = 100  # Tensorboard summaries every ** iterations

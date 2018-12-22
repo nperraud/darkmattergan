@@ -8,7 +8,7 @@ ns = 32
 try_resume = True
 
 
-time_str = 'stat-32_to_64'
+time_str = 'stat2-32_to_64'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
@@ -18,7 +18,7 @@ md=64
 
 params_discriminator = dict()
 params_discriminator['stride'] = [2, 2, 2, 1, 1]
-params_discriminator['nfilter'] = [md, md, md, 2*md, md]
+params_discriminator['nfilter'] = [md, md, md, 2*md, 4*md]
 params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn ]
 params_discriminator['full'] = []
@@ -32,7 +32,7 @@ params_generator = dict()
 params_generator['stride'] = [1, 2, 1, 1, 1]
 params_generator['latent_dim'] = 256
 params_generator['in_conv_shape'] =[16, 16, 16]
-params_generator['nfilter'] = [md, 2*md, md, md, 1]
+params_generator['nfilter'] = [4*md, 2*md, md, md, 1]
 params_generator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn]
 params_generator['full'] = [16*16*md]
@@ -87,9 +87,9 @@ params['net']['discriminator'] = params_discriminator
 params['net']['cosmology'] = params_cosmology # Parameters for the cosmological summaries
 params['net']['prior_distribution'] = 'gaussian'
 params['net']['shape'] = [ns, ns, ns, 8] # Shape of the image
-params['net']['loss_type'] = 'wasserstein' # loss ('hinge' or 'wasserstein')
 params['net']['gamma_gp'] = 10 # Gradient penalty
 params['net']['upscaling'] = 2
+params['net']['loss_type'] = 'normalized_wasserstein' # loss ('hinge' or 'wasserstein')
 
 params['optimization'] = params_optimization
 params['summary_every'] = 100 # Tensorboard summaries every ** iterations
