@@ -13,5 +13,4 @@ module load TensorFlow/1.7.0-CrayGNU-18.08-cuda-9.1-python3
 
 source $HOME/upgan/bin/activate
 
-cd $SCRATCH/CodeGAN/medical/
 srun python medical-64-256.py
