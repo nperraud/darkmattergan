@@ -20,8 +20,8 @@ bn = False
 md=64
 
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 1, 1, 1]
-params_discriminator['nfilter'] = [md, md, md, 2*md, md]
+params_discriminator['stride'] = [1, 1, 1, 2, 2]
+params_discriminator['nfilter'] = [md, md, md, 2*md, 4*md]
 params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn ]
 params_discriminator['full'] = []
@@ -37,10 +37,10 @@ params_discriminator['spectral_norm'] = True
 # params_discriminator['histogram']['spectral_norm'] = True
 
 params_generator = dict()
-params_generator['stride'] = [1, 2, 1, 1, 1]
+params_generator['stride'] = [2, 2, 1, 1, 1]
 params_generator['latent_dim'] = 256
 params_generator['in_conv_shape'] =[16, 16, 16]
-params_generator['nfilter'] = [md, 2*md, md, md, 1]
+params_generator['nfilter'] = [4*md, 2*md, md, md, 1]
 params_generator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn]
 params_generator['full'] = [32*32*32]

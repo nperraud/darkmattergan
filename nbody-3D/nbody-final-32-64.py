@@ -21,7 +21,7 @@ bn=False
 md=64
 
 params_discriminator = dict()
-params_discriminator['stride'] = [2, 2, 1, 1, 1]
+params_discriminator['stride'] = [1, 1, 1, 2, 2]
 params_discriminator['nfilter'] = [md, md, md, 2*md, 4*md]
 params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn ]
