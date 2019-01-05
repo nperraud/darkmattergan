@@ -54,7 +54,7 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, display=True):
     return logel2, l2, logel1, l1
 
 
-def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True, persample=False):
+def compute_and_plot_peak_cout(raw_images, gen_sample_raw, display=True, persample=True):
     """Compute and plot peak count histogram from raw images."""
     y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw, persample=persample)
     if persample:

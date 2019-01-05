@@ -39,6 +39,9 @@ def wrapper_func_cross(a,
                 box_l=box_l,
                 bin_k=bin_k,
                 field_y=over_dens_y)[0]
+#             tmp = tmp/np.sum(y.flatten())/np.linalg.norm(x.flatten())
+#             tmp = tmp/np.sum(y)/np.sum(x)
+
             # Nati: Why is there a [0] here. There is probably a good reason...
             _result.append(tmp)
     return _result
@@ -55,7 +58,6 @@ def power_spectrum_batch_phys(X1,
     :param size_image:
     :return: result, k
     """
-    
     if len(X1.shape)==5 or (len(X1.shape)==4 and not(X1.shape[3]==1)):
         is_3d = True
     else:
@@ -248,7 +250,7 @@ def peak_count_hist(dat, bins=20, lim=None, persample=False):
     with mp.Pool(processes=num_workers) as pool:
         peak = pool.map(peak_count, dat)
     peak_stack = np.log(np.hstack(peak)+np.e)
-    if np.size(peak)==0:
+    if np.size(peak_stack)==0:
         y = np.zeros([bins])
         x = None
     else:
@@ -257,13 +259,11 @@ def peak_count_hist(dat, bins=20, lim=None, persample=False):
         else:
             lim = tuple(map(type(peak_stack[0]), lim))
         if persample:
-            raise NotImplementedError('This code is not working. I do not know where the bug is.')
             y = []
-            print(len(peak))
             for peak_t in peak:
-                y_tmp, x = np.histogram(peak_t, bins=bins, range=lim)
+                y_tmp, x = np.histogram(np.log(peak_t+np.e), bins=bins, range=lim)
                 # Normalization
-                y_tmp = y_tmp/peak_t.size
+                y_tmp = y_tmp/peak_stack.size*dat.shape[0]
                 y.append(y_tmp)
             y = np.array(y)
           
