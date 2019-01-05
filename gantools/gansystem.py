@@ -431,7 +431,8 @@ class UpscaleGANsystem(GANsystem):
         if self.params['Nstats_cubes']:
             X_real = next(self.summary_dataset_cubes)
             if self.net.params['upscaling']:
-                small = blocks.downsample(X_real,self.net.params['upscaling'])
+                axis = self.net.params['generator']['data_size']+1
+                small = np.expand_dims(blocks.downsample(X_real,self.net.params['upscaling']), axis=axis)
             else:
                 small = None
             X_fake = self.upscale_image(N=self.params['Nstats_cubes'],
