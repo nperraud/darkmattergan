@@ -41,12 +41,12 @@ params_discriminator['spectral_norm'] = True
 
 params_generator = dict()
 params_generator['stride'] = [2, 2, 2, 1, 1]
-params_generator['latent_dim'] = 100
+params_generator['latent_dim'] = 256
 params_generator['in_conv_shape'] =[4, 4, 4]
 params_generator['nfilter'] = [4*md, 2*md, md, md, 1]
 params_generator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_generator['batch_norm'] = [bn, bn, bn, bn]
-params_generator['full'] = [4*4*4*8*md]
+params_generator['full'] = [256*md]
 params_generator['summary'] = True
 params_generator['non_lin'] = None
 params_generator['data_size'] = 3
