@@ -292,6 +292,7 @@ class MetricSum(Metric):
         for metric in self._metrics:
             feed_dict = metric.compute_summary(fake, real, feed_dict)
             score += metric.last_metric
+        self._last_metric = score
         feed_dict[self._placeholder] = score
         return feed_dict
 
