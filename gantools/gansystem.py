@@ -203,7 +203,7 @@ class GANsystem(NNSystem):
             dict_latent['z'] =self.net.sample_latent(N)
         if sess is not None:
             self._sess = sess
-            print("Not loading a checkpoint")
+            # print("Not loading a checkpoint")
 
         else:
             self._sess = tf.Session()
@@ -404,11 +404,11 @@ class UpscaleGANsystem(GANsystem):
 
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self._cosmo_metric_list = ganlist.cosmo_metric_list()
-        for met in self._cosmo_metric_list:
-            met.add_summary(collections="cubes")
-        self._cubes_summaries = tf.summary.merge(tf.get_collection("cubes"))
+        if self.params['Nstats_cubes']:
+            self._cosmo_metric_list = ganlist.cosmo_metric_list()
+            for met in self._cosmo_metric_list:
+                met.add_summary(collections="cubes")
+            self._cubes_summaries = tf.summary.merge(tf.get_collection("cubes"))
 
     def train(self, dataset, **kwargs):
         if self.params['Nstats_cubes']:
@@ -417,6 +417,7 @@ class UpscaleGANsystem(GANsystem):
             assert(len(dataset._X)>=self.params['Nstats_cubes'])
             self.summary_dataset_cubes = itertools.cycle(dataset.iter_cubes(self.params['Nstats_cubes']))
             self.preprocess_summaries(dataset._X, rerun=False)
+            self._global_score = np.inf
         super().train(dataset, **kwargs)
 
     def preprocess_summaries(self, X_real, **kwargs):
@@ -440,7 +441,17 @@ class UpscaleGANsystem(GANsystem):
                                         resolution=X_real.shape[1],
                                         sess=self._sess)
             feed_dict = self.compute_summaries(X_fake, feed_dict)
+            # m = self._cosmo_metric_list[0]
+            # print(m.last_metric)
+            # print(m._metrics[0].last_metric)
+            # print(m._metrics[1].last_metric)
+            # print(m._metrics[2].last_metric)
+            new_val = self._cosmo_metric_list[0].last_metric
 
+            if new_val <= self._global_score:
+                self._global_score = new_val
+                self._save(self._counter)
+                print('New lower score at {}'.format(new_val))
             summary = self._sess.run(self._cubes_summaries, feed_dict=feed_dict)
             self._summary_writer.add_summary(summary, self._counter)
 
@@ -587,7 +598,7 @@ class UpscaleGANsystem(GANsystem):
                         downsampled = None
 
                     # 3) Generate the image
-                    print('Current patch: column={}, row={}, height={}\n'.format(
+                    print('Current patch: column={}, row={}, height={}'.format(
                         i + 1, j + 1, k + 1))
                     if downsampled is not None:
                         gen_sample = self.generate(N=N, borders=border, X_down=downsampled, sess=sess)

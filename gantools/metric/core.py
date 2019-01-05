@@ -214,7 +214,7 @@ class StatisticalMetric(Metric):
         return self._last_metric
 
     def compute_summary(self, fake, real, feed_dict={}):
-        super().compute_summary(fake, real, feed_dict)
+        feed_dict = super().compute_summary(fake, real, feed_dict)
         if self.stype == 3:
             feed_dict = self._plot_summary.compute_summary(
                 self._saved_real_stat[1],
@@ -279,7 +279,8 @@ class MetricSum(Metric):
         score = 0
         for metric in self._metrics:
             score += metric(fake, real)
-        return score
+        self._last_metric = score
+        return self._last_metric
 
     def add_summary(self,  *args, **kwargs):
         for metric in self._metrics:
