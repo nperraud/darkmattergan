@@ -430,8 +430,8 @@ class UpscaleGANsystem(GANsystem):
         super()._train_log(feed_dict)
         if self.params['Nstats_cubes']:
             X_real = next(self.summary_dataset_cubes)
-            if self.net.params['upsampling']:
-                small = blocks.downsample(X_real,self.net.params['upsampling'])
+            if self.net.params['upscaling']:
+                small = blocks.downsample(X_real,self.net.params['upscaling'])
             else:
                 small = None
             X_fake = self.upscale_image(N=self.params['Nstats_cubes'],
