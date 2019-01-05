@@ -2245,6 +2245,7 @@ def generator_border(x, params, X=None, y=None, reuse=True, scope="generator"):
                 imgt = batch_norm(imgt, name='{}_border_bn'.format(i), train=True)
                 rprint('         Batch norm', reuse)
             rprint('         BORDER:  Size of the conv variables: {}'.format(imgt.shape), reuse)
+            # imgt = lrelu(imgt)       
         imgt = reshape2d(imgt, name='border_conv2vec')
         
         wf = params_border['width_full']

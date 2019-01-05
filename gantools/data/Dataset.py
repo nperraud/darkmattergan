@@ -175,9 +175,22 @@ class Dataset_3d_patch(Dataset):
         * transform : Function to be applied to each bigger cube in the dataset
                       for data augmentation
         '''
+        self.spix = spix
 
         slice_fn = functools.partial(slice_3d_patch, spix=spix)
         super().__init__(*args, slice_fn=slice_fn, **kwargs)
+
+    def iter_cubes(self, batch_size=1, spix=None):
+        if spix is None:
+            transformed_data = self._transform(self._X)
+        else:
+            slice_fn = functools.partial(slice_3d, spix=spix)
+            transformed_data = slice_fn(self._transform(self._X))
+            # Reshuffle the data
+        if self.shuffle:
+            self._p = np.random.permutation(transformed_data.shape[0])
+        for data in grouper(transformed_data[self._p], batch_size):
+            yield np.array(data)
 
 
 def grouper(iterable, n, fillvalue=None):

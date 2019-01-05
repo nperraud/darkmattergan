@@ -6,7 +6,8 @@ import time
 import itertools
 from copy import deepcopy
 import yaml
-
+from gantools.metric import ganlist
+from gantools import blocks
 from tfnntools.nnsystem import NNSystem
 
 class GANsystem(NNSystem):
@@ -387,7 +388,71 @@ class PaulinaGANsystem(GANsystem):
         feed_dict[self.worst_maxmin_pl] = worst_maxmin
         super()._train_log(feed_dict)
 
-class UpcaleGANsystem(GANsystem):
+class UpscaleGANsystem(GANsystem):
+
+    def default_params(self):
+
+
+        # Global parameters
+        # -----------------
+        d_param = super().default_params()
+
+        d_param['Nstats_cubes'] = 10
+
+        return d_param
+
+
+    def __init__(self,  *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._cosmo_metric_list = ganlist.cosmo_metric_list()
+        for met in self._cosmo_metric_list:
+            met.add_summary(collections="cubes")
+        self._cubes_summaries = tf.summary.merge(tf.get_collection("cubes"))
+
+    def train(self, dataset, **kwargs):
+        if self.params['Nstats_cubes']:
+            # Only implented for the 3dimentional case...
+            assert(self.net.params['generator']['data_size'] == 3)
+            assert(len(dataset._X)>=self.params['Nstats_cubes'])
+            self.summary_dataset_cubes = itertools.cycle(dataset.iter_cubes(self.params['Nstats_cubes']))
+            self.preprocess_summaries(dataset._X, rerun=False)
+        super().train(dataset, **kwargs)
+
+    def preprocess_summaries(self, X_real, **kwargs):
+        if self.net.params['cosmology']['backward_map']:
+            X_real = self.params['net']['cosmology']['backward_map'](X_real)
+        for met in self._cosmo_metric_list:
+            met.preprocess(X_real, **kwargs)
+
+
+    def _train_log(self, feed_dict):
+        super()._train_log(feed_dict)
+        if self.params['Nstats_cubes']:
+            X_real = next(self.summary_dataset_cubes)
+            if self.net.params['upsampling']:
+                small = blocks.downsample(X_real,self.net.params['upsampling'])
+            else:
+                small = None
+            X_fake = self.upscale_image(N=self.params['Nstats_cubes'],
+                                        small=small,
+                                        resolution=X_real.shape[1],
+                                        sess=self._sess)
+            feed_dict = self.compute_summaries(X_fake, feed_dict)
+
+            summary = self._sess.run(self._cubes_summaries, feed_dict=feed_dict)
+            self._summary_writer.add_summary(summary, self._counter)
+
+    def compute_summaries(self, X_fake, feed_dict={}):
+        if self.net.params['cosmology']['backward_map']:
+            # if X_real is not None:
+            #     X_real = self.params['cosmology']['backward_map'](X_real)
+            X_fake = self.net.params['cosmology']['backward_map'](X_fake)
+        for met in self._cosmo_metric_list:
+            feed_dict = met.compute_summary(X_fake, None, feed_dict)
+        return feed_dict
+
+
 
     def upscale_image(self, N=None, small=None, resolution=None, checkpoint=None, sess=None):
         """Upscale image using the lappachsimple model, or upscale_WGAN_pixel_CNN model.
