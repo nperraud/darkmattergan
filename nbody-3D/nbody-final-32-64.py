@@ -18,10 +18,10 @@ name = 'WGAN_' + time_str
 
 bn=False
 
-md=64
+md=32
 
 params_discriminator = dict()
-params_discriminator['stride'] = [1, 2, 2, 1, 1]
+params_discriminator['stride'] = [1, 2, 2, 1, 2]
 params_discriminator['nfilter'] = [md, 2*md, 4*md, md, md]
 params_discriminator['shape'] = [[5, 5, 5],[5, 5, 5], [5, 5, 5],[5, 5, 5], [5, 5, 5]]
 params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn ]
