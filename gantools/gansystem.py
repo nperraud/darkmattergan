@@ -415,7 +415,7 @@ class UpscaleGANsystem(GANsystem):
             # Only implented for the 3dimentional case...
             assert(self.net.params['generator']['data_size'] == 3)
             assert(len(dataset._X)>=self.params['Nstats_cubes'])
-            self.summary_dataset_cubes = itertools.cycle(dataset.iter_cubes(self.params['Nstats_cubes']))
+            self.summary_dataset_cubes = itertools.cycle(dataset.iter_cubes(self.params['Nstats_cubes'], downscale=self.net.params['upscaling']))
             self.preprocess_summaries(dataset._X, rerun=False)
             self._global_score = np.inf
         super().train(dataset, **kwargs)
