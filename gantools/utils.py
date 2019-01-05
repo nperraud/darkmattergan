@@ -8,7 +8,6 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import h5py
 
-from gantools.gansystem import GANsystem
 import sys
 if sys.version_info[0] > 2:
     from urllib.request import urlretrieve
@@ -44,7 +43,7 @@ def load_params(path):
         params = pickle.load(f)
     return params
 
-def load_gan(savepath, model, system=GANsystem):
+def load_gan(savepath, model, system):
     import gantools
     pathparams = os.path.join(savepath, 'params.pkl')
     with open(pathparams, 'rb') as f:          
