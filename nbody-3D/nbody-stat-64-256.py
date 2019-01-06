@@ -98,7 +98,7 @@ params['save_every'] = 1000 # Save the model every ** iterations
 params['summary_dir'] = os.path.join(global_path, name +'_summary/')
 params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 params['Nstats'] = 30
-params['Nstats_cubes'] = 5
+params['Nstats_cubes'] = 10
 
 resume, params = utils.test_resume(try_resume, params)
 
