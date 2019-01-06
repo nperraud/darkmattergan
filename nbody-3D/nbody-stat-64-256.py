@@ -2,7 +2,7 @@ import tensorflow as tf
 import os
 from gantools import data, utils
 from gantools.model import UpscalePatchWGAN, CosmoWGAN
-from gantools.gansystem import GANsystem
+from gantools.gansystem import GANsystem, UpscaleGANsystem
 
 ns = 32
 try_resume = True
@@ -98,6 +98,7 @@ params['save_every'] = 1000 # Save the model every ** iterations
 params['summary_dir'] = os.path.join(global_path, name +'_summary/')
 params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 params['Nstats'] = 30
+params['Nstats_cubes'] = 5
 
 resume, params = utils.test_resume(try_resume, params)
 
@@ -106,7 +107,7 @@ class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
     pass
 
 
-wgan = GANsystem(CosmoUpscalePatchWGAN, params)
+wgan = UpscaleGANsystem(CosmoUpscalePatchWGAN, params)
 
 dataset = data.load.load_nbody_dataset(
     spix=ns,
