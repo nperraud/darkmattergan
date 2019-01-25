@@ -77,7 +77,7 @@ params['net']['generator'] = params_generator
 params['net']['gamma'] = 10
 params['net']['discriminator'] = params_discriminator
 params['net']['cosmology'] = params_cosmology
-params['net']['loss_type'] = 'normalized_wasserstein'
+params['net']['loss_type'] = 'wasserstein'
 
 params['optimization'] = params_optimization
 params['summary_every'] = 100  # Tensorboard summaries every ** iterations

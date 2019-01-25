@@ -109,7 +109,7 @@ params['Nstats_cubes'] = 10
 
 resume, params = utils.test_resume(try_resume, params)
 
-
+params['net']['loss_type'] = 'normalized_wasserstein' # loss ('hinge' or 'wasserstein')
 class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
     pass
 
