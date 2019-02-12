@@ -1,0 +1,12 @@
+pillow
+pynbody
+h5py
+sklearn
+scikit-image
+pyyaml
+.
+./tfnntools
+matplotlib
+jupyter
+moviepy
+requests
