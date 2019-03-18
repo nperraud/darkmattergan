@@ -11,7 +11,7 @@ try_resume = True
 
 
 time_str = 'final-64_to_256'
-global_path = '/scratch/snx3000/nperraud/saved_results/nbody/'
+global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
 bn=False
