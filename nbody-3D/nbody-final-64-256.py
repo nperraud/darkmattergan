@@ -108,7 +108,8 @@ params['Nstats'] = 30
 params['Nstats_cubes'] = 10
 
 resume, params = utils.test_resume(try_resume, params)
-
+params['summary_dir'] = os.path.join(global_path, name + '_summary/')
+params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 params['net']['loss_type'] = 'normalized_wasserstein' # loss ('hinge' or 'wasserstein')
 class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
     pass
