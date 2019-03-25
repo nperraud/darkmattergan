@@ -536,6 +536,7 @@ class UpscalePatchWGAN(WGAN):
             X=self.X_down
         else:
             X = self.X_smooth
+        z = self.z
         if self.params['generator']['latent_dim_split'] is not None:
             lts = self.params['generator']['latent_dim_split']
             ltv = np.prod(np.array(lts))
@@ -549,7 +550,7 @@ class UpscalePatchWGAN(WGAN):
                 X = tf.concat((X, imgz), axis=len(imgz.shape)-1)
 
         # E) Generater the corner
-        self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list,X=X, reuse=False)
+        self.X_fake_corner = self.generator(z=z, y=flipped_border_list,X=X, reuse=False)
 
 
         
@@ -778,7 +779,7 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
             if X is None:
                 X = imgz
             else:
-                X = tf.concat((X, imgz), axis=len(imgz.shape))
+                X = tf.concat((X, imgz), axis=len(imgz.shape)-1)
 
         self.X_fake_corner = self.generator(z=z, y=flipped_border_list, X=X, reuse=False)
         
