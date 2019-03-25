@@ -88,6 +88,8 @@ params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 params['Nstats'] = 10
 
 resume, params = utils.test_resume(try_resume, params)
+params['summary_dir'] = os.path.join(global_path, name + '_summary/')
+params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 
 wgan = GANsystem(CosmoWGAN, params)
 

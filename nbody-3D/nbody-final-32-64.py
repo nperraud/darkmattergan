@@ -112,6 +112,8 @@ params['Nstats_cubes'] = 30
 resume, params = utils.test_resume(try_resume, params)
 params['optimization']['epoch']=100000
 params['net']['loss_type'] = 'wasserstein' # loss ('hinge' or 'wasserstein')
+params['summary_dir'] = os.path.join(global_path, name + '_summary/')
+params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 
 class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
     pass

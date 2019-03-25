@@ -30,6 +30,7 @@ def test_resume(try_resume, params):
             params = params_loaded
             print('Resume, the training will start from the last iteration!')
             resume = True
+    params['save_dir'] = path
     return resume, params
 
 def try_load_params(path):
@@ -41,6 +42,7 @@ def try_load_params(path):
 def load_params(path):
     with open(os.path.join(path,'params.pkl'), 'rb') as f:
         params = pickle.load(f)
+    params['save_dir'] = path
     return params
 
 def load_gan(savepath, model, system):
