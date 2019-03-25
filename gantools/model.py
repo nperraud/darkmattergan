@@ -675,6 +675,7 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
         d_params['shape'] = [256, 1] # Shape of the image
 
         d_params['generator']['latent_dim'] = 16
+        d_params['generator']['latent_dim_split'] = None
         d_params['generator']['full'] = [32]
         d_params['generator']['nfilter'] = [2, 32, 1]
         d_params['generator']['batch_norm'] = [bn, bn, bn]
@@ -707,7 +708,7 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
         shape = self.params['shape']
         reduction = np.prod(np.array(self.params['generator']['stride']))*2
         in_conv_shape = [el//reduction for el in shape[:-1]]
-        self._params['generator']['in_conv_shape'] = in_conv_shape
+        self.params['generator']['in_conv_shape'] = in_conv_shape
         self.X_data = tf.placeholder(tf.float32, shape=[None, *shape], name='X_data')
         self.z = tf.placeholder(
             tf.float32,
@@ -753,7 +754,19 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
         flipped_border_list = tf_flip_slices(*border_list, size=self.data_size)
 
         # E) Generater the corner
-        self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list, X=self.X_smooth, reuse=False)
+        X = X_smooth
+        if self.params['generator']['latent_dim_split']:
+            lts = self.params['generator']['latent_dim_split']
+            ltv = np.prod(np.array(lts))
+            z = self.z[:,ltv:]
+            bs = self.z.shape[0]
+            imgz = self.z[:,:ltv].reshape([bs, *lts])
+            if X_smooth is None:
+                X = imgz
+            else:
+                X = tf.concat((X, imgz), axis=len(imgz.shape))
+
+        self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list, X=X, reuse=False)
         
         #F) Recreate the big images
         self.X_real = tf_patch2img(self.X_real_corner, *border_list, size=self.data_size)
