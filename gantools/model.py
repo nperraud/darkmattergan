@@ -531,7 +531,7 @@ class UpscalePatchWGAN(WGAN):
             self.X_smooth = None
             self.X_down = None
 
-        if self.params['generator']['use_Xdown']
+        if self.params['generator']['use_Xdown']:
             print('Using X_down instead of X_smooth')
             X=self.X_down
         else:
