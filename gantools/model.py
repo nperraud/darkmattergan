@@ -541,7 +541,7 @@ class UpscalePatchWGAN(WGAN):
             ltv = np.prod(np.array(lts))
             z = self.z[:,ltv:]
             bs = self.z.shape[0]
-            imgz = self.z[:,:ltv].reshape([bs, *lts])
+            imgz = tf.reshape(self.z[:,:ltv],[bs, *lts])
 
             if X is None:
                 X = imgz
