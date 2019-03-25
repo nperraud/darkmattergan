@@ -546,7 +546,7 @@ class UpscalePatchWGAN(WGAN):
             if X is None:
                 X = imgz
             else:
-                X = tf.concat((X, imgz), axis=len(imgz.shape))
+                X = tf.concat((X, imgz), axis=len(imgz.shape)-1)
 
         # E) Generater the corner
         self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list,X=X, reuse=False)
