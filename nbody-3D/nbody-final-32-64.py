@@ -39,8 +39,8 @@ params_discriminator['spectral_norm'] = True
 
 params_generator = dict()
 params_generator['stride'] = [1, 1, 2, 1, 1]
-params_generator['latent_dim'] = 256
-params_generator['in_conv_shape'] =[16, 16, 16]
+params_generator['latent_dim'] = 1024 + 16*16*16
+params_generator['latent_dim_split'] = [16,16,16,1]
 params_generator['nfilter'] = [md, md, 4*md, 2*md, 1]
 params_generator['shape'] = [[4, 4, 4],[4, 4, 4], [4, 4, 4],[4, 4, 4], [4, 4, 4]]
 params_generator['batch_norm'] = [bn, bn, bn, bn]
