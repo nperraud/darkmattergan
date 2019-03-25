@@ -480,6 +480,7 @@ class UpscalePatchWGAN(WGAN):
         d_params['generator']['shape'] = [[5, 5], [5, 5], [5, 5], [5, 5]]
         d_params['generator']['stride'] = [1, 1, 1, 1]
         d_params['generator']['use_Xdown'] = False
+        d_params['generator']['latent_dim_split'] = None
 
         return d_params
 
@@ -529,14 +530,26 @@ class UpscalePatchWGAN(WGAN):
         else:
             self.X_smooth = None
             self.X_down = None
-        # E) Generater the corner
-        if self.params['generator']['use_Xdown']:
-            print('Using X_down instead of X_smooth')
-            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list,X=self.X_down, reuse=False)
-        else:
-            # E) Generater the corner
-            self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list,X=self.X_smooth, reuse=False)
 
+        if self.params['generator']['use_Xdown']
+            print('Using X_down instead of X_smooth')
+            X=self.X_down
+        else:
+            X = self.X_smooth
+        if self.params['generator']['latent_dim_split'] is not None:
+            lts = self.params['generator']['latent_dim_split']
+            ltv = np.prod(np.array(lts))
+            z = self.z[:,ltv:]
+            bs = self.z.shape[0]
+            imgz = self.z[:,:ltv].reshape([bs, *lts])
+
+            if X is None:
+                X = imgz
+            else:
+                X = tf.concat((X, imgz), axis=len(imgz.shape))
+
+        # E) Generater the corner
+        self.X_fake_corner = self.generator(z=self.z, y=flipped_border_list,X=X, reuse=False)
 
 
         
@@ -754,18 +767,15 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
         flipped_border_list = tf_flip_slices(*border_list, size=self.data_size)
 
         # E) Generater the corner
-        X = X_smooth
-        print(self.params['generator']['latent_dim_split'])
+        X = self.X_smooth
         if self.params['generator']['latent_dim_split'] is not None:
             lts = self.params['generator']['latent_dim_split']
             ltv = np.prod(np.array(lts))
             z = self.z[:,ltv:]
             bs = self.z.shape[0]
             imgz = self.z[:,:ltv].reshape([bs, *lts])
-            print(z.shape)
-            print(imgz.shape)
 
-            if X_smooth is None:
+            if X is None:
                 X = imgz
             else:
                 X = tf.concat((X, imgz), axis=len(imgz.shape))
