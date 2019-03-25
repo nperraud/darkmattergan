@@ -755,6 +755,7 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
 
         # E) Generater the corner
         X = X_smooth
+        print(self.params['generator']['latent_dim_split'])
         if self.params['generator']['latent_dim_split'] is not None:
             lts = self.params['generator']['latent_dim_split']
             ltv = np.prod(np.array(lts))
