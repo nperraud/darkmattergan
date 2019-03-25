@@ -540,7 +540,7 @@ class UpscalePatchWGAN(WGAN):
             lts = self.params['generator']['latent_dim_split']
             ltv = np.prod(np.array(lts))
             z = self.z[:,ltv:]
-            bs = self.z.shape[0]
+            bs = tf.shape(self.z)[0]
             imgz = tf.reshape(self.z[:,:ltv],[bs, *lts])
 
             if X is None:
@@ -772,8 +772,8 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
             lts = self.params['generator']['latent_dim_split']
             ltv = np.prod(np.array(lts))
             z = self.z[:,ltv:]
-            bs = self.z.shape[0]
-            imgz = self.z[:,:ltv].reshape([bs, *lts])
+            bs = tf.shape(self.z)[0]
+            imgz = tf.reshape(self.z[:,:ltv],[bs, *lts])
 
             if X is None:
                 X = imgz
