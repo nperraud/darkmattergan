@@ -30,7 +30,6 @@ def test_resume(try_resume, params):
             params = params_loaded
             print('Resume, the training will start from the last iteration!')
             resume = True
-    params['save_dir'] = path
     return resume, params
 
 def try_load_params(path):
