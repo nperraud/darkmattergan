@@ -3,8 +3,7 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap as cm
-from moviepy.editor import VideoClip
-from moviepy.video.io.bindings import mplfig_to_npimage
+
 
 from scipy import ndimage
 import matplotlib.gridspec as gridspec
@@ -296,7 +295,8 @@ def tile_and_plot_3d_image(axis, image, **kwargs):
     axis.imshow(tile, **kwargs)
 
 def cubes_to_animation(cubes, clim=None, figsize=(10,11), title=None, fontsize=24, fps=16, **kwargs):
-
+    from moviepy.editor import VideoClip
+    from moviepy.video.io.bindings import mplfig_to_npimage
     if len(cubes.shape)<3:
         cubes = cubes.reshape([1, *cubes.shape])
     if clim is None:
@@ -349,6 +349,8 @@ def get_animation(real_cube, fake_cube, real_downsampled=None, clim = None,
     Given real and fake 3d sample, create animation with slices along all 3 dimensions
     Return animation object
     '''
+    from moviepy.editor import VideoClip
+    from moviepy.video.io.bindings import mplfig_to_npimage
     ind = [0] # has to be a list, as list are mutable
     plt.style.use('dark_background')
     #ax = plt.axes([0,0,1,1], frameon=True)
