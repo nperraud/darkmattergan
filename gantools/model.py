@@ -7,7 +7,7 @@ from tfnntools.model import BaseNet, rprint
 from gantools.plot import colorize
 from gantools.metric import ganlist
 from gantools.data.transformation import tf_flip_slices, tf_patch2img
-from gantools.plot.plot_summary import PlotSummaryPlot
+from gantools.plot.plot_summary import PlotSummaryPlot, gen_img_buf
 from copy import deepcopy
 
 class BaseGAN(BaseNet):
@@ -58,7 +58,9 @@ class WGAN(BaseGAN):
         d_params = deepcopy(super().default_params())
         d_params['shape'] = [16, 16, 1] # Shape of the image
         d_params['prior_distribution'] = 'gaussian' # prior distribution
-        d_params['gamma_gp'] = 10 
+        d_params['gamma_gp'] = 10
+        d_params['switch_p'] = 0 # Switch real and fake images with this probability
+        d_params['conditional'] = False # Whether the GAN is conditional or not
 
         bn = False
 
@@ -96,6 +98,8 @@ class WGAN(BaseGAN):
         d_params['discriminator']['minibatch_reg'] = False # Use minibatch regularization
         d_params['discriminator']['spectral_norm'] = False # use spectral norm
 
+        # TODO: to be removed if Sinkhorn cleaned
+        d_params['discriminator']['out_size'] = 1 # Size of the discriminator
 
         return d_params
 
@@ -121,8 +125,18 @@ class WGAN(BaseGAN):
         self._params['generator']['in_conv_shape'] = in_conv_shape
   
         self._build_generator()
-        self._D_fake = self.discriminator(self.X_fake, reuse=False)
-        self._D_real = self.discriminator(self.X_real, reuse=True)
+
+        # Switch will be either 0 or 1
+        # This is needed to switch real and fake images accordingly to params['discriminator']['switch_p']
+        self.switch = tf.placeholder(tf.float32, shape=[None, 1], name='switch')
+
+        # Switch real and fake images at random
+        desired_shape = [-1] + [1 for i in range(len(self._params['shape']))]
+        switch_r = tf.reshape(self.switch, desired_shape)
+        self.X_fake_s = tf.multiply(self.X_fake, 1 - switch_r) + tf.multiply(self.X_real, switch_r)
+        self.X_real_s = tf.multiply(self.X_real, 1 - switch_r) + tf.multiply(self.X_fake, switch_r)
+        self._D_fake = self.discriminator(self.X_fake_s, reuse=False)
+        self._D_real = self.discriminator(self.X_real_s, reuse=True)
         self._D_loss_f = tf.reduce_mean(self._D_fake)
         self._D_loss_r = tf.reduce_mean(self._D_real)
         gamma_gp = self.params['gamma_gp']
@@ -131,7 +145,6 @@ class WGAN(BaseGAN):
         self._G_loss = -self._D_loss_f
         self._inputs = (self.z)
         self._outputs = (self.X_fake)
-
 
     def _add_summary(self):
         tf.summary.histogram('Prior/z', self.z, collections=['model'])
@@ -190,8 +203,8 @@ class WGAN(BaseGAN):
         tf.summary.scalar("Gen/Loss", self._G_loss, collections=["train"])
    
     def _build_stat_summary(self):
-        self._stat_list_real = ganlist.gan_stat_list('real')
-        self._stat_list_fake = ganlist.gan_stat_list('fake')
+        self._stat_list_real = ganlist.gan_stat_list('real', size=self.data_size)
+        self._stat_list_fake = ganlist.gan_stat_list('fake', size=self.data_size)
 
         for stat in self._stat_list_real:
             stat.add_summary(collections="model")
@@ -219,6 +232,11 @@ class WGAN(BaseGAN):
             feed_dict = self._plot_fake.compute_summary(np.squeeze(X_fake), feed_dict=feed_dict)
         return feed_dict
 
+    def _single_img_summary(self, img, name, vmin, vmax):
+        plot_buf = gen_img_buf(img, vmin, vmax)
+        summary_img = tf.Summary.Image(encoded_image_string=plot_buf.getvalue(), height=7, width=7)
+        return tf.Summary(value=[tf.Summary.Value(tag=name, image=summary_img)])
+
     def _build_image_summary(self):
         vmin = tf.reduce_min(self.X_real)
         vmax = tf.reduce_max(self.X_real)
@@ -238,12 +256,12 @@ class WGAN(BaseGAN):
                 'audio/Fake', self.X_fake, fs, max_outputs=4, collections=['model'])
             return None
         tf.summary.image(
-            "images/Real_Image",
+            "images/Real_Image_",
             colorize(X_real, vmin, vmax),
             max_outputs=4,
             collections=['model'])
         tf.summary.image(
-            "images/Fake_Image",
+            "images/Fake_Image_",
             colorize(X_fake, vmin, vmax),
             max_outputs=4,
             collections=['model'])
@@ -256,10 +274,14 @@ class WGAN(BaseGAN):
             x = np.expand_dims(x, dim)
         return x
 
+    def sample_switch_real_fake(self, bs=1):
+        return int(np.random.rand() < self.params['switch_p']) * np.ones((bs, 1))
+
     def batch2dict(self, batch):
         d = dict()
         d['X_real'] = self.assert_image(batch)
         d['z'] = self.sample_latent(len(batch))
+        d['switch'] = self.sample_switch_real_fake(len(batch))
         return d
 
     @property
@@ -296,6 +318,78 @@ class CosmoWGAN(WGAN):
         for met in self._cosmo_metric_list:
             feed_dict = met.compute_summary(X_fake, X_real, feed_dict)
         return feed_dict
+
+
+# Conditional WGAN
+# input parameters are encoded as the length of the latent vector and
+# concatenated after the convolutional layers of the discriminator
+class ConditionalParamWGAN(WGAN):
+
+    def __init__(self, params, name='Conditional Params WGAN'):
+        super().__init__(params=params, name=name)
+
+    def default_params(self):
+        d_params = super().default_params()
+        d_params['cond_params'] = 1
+        # This parammeter indicates that the gansystem has to provide the conditioning parameters when calling sample_latent
+        d_params['conditional'] = True
+        d_params['prior_distribution'] = "gaussian_length"
+        d_params['prior_normalization'] = False
+        # Note: init range has to always be specified
+        d_params['init_range'] = [[0, 1]]
+        # Note: final range is the same for every parameter
+        d_params['final_range'] = [0.8, 1.2]
+        return d_params
+
+    def _build_generator(self):
+        shape = self._params['shape']
+        self.X_real = tf.placeholder(tf.float32, shape=[None, *shape], name='Xreal')
+        self.z = tf.placeholder(tf.float32, shape=[None, self.params['generator']['latent_dim'] * self.params['cond_params']], name='z')
+        self.X_param = tf.placeholder(tf.float32, shape=[None, self._params['cond_params']], name='Xparam')
+        self.X_fake = self.generator(self.z, reuse=False, model=self)
+
+    def discriminator(self, X, **kwargs):
+        return discriminator(X, params=self.params['discriminator'], z=self.X_param, model=self, **kwargs)
+
+    def _build_stat_summary(self):
+        super()._build_stat_summary()
+        self._params_metric_list = ganlist.parameters_metric_list()
+        for met in self._params_metric_list:
+            met.add_summary(collections="model")      
+
+    def compute_summaries(self, X_real, X_fake, feed_dict={}):
+        feed_dict = super().compute_summaries(X_real, X_fake, feed_dict)
+        for met in self._params_metric_list:
+            feed_dict = met.compute_summary(X_fake, X_real, feed_dict)
+        return feed_dict
+
+    def preprocess_summaries(self, data, **kwargs):
+        super().preprocess_summaries(data[0], **kwargs)
+        for met in self._params_metric_list:
+            met.preprocess(data[0], **kwargs)
+
+    def sample_latent(self, bs=1, params=None):
+        latent_dim = self.params['generator']['latent_dim']
+        if params is None:
+            raise ValueError("Using a conditional GAN but not providing conditioning parameters to the generator")
+        else:
+            
+            # Sample latent vector for every params as a different channel
+            latent = np.zeros((bs, latent_dim, self.params['cond_params']))
+            for c in range(self.params['cond_params']):
+
+                # Create parameters object
+                kwargs = {'x': params[:, c], 'init_range': self.params['init_range'][c], 'final_range': self.params['final_range']}
+                latent[:, :, c] = utils.sample_latent(bs, latent_dim, self.params['prior_distribution'], self.params['prior_normalization'], **kwargs)
+            return latent.reshape((bs, latent_dim * self.params['cond_params']))
+
+    def batch2dict(self, batch):
+        d = dict()
+        d['X_real'] = self.assert_image(np.array([batch[i][0] for i in range(len(batch))]))
+        d['X_param'] = np.array([batch[i][1][:self.params['cond_params']] for i in range(len(batch))])
+        d['z'] = self.sample_latent(len(batch), d['X_param'])
+        d['switch'] = self.sample_switch_real_fake()
+        return d
 
 
 class LapWGAN(WGAN):
@@ -470,6 +564,7 @@ class UpscalePatchWGAN(WGAN):
         d = dict()
         d['X_data'] = self.assert_image(batch)
         d['z'] = self.sample_latent(len(batch))
+        d['switch'] = self.sample_switch_real_fake()
         return d
 
 
@@ -1506,7 +1601,6 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
 #         return discriminator(X, self.params['discriminator'], reuse=reuse)
 
 
-
 def js_gan_summaries(D_out_f, D_out_r):
     tf.summary.scalar("Disc/Out_f", tf.reduce_mean(D_out_f), collections=["Training"])
     tf.summary.scalar("Disc/Out_r", tf.reduce_mean(D_out_r), collections=["Training"])
@@ -1708,7 +1802,7 @@ def histogram_block(x, params, reuse):
     return hist
 
 
-def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
+def discriminator(x, params, z=None, reuse=True, scope="discriminator", model=None):
     conv = get_conv(params['data_size'])
 
     assert(len(params['stride']) ==
@@ -1804,9 +1898,14 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
 
             x = params['activation'](x)
 
+            if model is not None:
+                setattr(model, '_D_conv_activation_' + str(i), x)
+
         x = reshape2d(x, name='img2vec')
         rprint('     Reshape to {}'.format(x.shape), reuse)
 
+        if  model is not None:
+            model._D_features = x
         if z is not None:
             x = tf.concat([x, z], axis=1)
             rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
@@ -1818,7 +1917,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             rprint('     Contenate with Histogram variables to {}'.format(x.shape), reuse)
         if params['moment']:
             x = tf.concat([x, cov], axis=1)
-            rprint('     Contenate with covairance variables to {}'.format(x.shape), reuse)           
+            rprint('     Contenate with covairance variables to {}'.format(x.shape), reuse)
 
         for i in range(nfull):
             x = linear(x,
@@ -1826,6 +1925,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                        '{}_full'.format(i+nconv),
                        summary=params['summary'])
             x = params['activation'](x)
+            if model is not None:
+                setattr(model, '_D_full_activation_' + str(i), x)
             rprint('     {} Full layer with {} outputs'.format(nconv+i, params['full'][i]), reuse)
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
         if params['minibatch_reg']:
@@ -1833,14 +1934,17 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             x = mini_batch_reg(x, n_kernels=150, dim_per_kernel=30)
             rprint('       Size of the variables: {}'.format(x.shape), reuse)
 
-        x = linear(x, 1, 'out', summary=params['summary'])
-        # x = tf.sigmoid(x)
         rprint('     {} Full layer with {} outputs'.format(nconv+nfull, 1), reuse)
+        x = linear(x, params['out_size'], 'out', summary=params['summary']) # TODO: set size manually to 1 if sinkhorn removed
+        if 'output_is_prob' in params and params['output_is_prob']:
+            rprint('     Using sigmoid activation function', reuse)
+            x = tf.sigmoid(x)
         rprint('     The output is of size {}'.format(x.shape), reuse)
         rprint(''.join(['-']*50)+'\n', reuse)
-    return x
 
-def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
+        return x
+
+def generator(x, params, X=None, y=None, reuse=True, scope="generator", model=None):
     assert(len(params['stride']) == len(params['nfilter'])
            == len(params['batch_norm'])+1)
     nconv = len(params['stride'])
@@ -1889,7 +1993,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
             #     else:
             #         sx = np.int(np.round(
             #             np.sqrt(np.prod(x.shape.as_list()[1:]))))
-            #         sy = sx
+            #         sy = sx   
             c = np.int(np.round(np.prod(x.shape.as_list()[1:])))//(sx*sy)
             x = tf.reshape(x, [bs, sx, sy, c], name='vec2img')
             rprint('     Reshape to {}'.format(x.shape), reuse)
@@ -1912,6 +2016,8 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                 x = tf.concat([x, X], axis=2)
                 rprint('     Contenate with latent variables to {}'.format(x.shape), reuse)
 
+        if model is not None:
+            setattr(model, '_G_deconv_activation_0', x)
         
         if params.get('use_conv_over_deconv', True):
             conv_over_deconv = np.all(np.array(params['stride']) == 1) # If true use conv, else deconv
@@ -1972,6 +2078,8 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                     rprint('         Batch norm', reuse)
 
                 x = params['activation'](x)
+                if model is not None:
+                    setattr(model, '_G_deconv_activation_' + str(i+1), x)
                 rprint('         Non linearity applied', reuse)
 
             rprint('         Size of the variables: {}'.format(x.shape), reuse)
@@ -2122,4 +2230,3 @@ def generator_border(x, params, X=None, y=None, reuse=True, scope="generator"):
         rprint(''.join(['-']*50)+'\n', reuse)
 
         return generator(x, params, X=X, y=y, reuse=reuse, scope=scope)
-

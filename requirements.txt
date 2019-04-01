@@ -12,3 +12,5 @@ matplotlib
 jupyter
 moviepy
 requests
+astropy
+lenstools

@@ -76,8 +76,12 @@ class TestMetric(unittest.TestCase):
         for m in metric_list:
             print(m.group+'/'+m.name)
             m(x, y)
-            assert (m(y, y) == 0)
-            assert (m(x, x) == 0)
+            if 'MS-SSIM' in m.name:
+                np.testing.assert_almost_equal(m(y, y), 0, 4)
+                np.testing.assert_almost_equal(m(x, x), 0, 4)
+            else:
+                assert (m(y, y) == 0)
+                assert (m(x, x) == 0)
 
         x = np.ones(20)
         y = 2 * np.ones(20)

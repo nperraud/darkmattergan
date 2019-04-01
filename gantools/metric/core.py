@@ -2,7 +2,7 @@
 
 import numpy as np
 import tensorflow as tf
-from gantools.plot.plot_summary import PlotSummaryLog, PlotSummaryPlot
+from gantools.plot.plot_summary import PlotSummaryLog, PlotSummaryPlot, PlotSummaryStandard, PlotSummaryImages
 
 
 class TFsummaryHelper(object):
@@ -27,8 +27,9 @@ class TFsummaryHelper(object):
                * 0 scalar
                * 1 image
                * 2 histogram
-               * 3 curves
+               * 3 two curves
                * 4 simple unique curve
+               * 5 two images, produces a subplot
         """
 
         name = self.group + '/' + self.name
@@ -50,10 +51,15 @@ class TFsummaryHelper(object):
             if self._log:
                 self._plot_summary = PlotSummaryLog(
                     self.name, self.group, collections=[collections])
+            else:
+                self._plot_summary = PlotSummaryStandard(
+                    self.name, self.group, collections=[collections])
         elif self.stype == 4:
             self._plot_summary = PlotSummaryPlot(
                 self.name, self.group, collections=[collections])
-
+        elif self.stype == 5:
+            self._placeholder = tf.placeholder(tf.float32, name=name)
+            self._plot_summary = PlotSummaryImages(self.name, self.group, collections=[collections])
         else:
             raise ValueError('Wrong summary type')
 
@@ -155,7 +161,7 @@ class Metric(TFsummaryHelper):
 class StatisticalMetric(Metric):
     """Statistically based metric."""
 
-    def __init__(self, statistic, order=2, log=False, normalize=False, wasserstein=False, **kwargs):
+    def __init__(self, statistic, order=2, log=False, normalize=False, wasserstein=False, frobenius=False, **kwargs):
         """Initialize the StatisticalMetric.
 
         Arguments
@@ -167,6 +173,7 @@ class StatisticalMetric(Metric):
         * recompute_real: recompute the real statistic (default True)
         * normalize: normalize the metric (default False)
         * wasserstein: use the wasserstein metric
+        * forbenius: use forbenius norm
         """
         name = statistic.name + '_l' + str(order)
         if log:
@@ -178,6 +185,7 @@ class StatisticalMetric(Metric):
         self._saved_stat = None
         self._normalize = normalize
         self._wasserstein = wasserstein
+        self._frobenius = frobenius
 
     def preprocess(self, real, rerun=True):
         """Compute the statistic on the real data."""
@@ -207,6 +215,10 @@ class StatisticalMetric(Metric):
             fs = 10*np.log10(fs + 1e-2)
         if self._wasserstein:
             self._last_metric = wasserstein_distance(rs, fs, normalize=self._normalize, w=self._saved_real_stat[1])
+        elif self._frobenius:
+            self._last_metric = np.linalg.norm(rs - fs)
+            if self._normalize:
+                self._last_metric /= np.linalg.norm(rs)
         else:
             self._last_metric = np.mean(np.abs(rs - fs)**self._order)
             if self._normalize:
@@ -215,7 +227,7 @@ class StatisticalMetric(Metric):
 
     def compute_summary(self, fake, real, feed_dict={}):
         super().compute_summary(fake, real, feed_dict)
-        if self.stype == 3:
+        if self.stype == 3 or self.stype == 5:
             feed_dict = self._plot_summary.compute_summary(
                 self._saved_real_stat[1],
                 self._saved_real_stat[0],

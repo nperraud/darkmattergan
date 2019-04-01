@@ -4,7 +4,7 @@ from gantools import utils
 from gantools.data import path
 from gantools.data import fmap
 from gantools.data import transformation
-from gantools.data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time, Dataset, DatasetPostTransform
+from gantools.data.Dataset import Dataset_2d, Dataset_3d, Dataset_2d_patch, Dataset_3d_patch, Dataset_time, Dataset, DatasetPostTransform, Dataset_parameters_h5, Dataset_parameters_h5_sorted
 from skimage import io
 from functools import partial
 
@@ -426,3 +426,12 @@ def load_maps_dataset(
             pass
         dataset = SpecialDataset(images, spix=spix, shuffle=shuffle, transform=t, post_transform=post_transform, dtype=dtype)
     return dataset
+
+
+def load_params_dataset(filename, data_key='train_maps', params_key='train_labels', shape=[128, 128], batch=1000, sorted=False, transform=None, shuffle=False):
+    if '/' not in filename:
+        filename = path.root_path() + filename
+    if sorted:
+        return Dataset_parameters_h5_sorted(filename, data_key, params_key, shape, batch, transform, shuffle=shuffle)
+    else:
+        return Dataset_parameters_h5(filename, data_key, params_key, shape, batch, transform)

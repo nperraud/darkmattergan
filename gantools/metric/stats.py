@@ -3,15 +3,17 @@
 import numpy as np
 from gantools.metric import power_spectrum_phys as ps
 import scipy.ndimage.filters as filters
+from skimage.measure import compare_ssim
 import itertools
 from gantools import utils
 import functools
 import multiprocessing as mp
+import tensorflow as tf
 
 
-def wrapper_func(x, bin_k=50, box_l=100 / 0.7):
+def wrapper_func(x, bin_k=50, box_l=100 / 0.7, log_sampling=True):
     tmp = ps.dens2overdens(np.squeeze(x), np.mean(x))
-    return ps.power_spectrum(field_x=tmp, box_l=box_l, bin_k=bin_k)[0]
+    return ps.power_spectrum(field_x=tmp, box_l=box_l, bin_k=bin_k, log_sampling=log_sampling)[0]
 
 
 def wrapper_func_cross(a,
@@ -48,14 +50,19 @@ def power_spectrum_batch_phys(X1,
                               X2=None,
                               bin_k=50,
                               box_l=100 / 0.7,
-                              remove_nan=True):
+                              remove_nan=True,
+                              is_3d=False,
+                              multiply=False,
+                              log_sampling=True,
+                              cut=None):
     """
     Calculates the 1-D PSD of a batch of variable size
     :param batch:
     :param size_image:
+    :param multiply: whether the psd should be multiply by k(k+1)/2pi
     :return: result, k
     """
-    
+
     if len(X1.shape)==5 or (len(X1.shape)==4 and not(X1.shape[3]==1)):
         is_3d = True
     else:
@@ -73,10 +80,10 @@ def power_spectrum_batch_phys(X1,
 
     if is_3d:
         _, k = ps.power_spectrum(
-            field_x=X1[0].reshape(s, s, s), box_l=box_l, bin_k=bin_k)
+            field_x=X1[0].reshape(s, s, s), box_l=box_l, bin_k=bin_k, log_sampling=log_sampling)
     else:
         _, k = ps.power_spectrum(
-            field_x=X1[0].reshape(s, s), box_l=box_l, bin_k=bin_k)
+            field_x=X1[0].reshape(s, s), box_l=box_l, bin_k=bin_k, log_sampling=log_sampling)
 
     num_workers = mp.cpu_count() - 1
     # if num_workers == 23:
@@ -95,7 +102,7 @@ def power_spectrum_batch_phys(X1,
             # del over_dens
 
             # Make it multicore...
-            func = functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k)
+            func = functools.partial(wrapper_func, box_l=box_l, bin_k=bin_k, log_sampling=log_sampling)
             result = np.array(pool.map(func, X1))
 
         else:
@@ -121,7 +128,8 @@ def power_spectrum_batch_phys(X1,
                 sz=sz,
                 bin_k=50,
                 box_l=100 / 0.7,
-                is_3d=is_3d)
+                is_3d=is_3d,
+                log_sampling=log_sampling)
             _result = pool.map(func, enumerate(X1))
             _result = list(itertools.chain.from_iterable(_result))
             result = np.array(_result)
@@ -132,7 +140,27 @@ def power_spectrum_batch_phys(X1,
         result = result[:, freq_index]
         k = k[freq_index]
 
+    if cut is not None:
+        # Cut lower frequencies out
+        idx = 0
+        while idx < len(k) - 1 and k[idx] < cut[0]:
+            idx = idx + 1
+        idx_low = idx
+        # Cut higher frequencies out
+        while idx < len(k) - 1 and k[idx] < cut[1]:
+            idx = idx + 1
+        k = k[idx_low:idx]
+        result = result[:, idx_low:idx]
+
+    if multiply:
+        result = result * (k + 1) * k / (2 * np.pi) 
+
     return result, k
+
+
+def psd_correlation(x, bin_k=50, box_l=100 / 0.7, log_sampling=True, cut=None):
+    psd, k = power_spectrum_batch_phys(x, bin_k=bin_k, box_l=box_l, log_sampling=log_sampling, cut=cut)
+    return np.corrcoef(psd, rowvar=False), k
 
 
 def histogram(x, bins, probability=True):
@@ -235,7 +263,16 @@ def diff_vec(y_real, y_fake):
     return l2, logel2, l1, logel1
 
 
-def peak_count_hist(dat, bins=20, lim=None):
+# Returns the fractional difference
+def fractional_diff(y_real, y_fake, axis=0):
+    return np.abs(y_real - y_fake) / y_real
+
+# Returns the difference divided by the standard deviation
+def relative_diff(y_real, y_fake, axis=0):
+    return np.abs(np.mean(y_real, axis=axis) - np.mean(y_fake, axis=axis)) / np.std(y_real, axis=axis)
+
+
+def peak_count_hist(dat, bins=20, lim=None, neighborhood_size=5, threshold=0, log=True, mean=True):
     """Make the histogram of the peak count of data.
 
     Arguments
@@ -246,26 +283,40 @@ def peak_count_hist(dat, bins=20, lim=None):
     """
     num_workers = mp.cpu_count() - 1
     with mp.Pool(processes=num_workers) as pool:
-        peak = np.array(pool.map(peak_count, dat))
-    peak = np.log(np.hstack(peak)+np.e)
+        peak_count_arg = functools.partial(peak_count, neighborhood_size=neighborhood_size, threshold=threshold)
+        peak_arr = np.array(pool.map(peak_count_arg, dat))
+    peak = np.hstack(peak_arr)
+    if log:
+        peak = np.log(peak+np.e)
+        peak_arr = np.array([np.log(pa+np.e) for pa in peak_arr])
     if lim is None:
         lim = (np.min(peak), np.max(peak))
     else:
         lim = tuple(map(type(peak[0]), lim))
-    y, x = np.histogram(peak, bins=bins, range=lim)
-    x = np.exp((x[1:] + x[:-1]) / 2)-np.e
-    # Normalization
-    y = y / dat.shape[0]
+    # Compute histograms individually
+    with mp.Pool(processes=num_workers) as pool:
+        hist_func = functools.partial(np.histogram, bins=bins, range=lim)
+        res = np.array(pool.map(hist_func, peak_arr))
+    
+    # Unpack results
+    y = np.vstack(res[:, 0])
+    x = res[0, 1]
+
+    x = (x[1:] + x[:-1]) / 2
+    if log:
+        x = np.exp(x)-np.e
+    if mean:
+        y = np.mean(y, axis=0)
     return y, x, lim
 
 
-def peak_count_hist_real_fake(real, fake, bins=20, lim=None):
-    y_real, x, lim = peak_count_hist(real, bins=bins, lim=lim)
-    y_fake, _, _ = peak_count_hist(fake, bins=bins, lim=lim)
+def peak_count_hist_real_fake(real, fake, bins=20, lim=None, log=True, neighborhood_size=5, threshold=0, mean=True):
+    y_real, x, lim = peak_count_hist(real, bins=bins, lim=lim, log=log, neighborhood_size=neighborhood_size, threshold=threshold, mean=mean)
+    y_fake, _, _ = peak_count_hist(fake, bins=bins, lim=lim, log=log, neighborhood_size=neighborhood_size, threshold=threshold, mean=mean)
     return y_real, y_fake, x
 
 
-def mass_hist(dat, bins=20, lim=None):
+def mass_hist(dat, bins=20, lim=None, log=True, mean=True, **kwargs):
     """Make the histogram of log10(data) data.
 
     Arguments
@@ -274,27 +325,40 @@ def mass_hist(dat, bins=20, lim=None):
     bins : number of bins for the histogram (default 20)
     lim  : limit for the histogram, if None then min(log10(dat)), max(dat)
     """
-    log_data = np.log10(dat.flatten() + 1)
+    if log:
+        log_data = np.log10(dat + 1)
+    else:
+        log_data = dat
     if lim is None:
         lim = (np.min(log_data), np.max(log_data))
-    y, x = np.histogram(log_data, bins=bins, range=lim)
-    x = 10**((x[1:] + x[:-1]) / 2) - 1
-    y = y / dat.shape[0]
-    return y, x, lim
+
+    num_workers = mp.cpu_count() - 1
+    with mp.Pool(processes=num_workers) as pool:
+        results = [pool.apply(np.histogram, (x,), dict(bins=bins, range=lim)) for x in log_data]
+    y = np.vstack([y[0] for y in results])
+    x = results[0][1]
+    if log:
+        x = 10**((x[1:] + x[:-1]) / 2) - 1
+    else:
+        x = (x[1:] + x[:-1]) / 2
+    if mean:
+        return np.mean(y, axis=0), x, lim
+    else:
+        return y, x, lim
 
 
-def mass_hist_real_fake(real, fake, bins=20, lim=None):
+def mass_hist_real_fake(real, fake, bins=20, lim=None, log=True, mean=True):
     if lim is None:
         new_lim = True
     else:
         new_lim = False
-    y_real, x, lim = mass_hist(real, bins=bins, lim=lim)
+    y_real, x, lim = mass_hist(real, bins=bins, lim=lim, log=log, mean=mean)
     if new_lim:
         lim = list(lim)
         lim[1] = lim[1]+1
-        y_real, x, lim = mass_hist(real, bins=bins, lim=lim)
+        y_real, x, lim = mass_hist(real, bins=bins, lim=lim, log=log, mean=mean)
 
-    y_fake, _, _ = mass_hist(fake, bins=bins, lim=lim)
+    y_fake, _, _ = mass_hist(fake, bins=bins, lim=lim, log=log, mean=mean)
     return y_real, y_fake, x
 
 
@@ -337,3 +401,50 @@ def total_stats_error(feed_dict, params=dict()):
          * np.log10(feed_dict['wasserstein_mass_hist'] + 1)
 
     return v
+
+# Note: this only works for 2D images
+# X is an array of shape (nsamples, x, y)
+def ms_ssim(X, gaussian_weights=True, sigma=1.5, ncopm=100):
+    assert(len(X) >= 2)
+    if len(X.shape) > 3:
+        X = X[:, :, :, 0]
+    msssim = 0
+    for i in range(ncopm):
+        a, b = np.random.randint(0, len(X)), np.random.randint(0, len(X))
+        while a == b:
+            b = np.random.randint(0, len(X))
+        msssim = msssim + compare_ssim(X[a], X[b])
+    return msssim / ncopm
+
+# Compute frechet inception distance from activations
+def compute_fid_from_activations(f1, f2):
+    with tf.Session() as sess:
+        return sess.run([tf.contrib.gan.eval.frechet_classifier_distance_from_activations(tf.constant(f1), tf.constant(f2))])[0]
+
+
+# TODO: remove once correlation code is fixed
+import lenstools
+import astropy
+
+def psd_single_lenstools(img, angle=(5*np.pi/180), l_edges=[200, 6000, 50], multiply=False):
+    if len(img.shape) > 2:
+        img = img[:, :, 0]
+    c = lenstools.ConvergenceMap(data=img, angle=angle * astropy.units.rad)
+    l, psd = c.powerSpectrum(l_edges)
+    if multiply:
+        psd = psd * l * (l+1) / (2 * np.pi)
+    return psd, l
+
+def psd_lenstools(data, box_l=(5*np.pi/180), bin_k=50, cut=None, multiply=False):
+    psd = []
+    if cut is None:
+        cut = [200, 6000]
+    l_edges = np.linspace(cut[0], cut[1], bin_k)
+    for img in data:
+        p, l = psd_single_lenstools(img, angle=box_l, l_edges=l_edges, multiply=multiply)
+        psd.append(p)
+    return np.array(psd), l
+
+def psd_correlation_lenstools(x, box_l=(5*np.pi/180), bin_k=50, cut=None):
+    psd, k = psd_lenstools(x, box_l=box_l, bin_k=bin_k, cut=cut)
+    return np.corrcoef(psd, rowvar=False), k

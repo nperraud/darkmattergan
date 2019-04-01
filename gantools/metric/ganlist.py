@@ -6,6 +6,8 @@ from scipy import stats
 from .stats import mass_hist
 from .stats import peak_count_hist as peak_hist
 from .stats import power_spectrum_batch_phys as psd
+from .stats import psd_correlation
+from .stats import ms_ssim
 
 
 def mean(x):
@@ -66,6 +68,10 @@ def gan_stat_list(subname='', size=2):
     stat_list.append(Statistic(kurtosis, name='kurtosis'+subname, group='descriptives', stype=0))
     stat_list.append(Statistic(skewness, name='skewness'+subname, group='descriptives', stype=0))
     stat_list.append(Statistic(median, name='median'+subname, group='descriptives', stype=0))
+    
+    # MS-SSIM score only works for images
+    if size == 2:
+        stat_list.append(Statistic(ms_ssim, name='MS-SSIM'+subname, group='descriptives', stype=0))
 
     return stat_list
 
@@ -89,6 +95,7 @@ def cosmo_metric_list(recompute_real=False):
     metric_list.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='cosmology'), log=True, recompute_real=recompute_real, stype=3))
     metric_list.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='cosmology'), log=True, recompute_real=recompute_real, stype=3))
     metric_list.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='cosmology'), log=True, recompute_real=recompute_real, stype=3))
+    metric_list.append(StatisticalMetric(Statistic(psd_correlation, name='correlation', group='cosmology'), recompute_real=recompute_real, stype=5))
     # metric_list.append(MetricSum(metric_list[:3], name ='global_score', group='cosmology', recompute_real=recompute_real, stype=0))
 
     metric_list = [MetricSum(metric_list, name ='global_score', group='cosmology', recompute_real=recompute_real, stype=0)]
@@ -97,6 +104,7 @@ def cosmo_metric_list(recompute_real=False):
     metric_list_t.append(StatisticalMetricLim(Statistic(mass_hist, name='mass_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
     metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
     metric_list_t.append(StatisticalMetric(Statistic(psd_mean, name='psd', group='final'), log=True, recompute_real=recompute_real, stype=0, normalize=True))
+    metric_list.append(StatisticalMetric(Statistic(psd_correlation, name='correlation', group='cosmology'), recompute_real=recompute_real, stype=0, frobenius=True))
     metric_list.append(MetricSum(metric_list_t, name ='global_score', group='final', recompute_real=recompute_real, stype=0))
 
     metric_list_t = []
@@ -107,6 +115,41 @@ def cosmo_metric_list(recompute_real=False):
 
 
     # TODO: wasserstein
+
+    return metric_list
+
+# Note: same as cosmo metric list but no log for mass and peak histograms
+def parameters_metric_list(recompute_real=False):
+
+    local_mass = lambda x, lim=None: mass_hist(x, lim=lim, log=False)
+    local_peak = lambda x, lim=None: peak_hist(x, lim=lim, log=False)
+
+    def local_psd(x, **kwargs):
+        return psd_mean(x, box_l=(5 * np.pi / 180), multiply=True, **kwargs)
+
+    def local_psd_correlation(x):
+        return psd_correlation(x, box_l=(5 * np.pi / 180))
+
+    metric_list = []
+    metric_list.append(StatisticalMetricLim(Statistic(local_mass, name='mass_histogram', group='cosmology'), log=False, recompute_real=recompute_real, stype=3))
+    metric_list.append(StatisticalMetricLim(Statistic(local_peak, name='peak_histogram', group='cosmology'), log=False, recompute_real=recompute_real, stype=3))
+    metric_list.append(StatisticalMetric(Statistic(local_psd, name='psd', group='cosmology'), log=True, recompute_real=recompute_real, stype=3))
+    metric_list.append(StatisticalMetric(Statistic(local_psd_correlation, name='correlation', group='cosmology'), recompute_real=recompute_real, stype=5))
+
+    metric_list = [MetricSum(metric_list, name ='global_score', group='cosmology', recompute_real=recompute_real, stype=0)]
+
+    metric_list_t = []
+    metric_list_t.append(StatisticalMetricLim(Statistic(local_mass, name='mass_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
+    metric_list_t.append(StatisticalMetricLim(Statistic(local_peak, name='peak_histogram', group='final'), log=False, recompute_real=recompute_real, stype=0, normalize=True))
+    metric_list_t.append(StatisticalMetric(Statistic(local_psd, name='psd', group='final'), log=True, recompute_real=recompute_real, stype=0, normalize=True))
+    metric_list.append(StatisticalMetric(Statistic(psd_correlation, name='correlation', group='cosmology'), recompute_real=recompute_real, stype=0, frobenius=True))
+    metric_list.append(MetricSum(metric_list_t, name ='global_score', group='final', recompute_real=recompute_real, stype=0))
+
+    metric_list_t = []
+    metric_list_t.append(StatisticalMetricLim(Statistic(local_mass, name='mass_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+    # metric_list_t.append(StatisticalMetricLim(Statistic(peak_hist, name='peak_histogram', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+    metric_list_t.append(StatisticalMetric(Statistic(local_psd, name='psd', group='wasserstein'), log=False, recompute_real=recompute_real, stype=0, normalize=True, wasserstein=True))
+    metric_list.append(MetricSum(metric_list_t, name ='global_score', group='wasserstein', recompute_real=recompute_real, stype=0))
 
     return metric_list
 

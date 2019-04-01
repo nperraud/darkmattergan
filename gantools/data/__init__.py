@@ -11,3 +11,4 @@ from . import load
 from . import transformation
 from . import path
 from . import Dataset
+from . import toy_dataset_generator

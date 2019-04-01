@@ -5,6 +5,10 @@ import numpy as np
 import time
 import itertools
 from copy import deepcopy
+import json
+import subprocess
+import matplotlib.pyplot as plt
+from gantools import utils
 
 from tfnntools.nnsystem import NNSystem
 
@@ -34,6 +38,7 @@ class GANsystem(NNSystem):
         d_param['optimization']['n_critic'] = 5
         d_param['optimization']['epoch'] = 10
         d_param['optimization']['batch_size'] = 8
+        # d_param['optimization']['param_trick'] = False
         d_param['Nstats'] = None
 
         return d_param
@@ -115,12 +120,31 @@ class GANsystem(NNSystem):
             self.net.preprocess_summaries(dataset.get_samples(self.params['Nstats']), rerun=False)
         super().train(dataset, **kwargs)
 
+    # Redraw latent variable and switch real / fake flag
+    def _redraw_latent(self, feed_dict):
+        if 'conditional' in self.params['net'] and self.params['net']['conditional']:
+                feed_dict[self.net.z] = self.net.sample_latent(self.params['optimization']['batch_size'], feed_dict[self.net.X_param])
+        else:
+            feed_dict[self.net.z] = self.net.sample_latent(self.params['optimization']['batch_size'])
+        # Sample either 0 or 1. Fake and real samples will be swapped accordingly.
+        feed_dict[self.net.switch] = self.net.sample_switch_real_fake(self.params['optimization']['batch_size'])
+
     def _run_optimization(self, feed_dict, idx):
         # Update discriminator
         for _ in range(self.params['optimization']['n_critic']):
             _, loss_d = self._sess.run([self._optimize[0], self.net.loss[0]], feed_dict=feed_dict)
             # Small hack: redraw a new latent variable
-            feed_dict[self.net.z] = self.net.sample_latent(self.params['optimization']['batch_size'])
+            self._redraw_latent(feed_dict)
+        # Trick: give real image with random parameters
+        # If set the GAN is conditional and the 'param_trick' flag is set to true update the discriminator again using a batch of real samples and fake parameters
+        if 'conditional' in self.params['net'] and self.params['net']['conditional'] and self.params['optimization']['param_trick']:
+            real_params = np.copy(feed_dict[self.net.X_param])
+            for c in range(self.params['net']['cond_params']):
+                feed_dict[self.net.X_param][:, c] = utils.scale2range(np.random.rand(len(feed_dict[self.net.X_param])), [0, 1], self.params['net']['init_range'][c])
+            _, loss_d = self._sess.run([self._optimize[0], self.net.loss[0]], feed_dict=feed_dict)
+            # Restore real parameters and draw latent variable
+            feed_dict[self.net.X_param] = real_params
+            self._redraw_latent(feed_dict)
         # Update Encoder
         if self.net.has_encoder:
             _, loss_e = self._sess.run(
@@ -141,13 +165,40 @@ class GANsystem(NNSystem):
         if self.params['Nstats']:
             sum_batch = next(self.summary_dataset)
             sum_feed_dict = self._get_dict(**self._net.batch2dict(sum_batch))
+            sum_feed_dict[self.net.switch] = np.zeros(sum_feed_dict[self.net.switch].shape) # Do not change real and fake when computing summary
+
+            # Get real and fake images
+            X_real = self._sess.run([self.net.X_real], feed_dict=sum_feed_dict)[0]
             X_fake = self._generate_sample_safe(is_feed_dict=True, feed_dict=sum_feed_dict)
-            feed_dict = self.net.compute_summaries(X_real, X_fake, feed_dict)
+
+            # Save old dictionary
+            old_feed_dict = feed_dict.copy()
+
+            # Compute summaries
+            feed_dict = self.net.compute_summaries(X_real, X_fake, sum_feed_dict)
+
+            # Replace old values of feed dict afer that the new statistics are computed
+            for key, val in old_feed_dict.items():
+                feed_dict[key] = val
         else:
             feed_dict = self.net.compute_summaries(X_real, X_fake, feed_dict)
 
         summary = self._sess.run(self.net.summary, feed_dict=feed_dict)
         self._summary_writer.add_summary(summary, self._counter)
+        
+        # Print information about the code
+        if self._counter == self.params['summary_every']:
+            try:
+                git_hash = subprocess.check_output(["git", "describe", "--always"]).strip().decode('utf-8')
+            except:
+                git_hash = "Not found"
+            value = "===" + self.net._name + "===<br/>Git hash: " + git_hash + "<br/>" + dictionary_to_string(self.params)
+            text_tensor = tf.make_tensor_proto(value, dtype=tf.string)
+            meta = tf.SummaryMetadata()
+            meta.plugin_data.plugin_name = "text"
+            summary_params = tf.Summary()
+            summary_params.value.add(tag="parameters", metadata=meta, tensor=text_tensor)
+            self._summary_writer.add_summary(summary_params)
 
     def _print_log(self, idx, curr_loss):
         current_time = time.time()
@@ -174,7 +225,7 @@ class GANsystem(NNSystem):
                   self._epoch_loss_gen/(idx+1)))
         self._time['prev_iter_time'] = current_time
 
-    def generate(self, N=None, sess=None, checkpoint=None, **kwargs):
+    def generate(self, N=None, sess=None, checkpoint=None, batch_size=None, **kwargs):
         """Generate new samples.
 
         The user can chose between different options depending on the model.
@@ -186,6 +237,7 @@ class GANsystem(NNSystem):
         * N : number of sample (Default None)
         * sess : tensorflow Session (Default None)
         * checkpoint : number of the checkpoint (Default None)
+        * batch_size: batch size. If None same as for training (Dafault None)
         * kwargs : keywords arguments that are defined in the model
         """
         if N is None and len(kwargs)==0:
@@ -195,7 +247,7 @@ class GANsystem(NNSystem):
             print('Sampling z')
             if N is None:
                 N = len(kwargs[list(kwargs.keys())[0]])
-            dict_latent['z'] =self.net.sample_latent(N)
+            dict_latent['z'] = self.net.sample_latent(N)
         if sess is not None:
             self._sess = sess
             print("Not loading a checkpoint")
@@ -205,7 +257,7 @@ class GANsystem(NNSystem):
             res = self.load(checkpoint=checkpoint)
             if res:
                 print("Checkpoint succesfully loaded!")
-        samples = self._generate_sample_safe(**dict_latent, **kwargs)
+        samples = self._generate_sample_safe(batch_size=batch_size, **dict_latent, **kwargs)
         if sess is None:
             self._sess.close()
         return samples
@@ -221,7 +273,7 @@ class GANsystem(NNSystem):
             return tuple(s)
 
     # TODO: move this to the nnsystem class
-    def _generate_sample_safe(self, is_feed_dict=False, **kwargs):
+    def _generate_sample_safe(self, is_feed_dict=False, batch_size=None, **kwargs):
         gen_images = []
         if is_feed_dict:
             feed_dict = kwargs['feed_dict']
@@ -229,7 +281,7 @@ class GANsystem(NNSystem):
         else:
             N = len(kwargs[list(kwargs.keys())[0]])
         sind = 0
-        bs = self.params['optimization']['batch_size']
+        bs = self.params['optimization']['batch_size'] if batch_size is None else batch_size
         if N > bs:
             nb = (N - 1) // bs
             for i in range(nb):
@@ -248,6 +300,51 @@ class GANsystem(NNSystem):
         gen_images.append(gi)
         return self._special_vstack(gen_images)
 
+    # TODO: overkill, use directly get_values_at
+    def discriminate(self, batch, sess=None, checkpoint=None):
+        return self.get_values_at(batch, '_D_real', sess=sess, checkpoint=checkpoint)
+
+    def get_weights(self, name, sess=None, checkpoint=None):
+        var = [v for v in tf.trainable_variables() if v.name == name]
+        if sess is not None:
+            self._sess = sess
+            print("Not loading a checkpoint")
+        else:
+            self._sess = tf.Session()
+            res = self.load(checkpoint=checkpoint)
+            if res:
+                print("Checkpoint succesfully loaded!")
+        weights = self._sess.run(var)
+        if sess is None:
+            self._sess.close()
+        return weights
+
+    # Get the features produced at layer 'layer' for the batch 'batch'
+    # Note that layer must be saved as an attribute of self.net
+    def get_values_at(self, batch, layers, sess=None, checkpoint=None):
+        feed_dict = self._get_dict(**self.net.batch2dict(batch))
+        is_single = False
+        if not isinstance(layers, list):
+            layers = [layers]
+            is_single = True
+        for l in layers:
+            if not hasattr(self.net, l):
+                raise ValueError("Layer " + l + " is not an attribute of the model")
+        if sess is not None:
+            self._sess = sess
+            print("Not loading a checkpoint")
+        else:
+            self._sess = tf.Session()
+            res = self.load(checkpoint=checkpoint)
+            if res:
+                print("Checkpoint succesfully loaded!")
+        features_out = self._sess.run([getattr(self.net, l) for l in layers], feed_dict=feed_dict)
+        if sess is None:
+            self._sess.close()
+        if is_single:
+            features_out = features_out[0]
+        return features_out
+
 
 class PaulinaGANsystem(GANsystem):
 
@@ -260,6 +357,20 @@ class PaulinaGANsystem(GANsystem):
         return tf.reduce_mean(tf.log(1-tf.nn.sigmoid(fake)))
         # return tf.reduce_mean(- fake + tf.log(tf.nn.sigmoid(fake)))
 
+    def default_params(self):
+
+        # Global parameters
+        # -----------------
+        d_param = super().default_params()
+
+        # Optimization parameters
+        # -----------------------
+        # How often should the duality gap been computed
+        # The unit correspond to the times that the summary is computed
+        # For example 1 means that every time that the summary is computed the duality gap is also computed
+        d_param['duality_every'] = 1
+
+        return d_param
 
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -323,6 +434,8 @@ class PaulinaGANsystem(GANsystem):
         tf.summary.scalar('duality/maxmin', self.worst_maxmin_pl, collections=['train'])
         self._summaries = tf.summary.merge(tf.get_collection("train"))
 
+        self._duality_counter = 0
+
     def calculate_metrics(self):
 
         if self._sess is None:
@@ -377,11 +490,21 @@ class PaulinaGANsystem(GANsystem):
         super().train(dataset, **kwargs)
 
     def _train_log(self, feed_dict):
-        (dualitygap_score, worst_minmax, worst_maxmin) = self.calculate_metrics()
+        self._duality_counter = self._duality_counter + 1
+        if np.mod(self._duality_counter, self._params['duality_every']) == 0 or self._duality_counter == 1:
+            
+            # Compute duality gap
+            (dualitygap_score, worst_minmax, worst_maxmin) = self.calculate_metrics()
+
+            # Cache result for next iteration, needed to darw line in tensorboard even if it isn't computed for some iterations
+            self._old_duality_res = (dualitygap_score, worst_minmax, worst_maxmin)
+        else:
+            (dualitygap_score, worst_minmax, worst_maxmin) = self._old_duality_res
         feed_dict[self.dualitygap_score_pl] = dualitygap_score
         feed_dict[self.worst_minmax_pl] = worst_minmax
         feed_dict[self.worst_maxmin_pl] = worst_maxmin
         super()._train_log(feed_dict)
+
 
 class UpcaleGANsystem(GANsystem):
 
@@ -1820,475 +1943,18 @@ class UpcaleGANsystem(GANsystem):
 #             psd_gen_big)
 #         self._summary_writer.add_summary(summary_str, self._counter)
 
-#         del psd_gen_big
-
-#         peak_hist_fake_big, _, _ = metrics.peak_count_hist(
-#             fake_big, lim=self._stats['lim_peak_big'])
-
-#         summary_str = self._plots['peak_hist_big'].produceSummaryToWrite(
-#             self._sess,
-#             self._stats['x_peak_big'],
-#             self._stats['peak_hist_real_big'],
-#             peak_hist_fake_big)
-#         self._summary_writer.add_summary(summary_str, self._counter)
-
-#         del peak_hist_fake_big
-
-#         mass_hist_fake_big, _, _ = metrics.mass_hist(
-#             fake_big, lim=self._stats['lim_mass_big'])
-
-#         summary_str = self._plots['mass_hist_big'].produceSummaryToWrite(
-#             self._sess,
-#             self._stats['x_mass_big'],
-#             self._stats['mass_hist_real_big'],
-#             mass_hist_fake_big)
-#         self._summary_writer.add_summary(summary_str, self._counter)
-
-#         del mass_hist_fake_big, fake_big, fake_image_big
-
-
-#     def train(self, dataset, resume=False):
-        
-#         # self._big_dataset = dataset.get_big_dataset()
-#         # self._big_dataset_iter = itertools.cycle(self._big_dataset.iter(batch_size=self.params['cosmology']['Nstats'],
-#         #                                                                 num_hists_at_once=self.params['num_hists_at_once'],
-#         #                                                                 name='_big_dataset_iter'))
-#         super().train(dataset=dataset, resume=resume)
-
-
-
-#     def _train_log(self, feed_dict):
-#         super()._train_log(feed_dict)
-
-#         # Currently works for 3d
-#         if self.is_3d and self.params['big_every'] and np.mod(self._counter, self.params['big_every']) == 0:
-#             self.compute_big_stats()
-
-
-#     def generate(self,
-#                  N=None,
-#                  z=None,
-#                  X=None,
-#                  sess=None,
-#                  checkpoint=None,
-#                  **kwargs):
-#         '''
-#         Generate samples from already trained model.
-#         Arguments:
-#         Pass either N or z.
-#         Pass either sess or checkpoint.
-#         If sess is passed, it is assumed that the model has already been loaded using gan.load method
-#         '''
-
-#         return super().generate(N=N, z=z, X=X, sess=sess, checkpoint=checkpoint, **kwargs)
-
-
-#     def upscale_image(self, small=None, num_samples=None, resolution=None, checkpoint=None, sess=None):
-#         """Upscale image using the lappachsimple model, or upscale_WGAN_pixel_CNN model.
-
-#         For model upscale_WGAN_pixel_CNN, pass num_samples to generate and resolution of the final bigger histogram.
-#         for model lappachsimple         , pass small.
-
-#         3D only works for upscale_WGAN_pixel_CNN.
-
-#         This function can be accelerated if the model is created only once.
-#         """
-#         # Number of sample to produce
-#         if small is None:
-#             if num_samples is None:
-#                 raise ValueError("Both small and num_samples cannot be None")
-#             else:
-#                 N = num_samples
-#         else:
-#             N = small.shape[0]
-
-#         # Output dimension of the generator
-#         soutx, souty = self.params['image_size'][:2]
-#         if self.is_3d:
-#             soutz = self.params['image_size'][2]
-
-#         if small is not None:
-#             # Dimension of the low res image
-#             lx, ly = small.shape[1:3]
-#             if self.is_3d:
-#                 lz = small.shape[3]
-
-#             # Input dimension of the generator
-#             sinx = soutx // self.params['generator']['downsampling']
-#             siny = souty // self.params['generator']['downsampling']
-#             if self.is_3d:
-#                 sinz = soutz // self.params['generator']['downsampling']
-
-#             # Number of part to be generated
-#             nx = lx // sinx
-#             ny = ly // siny
-#             if self.is_3d:
-#                 nz = lz // sinz
-
-#         else:
-#             sinx = siny = sinz = None
-#             if resolution is None:
-#                 raise ValueError("Both small and resolution cannot be None")
-#             else:
-#                 nx = resolution // soutx
-#                 ny = resolution // souty
-#                 nz = resolution // soutz
-
-
-#         # If no session passed, create a new one and load a checkpoint.
-#         if sess is None:
-#             new_sess = tf.Session()
-#             res = self.load(sess=new_sess, checkpoint=checkpoint)
-#             if res:
-#                 print('Checkpoint successfully loaded!')
-#         else:
-#             new_sess = sess
-
-#         if self.is_3d:
-#             output_image = self.generate_3d_output(new_sess, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz)
-#         else:
-#             output_image = self.generate_2d_output(new_sess, N, nx, ny, soutx, souty, small, sinx, siny)
-
-#         # If a new session was created, close it. 
-#         if sess is None:
-#             new_sess.close()
-
-#         return np.squeeze(output_image)
-
-
-#     def generate_3d_output(self, sess, N, nx, ny, nz, soutx, souty, soutz, small, sinx, siny, sinz):
-#         output_image = np.zeros(
-#                 shape=[N, soutz * nz, souty * ny, soutx * nx, 1], dtype=np.float32)
-#         output_image[:] = np.nan
-
-#         print('Total number of patches = {}*{}*{} = {}'.format(nx, ny, nz, nx*ny*nz) )
-
-#         for k in range(nz): # height
-#             for j in range(ny): # rows
-#                 for i in range(nx): # columns
-
-#                     # 1) Generate the border
-#                     border = np.zeros([N, soutz, souty, soutx, 7])
-
-#                     if j: # one row above, same height
-#                         border[:, :, :, :, 0:1] = output_image[:, 
-#                                                                 k * soutz:(k + 1) * soutz,
-#                                                                 (j - 1) * souty:j * souty, 
-#                                                                 i * soutx:(i + 1) * soutx, 
-#                                                             :]
-#                     if i: # one column left, same height
-#                         border[:, :, :, :, 1:2] = output_image[:,
-#                                                                 k * soutz:(k + 1) * soutz,
-#                                                                 j * souty:(j + 1) * souty, 
-#                                                                 (i - 1) * soutx:i * soutx, 
-#                                                             :]
-#                     if i and j: # one row above, one column left, same height
-#                         border[:, :, :, :, 2:3] = output_image[:,
-#                                                                 k * soutz:(k + 1) * soutz,
-#                                                                 (j - 1) * souty:j * souty, 
-#                                                                 (i - 1) * soutx:i * soutx, 
-#                                                             :]
-#                     if k: # same row, same column, one height above
-#                         border[:, :, :, :, 3:4] = output_image[:,
-#                                                                 (k - 1) * soutz:k * soutz,
-#                                                                 j * souty:(j + 1) * souty, 
-#                                                                 i * soutx:(i + 1) * soutx, 
-#                                                             :]
-#                     if k and j: # one row above, same column, one height above
-#                         border[:, :, :, :, 4:5] = output_image[:,
-#                                                                 (k - 1) * soutz:k * soutz,
-#                                                                 (j - 1) * souty:j * souty, 
-#                                                                 i * soutx:(i + 1) * soutx, 
-#                                                             :]
-#                     if k and i: # same row, one column left, one height above
-#                         border[:, :, :, :, 5:6] = output_image[:,
-#                                                                 (k - 1) * soutz:k * soutz,
-#                                                                 j * souty:(j + 1) * souty, 
-#                                                                 (i - 1) * soutx:i * soutx, 
-#                                                             :]
-#                     if k and i and j: # one row above, one column left, one height above
-#                         border[:, :, :, :, 6:7] = output_image[:,
-#                                                                 (k - 1) * soutz:k * soutz,
-#                                                                 (j - 1) * souty:j * souty, 
-#                                                                 (i - 1) * soutx:i * soutx, 
-#                                                             :]
-
-
-#                     # 2) Prepare low resolution
-#                     if small is not None:
-#                         downsampled = small[:, k * sinz:(k + 1) * sinz,
-#                                                j * siny:(j + 1) * siny,
-#                                                i * sinx:(i + 1) * sinx,
-#                                                :]
-#                     else:
-#                         downsampled = None
-
-#                     # 3) Generate the image
-#                     print('Current patch: column={}, row={}, height={}\n'.format(i+1, j+1, k+1))
-#                     gen_sample, _ = self.generate(
-#                         N=N, border=border, downsampled=downsampled, sess=sess)
-
-#                     output_image[:, 
-#                                     k * soutz:(k + 1) * soutz,
-#                                     j * souty:(j + 1) * souty, 
-#                                     i * soutx:(i + 1) * soutx, 
-#                                 :] = gen_sample
-
-#         return output_image
-
-
-#     def generate_2d_output(self, sess, N, nx, ny, soutx, souty, small, sinx, siny):
-#         output_image = np.zeros(
-#                 shape=[N, soutx * nx, souty * ny, 1], dtype=np.float32)
-#         output_image[:] = np.nan
-
-#         for j in range(ny):
-#             for i in range(nx):
-#                 # 1) Generate the border
-#                 border = np.zeros([N, soutx, souty, 3])
-#                 if i:
-#                     border[:, :, :, :1] = output_image[:, 
-#                                                         (i - 1) * soutx:i * soutx, 
-#                                                         j * souty:(j + 1) * souty, 
-#                                                     :]
-#                 if j:
-#                     border[:, :, :, 1:2] = output_image[:, 
-#                                                         i * soutx:(i + 1) * soutx, 
-#                                                         (j - 1) * souty:j * souty, 
-#                                                     :]
-#                 if i and j:
-#                     border[:, :, :, 2:3] = output_image[:, 
-#                                                         (i - 1) * soutx:i * soutx, 
-#                                                         (j - 1) * souty:j * souty, 
-#                                                     :]
-
-
-#                 if small is not None:
-#                     # 2) Prepare low resolution
-#                     downsampled = np.expand_dims(small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3)
-#                 else:
-#                     downsampled = None
-
-#                 # 3) Generate the image
-#                 print('Current patch: column={}, row={}'.format(j+1, i+1))
-#                 gen_sample, _ = self.generate(
-#                     N=N, border=border, downsampled=downsampled, sess=sess)
-
-#                 output_image[:, 
-#                                 i * soutx:(i + 1) * soutx, 
-#                                 j * souty:(j + 1) * souty, 
-#                             :] = gen_sample
-
-#         return output_image
-
-
-# class TimeGAN(GAN):
-#     def __init__(self, params, model=None, is_3d=False):
-#         self.params = default_params_time(params)
-#         super().__init__(params=self.params, model=model, is_3d=is_3d)
-
-#     # Generates image sequence summaries as opposed to the simple image
-#     # summaries in the GAN class.
-#     def _build_image_summary_generic(self, real, fake, collection, afix=''):
-#         vmin = tf.reduce_min(real)
-#         vmax = tf.reduce_max(real)
-#         for c in range(self.params["time"]["num_classes"]):
-#             tf.summary.image(
-#                 "training/Real_Image{}_t{}".format(afix, self.params['time']['classes'][c]),
-#                 colorize(real[:, :, :, c:(c+1)], vmin, vmax),
-#                 max_outputs=4,
-#                 collections=collection)
-#             tf.summary.image(
-#                 "training/Fake_Image{}_t{}".format(afix, self.params['time']['classes'][c]),
-#                 colorize(fake[:, :, :, c:(c+1)], vmin, vmax),
-#                 max_outputs=4,
-#                 collections=collection)
-
-#     def _build_image_summary(self):
-#         self._build_image_summary_generic(self._X, self._G_fake, ['Images'])
-
-#     def _sample_latent(self, bs=None):
-#         if bs is None:
-#             bs = self.batch_size
-#         latent = super()._sample_latent(bs=bs)
-#         return np.repeat(latent, self.num_classes, axis=0)
-
-#     def _sample_single_latent(self, bs=None):
-#         if bs is None:
-#             bs = 1
-#         return super(TimeGAN, self)._sample_latent(bs)
-
-#     def _get_sample_args(self, **kwargs):
-#         if "single_channel" in kwargs.keys():
-#             return self._model.G_c_fake
-#         return self._G_fake
-
-#     @property
-#     def num_classes(self):
-#         return self.params['time']['num_classes']
-
-
-# class TimeCosmoGAN(CosmoGAN, TimeGAN):
-#     def __init__(self, params, model=None, is_3d=False):
-#         super().__init__(params=params, model=model, is_3d=is_3d)
-#         self._md_t = dict()
-#         for t in range(self.num_classes):
-#             suff = '_t' + str(params['time']['classes'][t])
-#             self._md_t[t], self._plots[t] = CosmoGAN._init_logs('Time Cosmo Metrics', name_suffix=suff)
-#         self.summary_op_metrics_t = tf.summary.merge(
-#             tf.get_collection("Time Cosmo Metrics"))
-
-#     def train(self, dataset, resume=False):
-#         real = self._backward_map(dataset.get_all_data())
-#         self._stats_t = []
-#         for t in range(self.num_classes):
-#             self._stats_t.append(self._compute_real_stats(real[:,:,:,t]))
-#         super().train(dataset=dataset, resume=resume)
-
-#     # Taking advantage of the static function from the CosmoGAN, statistics for
-#     # each continuous class are generated seperately as well as averaged over all
-#     # classes.
-#     def _train_log(self, feed_dict):
-#         super()._train_log(feed_dict)
-#         if np.mod(self._counter, self.params['sum_every']) == 0:
-#             z_sel = self._sample_latent(self._stats['N'])
-#             Xsel = next(self._sum_data_iterator)
-#             # reshape input according to 2d, 3d, or patch case
-#             Xsel = self.add_input_channel(Xsel)
-#             real_image = self._backward_map(Xsel)
-
-#             fake_image = self._generate_sample_safe(z_sel, Xsel)
-#             fake_image = self._backward_map(fake_image)
-
-#             for t in range(self.num_classes):
-#                 real = real_image[:,:,:,t]
-#                 fake = fake_image[:,:,:,t]
-
-#                 stat_dict = self._process_stat_dict(real, fake, self._stats_t[t],
-#                                                     self._plots[t])
-#                 for key in stat_dict.keys():
-#                     feed_dict[self._md_t[t][key]] = stat_dict[key]
-
-#             summary_str = self._sess.run(
-#                 self.summary_op_metrics_t, feed_dict=feed_dict)
-#             self._summary_writer.add_summary(summary_str, self._counter)
-
-#     # Helper function for train_encoder
-#     def add_enc_to_path(self, s):
-#         q = ""
-#         for i in range(5):
-#             q = q + s.split('/')[i] + '/'
-#         return q + s.split('/')[5] + '_z_enc/' + s.split('/')[6] + '/'
-
-#     # This very hacky function was written in to add an encoder to already trained models.
-#     # If you do not intend to do that then this function may be safely removed.
-#     def train_encoder(self, dataset):
-
-#         n_data = dataset.N
-
-#         self._counter = 1
-#         self._n_epoch = self.params['optimization']['epoch']
-#         self._total_iter = self._n_epoch * (n_data // self.batch_size) - 1
-#         self._n_batch = n_data // self.batch_size
-
-#         self._build_image_summary_generic(self._X, self._model.reconstructed, ['ImagesEnc'], afix="_Enc")
-#         self.summary_op_img = tf.summary.merge(tf.get_collection("ImagesEnc"))
-
-#         self._save_current_step = False
-
-#         # Create the save diretory if it does not exist
-#         os.makedirs(self.add_enc_to_path(self.params['save_dir']), exist_ok=True)
-#         run_config = tf.ConfigProto()
-
-#         gen_and_disc_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator') + tf.get_collection(
-#             tf.GraphKeys.GLOBAL_VARIABLES, scope='discriminator')
-
-#         #gen_and_disc_vars = [x for x in tf.global_variables() if
-#         #                     x not in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='encoder')]
-#         self._saver = tf.train.Saver(gen_and_disc_vars, max_to_keep=1000)
-#         full_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1000)
-#         with tf.Session(config=run_config) as self._sess:
-#             self._sess.run(tf.global_variables_initializer())
-#             print('Load weights in the network')
-#             self.load()
-#             self._saver = full_saver
-#             self.params['save_dir'] = self.add_enc_to_path(self.params['save_dir'])
-#             self._savedir = self.params['save_dir']
-#             if self.normalized():
-#                 X = dataset.get_all_data()
-#                 m = np.mean(X)
-#                 v = np.var(X - m)
-#                 self._mean.assign([m]).eval()
-#                 self._var.assign([v]).eval()
-#             self._var.eval()
-#             self._mean.eval()
-#             self._summary_writer = tf.summary.FileWriter(
-#                 self.add_enc_to_path(self.params['summary_dir']), self._sess.graph)
-#             try:
-#                 epoch = 0
-#                 start_time = time.time()
-#                 prev_iter_time = start_time
-#                 self._counter = 0
-
-#                 while epoch < self._n_epoch:
-#                     for idx, batch_real in enumerate(
-#                             dataset.iter(self.batch_size)):
-
-#                         self.params['curr_counter'] = self._counter
-
-#                         # reshape input according to 2d, 3d, or patch case
-#                         X_real = self.add_input_channel(batch_real)
-#                         sample_z = self._sample_latent(self.batch_size)
-#                         _, loss_e = self._sess.run(
-#                             [self._E_solver, self._E_loss],
-#                             feed_dict=self._get_dict(sample_z, X_real))
-
-#                         if np.mod(self._counter,
-#                                   self.params['print_every']) == 0:
-#                             current_time = time.time()
-#                             print("Epoch: [{:2d}] [{:4d}/{:4d}] "
-#                                   "Counter:{:2d}\t"
-#                                   "({:4.1f} min\t"
-#                                   "{:4.3f} examples/sec\t"
-#                                   "{:4.2f} sec/batch)\t"
-#                                   "L_Enc:{:.8f}".format(
-#                                       epoch, idx, self._n_batch,
-#                                       self._counter,
-#                                       (current_time - start_time) / 60,
-#                                       100.0 * self.batch_size /
-#                                       (current_time - prev_iter_time),
-#                                       (current_time - prev_iter_time) / 100,
-#                                       loss_e))
-#                             prev_iter_time = current_time
-
-#                         if np.mod(self._counter, self.params['viz_every']) == 0:
-#                             summary_str, real_arr, fake_arr = self._sess.run(
-#                                 [self.summary_op_img, self._X, self._model.reconstructed],
-#                                 feed_dict=self._get_dict(sample_z, X_real))
-#                             self._summary_writer.add_summary(summary_str, self._counter)
-
-#                         if np.mod(self._counter, self.params['sum_every']) == 0:
-#                             summary_str = self._sess.run(self.summary_op, feed_dict=self._get_dict(sample_z, X_real))
-#                             self._summary_writer.add_summary(summary_str, self._counter)
-
-#                         if (np.mod(self._counter, self.params['save_every'])
-#                                 == 0) | self._save_current_step:
-#                             self._save(self._savedir, self._counter)
-#                             self._save_current_step = False
-#                         self._counter += 1
-#                     epoch += 1
-#             except KeyboardInterrupt:
-#                 pass
-#             self._save(self._savedir, self._counter)
-
-#     # The CosmoTimeGAN samples latent value series. Ie we sample latent vectors
-#     # and then repeat them for each continuous class
-#     def _sample_latent(self, bs=None):
-#         return TimeGAN._sample_latent(self, bs)
-
-#     # Whether to generate statistics over multiple channels if available.
-#     # This overides the property from the base GAN class which only looks
-#     # at the first channel for statistics.
-#     @property
-#     def average_over_all_channels(self):
-#         return True
+def dictionary_to_string(dic, ind=0):
+    s = ""
+    for key in dic.keys():
+        if isinstance(dic[key], dict) and len(dic[key].keys()) > 0:
+            s += indent(ind) + key + ":<br/>" + dictionary_to_string(dic[key], ind=ind+4)
+        else:
+            s += indent(ind) + key + " : " + str(dic[key])
+        s += "<br/>"
+    return s
+
+def indent(x):
+    s = ""
+    for i in range(x):
+        s += "&nbsp;"
+    return s

@@ -54,9 +54,21 @@ def load_gan(savepath, model, system=GANsystem):
 
 
 
-def sample_latent(m, n, prior="uniform", normalize=False):
+def sample_latent(m, n, prior="uniform", normalize=False, **kwargs):
     if prior == "uniform":
         return np.random.uniform(-1., 1., size=[m, n])
+    elif prior == "gaussian_scale":
+        z = np.vstack([np.random.normal(0, scale2range(kwargs['x'][i], kwargs['init_range'], kwargs['final_range']), size=[1, n]) for i in range(m)])
+        if normalize:
+            # Sample on the sphere
+            z = (z.T * np.sqrt(n / np.sum(z * z, axis=1))).T
+        return z
+    elif prior == "gaussian_length":
+        z = np.random.normal(0, 1, size=[m, n])
+        # Normalize such that the length encodes the parameter
+        scaled_vec = scale2range(kwargs['x'], kwargs['init_range'], kwargs['final_range'])
+        z = (z.T * np.sqrt((scaled_vec * scaled_vec) / np.sum(z * z, axis=1))).T
+        return z
     elif prior == "gaussian":
         z = np.random.normal(0, 1, size=[m, n])
         if normalize:
@@ -528,6 +540,12 @@ def print_param_dict(params):
             print_sub_dict_params(key, value)
 
 
+def scale2range(x, init, final):
+    if init[1] == init[0]:
+        return final[0]
+    return final[0] + (final[1] - final[0]) * (x - init[0]) / (init[1] - init[0])
+
+
 def require_dir(path):
     if not os.path.exists(path):
         os.makedirs(path)
@@ -579,3 +597,79 @@ class HiddenPrints:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout = self._original_stdout
+
+
+# Note: can be memory expensive
+def shuffle_h5(filein, fileout, key_data="train_maps", key_params="train_labels"):
+
+    # Load file
+    with h5py.File(filein, 'r') as f:
+        data = np.array(f[key_data][:])
+        params = np.array(f[key_params][:])
+
+    # Shuffle data
+    perm = np.random.permutation(len(params))
+    data = data[perm]
+    params = params[perm]
+
+    # Write file
+    with h5py.File(fileout, 'w') as f:
+        f.create_dataset(key_data, data=data)
+        f.create_dataset(key_params, data=params)
+
+
+# Compute the maximum and minimum of a big dataset
+# Done in a memory efficient way
+def find_minmax(dataset):
+    vmin = None
+    vmax = None
+    for it in dataset:
+        pixels = it[:, 0][0]
+        curr_min = np.min(pixels)
+        curr_max = np.max(pixels)
+        if vmin is None or curr_min < vmin:
+            vmin = curr_min
+        if vmax is None or curr_max > vmax:
+            vmax = curr_max
+    return vmin, vmax
+
+
+# Produce histogram of pixel intensities given a dataset
+# This is performed in an efficient way in term of memory
+def produce_histogram(dataset, bins=100, lim=None, density=False):
+
+    # Compute min and max
+    if lim is None:
+        lim = find_minmax(dataset)
+
+    # Compute histograms batch by batch
+    count = np.zeros(bins)
+    for it in dataset:
+        pixels = it[:, 0][0]
+        histo, x = np.histogram(pixels, bins=bins, range=lim)
+        count = count + histo
+    if density:
+        delta = x[1] - x[0]
+        count = count / (delta * np.sum(count))
+    return count, x
+
+
+# Append to a h5 file
+def append_h5(file, X, params=None, X_key="train_maps", params_key="train_labels", overwrite=False):
+    if overwrite:
+        X_shape = list(X.shape)
+        X_shape[0] = None
+        if params is not None:
+            params_shape = list(params.shape)
+            params_shape[0] = None
+        with h5py.File(file, 'w') as f:
+            f.create_dataset(X_key, data=X, maxshape=tuple(X_shape))
+            if params is not None:
+                f.create_dataset(params_key, data=params, maxshape=tuple(params_shape))
+    else:
+        with h5py.File(file, 'a') as f:
+            f[X_key].resize((f[X_key].shape[0] + X.shape[0]), axis = 0)
+            f[X_key][-X.shape[0]:] = X
+            if params is not None:
+                f[params_key].resize((f[params_key].shape[0] + params.shape[0]), axis = 0)
+                f[params_key][-params.shape[0]:] = params

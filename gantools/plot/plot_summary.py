@@ -2,7 +2,7 @@ import io
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
-from gantools.plot import audio
+from gantools.plot import audio, plot
 # Inspired by Andres
 
 
@@ -59,24 +59,14 @@ class PlotSummary(object):
 class PlotSummaryLog(PlotSummary):
     def plot(self, x, real, fake):
         super().plot()
-        ax = plt.gca()
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        linestyle = {
-            "linewidth": 1,
-            "markeredgewidth": 0,
-            "markersize": 3,
-            "marker": "o",
-            "linestyle": "-"
-        }
-        ax.plot(x, real, label="Real", color='r', **linestyle)
-        ax.plot(x, fake, label="Fake", color='b', **linestyle)
+        plot.plot_cmp(x, fake, real, xscale='log', yscale='log', title=self._name)
 
-        # ax.set_ylim(bottom=0.1)
-        ax.title.set_text(self._name + "\n")
-        ax.title.set_fontsize(11)
-        ax.tick_params(axis='both', which='major', labelsize=10)
-        ax.legend()
+
+class PlotSummaryStandard(PlotSummary):
+    def plot(self, x, real, fake):
+        super().plot()
+        plot.plot_cmp(x, fake, real, xscale='linear', yscale='log', title=self._name)
+
 
 class PlotSummaryPlot(PlotSummary):
     def __init__(self, nx, ny, *args, **kwargs):
@@ -103,3 +93,22 @@ class PlotSummaryPlot(PlotSummary):
         #         it += 1
 
 
+class PlotSummaryImages(PlotSummary):
+    def plot(self, x, real, fake):
+        super().plot()
+        vmin = np.min([np.min(real), np.min(fake)])
+        vmax = np.max([np.max(real), np.max(fake)])
+        fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 10))
+        plot.plot_img(real, x=x, ax=ax[0], title='Real', vmin=vmin, vmax=vmax)
+        plot.plot_img(fake, x=x, ax=ax[1], title='Fake', vmin=vmin, vmax=vmax)
+
+
+def gen_img_buf(img, vmin, vmax):
+    plt.figure()
+    plt.imshow(img, vmin=vmin, vmax=vmax)
+    plt.axis('off')
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", bbox_inches='tight')
+    plt.close()
+    buf.seek(0)
+    return buf
