@@ -10,6 +10,6 @@ module load daint-gpu
 module load cray-python
 module load TensorFlow/1.7.0-CrayGNU-17.12-cuda-8.0-python3
 
-source $HOME/default/bin/activate
+source $SCRATCH/cgan/bin/activate
 
 srun python train.py

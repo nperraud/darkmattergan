@@ -24,7 +24,7 @@ dataset_train_shuffled_name = 'kids_train_shuffled.h5'
 dataset = data.load.load_params_dataset(filename=dataset_train_shuffled_name, batch=15000, shape=[ns, ns], transform=data.transformation.random_transpose_2d)
 
 time_str = '2D'
-global_path = '/scratch/snx3000/smarcon/saved_results/'
+global_path = '/scratch/snx3000/nperraud/saved_results/'
 
 name = 'KidsConditional{}'.format(ns) + '_smart_' + time_str
 

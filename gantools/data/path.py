@@ -11,10 +11,8 @@ def root_path():
     hostname = socket.gethostname()
     # Check if we are on pizdaint
     # TODO: adjust username
-    if 'nid' in hostname and getpass.getuser() == 'smarcon':
+    if 'nid' in hostname:
         rootpath = '/scratch/snx3000/smarcon/preprocessed_data/'
-    elif 'nid' in hostname:
-        rootpath = '/scratch/snx1600/nperraud/pre_processed_data/' 
     elif 'omenx' in hostname:
         rootpath = '/store/nati/datasets/cosmology/pre_processed_data/'   
     else:
