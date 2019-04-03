@@ -568,3 +568,39 @@ def upsamler_1d(sig, s=2, Nwin=32):
         new_sig = np.convolve(new_sig,win, 'same')
         tsig = new_sig
     return new_sig
+
+
+def attenuation_kernel(nx=32):
+    x = np.arange(nx,0,-1)/nx
+    x -= 0.5
+    x[x<0] = 0
+    return 2*x
+
+def attenuation_weights_2d(ns=32):
+    k = attenuation_kernel(ns)
+    kk = np.concatenate((np.ones([ns]), k))[::-1]
+    kk = np.expand_dims(kk, axis=0)
+    aw = np.ones([ns*2,ns*2])
+    aw = kk.T*aw*kk
+    return aw
+
+def attenuation_weights_3d(ns=32):
+    k = attenuation_kernel(ns)
+    kk = np.concatenate((np.ones([ns]), k))[::-1]
+    kk = np.expand_dims(np.expand_dims(kk, axis=0), axis=0)
+    aw = np.ones([ns*2,ns*2,nx*2])
+    aw = (aw*kk)*kk.transpose((1,2,0))*kk.transpose((2,0,1))
+    return aw
+
+
+def get_attenuation_weights(ns, data_size):
+    if data_size==1:
+        raise NotImplementedError("To be done")
+    elif data_size==2:
+        aw = attenuation_weights_2d(ns)
+        return slice_2d_patch(np.expand_dims(aw, axis=0),spix=ns)[-1:,:,:,:3]
+    elif data_size==3:
+        aw = attenuation_weights_3d(ns)
+        return slice_3d_patch(np.expand_dims(aw, axis=0), spix=ns)[-1:,:,:,:,:7]
+    else:
+        raise ValueError("Wrong data size")

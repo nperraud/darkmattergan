@@ -6,7 +6,7 @@ from gantools import utils
 from tfnntools.model import BaseNet, rprint
 from gantools.plot import colorize
 from gantools.metric import ganlist
-from gantools.data.transformation import tf_flip_slices, tf_patch2img
+from gantools.data.transformation import tf_flip_slices, tf_patch2img, get_attenuation_weights
 from gantools.plot.plot_summary import PlotSummaryPlot
 from copy import deepcopy
 
@@ -481,6 +481,7 @@ class UpscalePatchWGAN(WGAN):
         d_params['generator']['stride'] = [1, 1, 1, 1]
         d_params['generator']['use_Xdown'] = False
         d_params['generator']['latent_dim_split'] = None
+        d_params['generator']['weights_border'] = False
 
         return d_params
 
@@ -517,8 +518,18 @@ class UpscalePatchWGAN(WGAN):
         
         # B) Split the borders
         border_list = tf.split(self.borders, o, axis=axis)
-        # D) Flip the borders
-        flipped_border_list = tf_flip_slices(*border_list, size=self.data_size)
+        if self.params['generator']['weights_border']:
+            print('Apply attenuation to borders')
+            ns = self.params['shape'][0]
+            np_weights = get_attenuation_weights(ns, self.data_size)
+            tf_weights = tf.constant(np_weights, dtype=tf.float32)
+            border_list_weighted = tf.split(self.borders*tf_weights, o, axis=axis)
+            # D) Flip the borders
+            flipped_border_list = tf_flip_slices(*border_list_weighted, size=self.data_size)            
+        else:    
+            # D) Flip the borders
+            flipped_border_list = tf_flip_slices(*border_list, size=self.data_size)
+        
 
         # C) Handling downsampling
         if self.params['upscaling']:
@@ -1925,7 +1936,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                                     num=i,
                                     data_size=params['data_size'],
                                     use_spectral_norm=params['spectral_norm'],
-                                    merge=(i == (nconv-1))
+#                                     merge=(i == (nconv-1))
+                                    merge=True
                                     )
                 rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
             elif params.get('separate_first', False) and i == 0:
@@ -2103,7 +2115,8 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                                     num=i,
                                     data_size=params['data_size'], 
                                     use_spectral_norm=params['spectral_norm'],
-                                    merge= (True if params['residual'] else (i == (nconv-1)) )
+#                                     merge= (True if params['residual'] else (i == (nconv-1)) )
+                                    merge= True
                                     )
                     rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
 
@@ -2117,7 +2130,8 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
                                         num=i, 
                                         data_size=params['data_size'],
                                         use_spectral_norm=params['spectral_norm'],
-                                        merge= (True if params['residual'] else (i == (nconv-1)) )
+#                                         merge= (True if params['residual'] else (i == (nconv-1)) )
+                                        merge= True
                                         )
                     rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
 

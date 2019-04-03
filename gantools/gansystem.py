@@ -413,7 +413,7 @@ class UpscaleGANsystem(GANsystem):
     def train(self, dataset, **kwargs):
         if self.params['Nstats_cubes']:
             # Only implented for the 3dimentional case...
-            assert(self.net.params['generator']['data_size'] == 3)
+            assert(self.net.params['generator']['data_size']>= 2)
             assert(len(dataset._X)>=self.params['Nstats_cubes'])
             self.summary_dataset_cubes = itertools.cycle(dataset.iter_cubes(self.params['Nstats_cubes'], downscale=self.net.params['upscaling']))
             self.preprocess_summaries(dataset._X, rerun=False)
@@ -432,8 +432,7 @@ class UpscaleGANsystem(GANsystem):
         if self.params['Nstats_cubes']:
             X_real = next(self.summary_dataset_cubes)
             if self.net.params['upscaling']:
-                axis = self.net.params['generator']['data_size']+1
-                small = np.expand_dims(X_real, axis=axis)
+                small = X_real
             else:
                 small = None
             X_fake = self.upscale_image(N=self.params['Nstats_cubes'],
@@ -614,11 +613,12 @@ class UpscaleGANsystem(GANsystem):
 
     def generate_2d_output(self, sess, N, nx, ny, soutx, souty, small, sinx,
                            siny):
-        nc = self.net.params['shape'][-1]//4 # number of channel for the image
+#         nc = self.net.params['shape'][-1]//4 # number of channel for the image
+        nc = 1
         output_image = np.zeros(
             shape=[N, soutx * nx, souty * ny, nc], dtype=np.float32)
         output_image[:] = np.nan
-
+        
         for j in range(ny):
             for i in range(nx):
                 # 1) Generate the border
@@ -632,8 +632,8 @@ class UpscaleGANsystem(GANsystem):
 
                 if small is not None:
                     # 2) Prepare low resolution
-                    downsampled = np.expand_dims(
-                        small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny], 3*nc)
+                    print(small.shape)
+                    downsampled = small[:N][:, i * sinx:(i + 1) * sinx, j * siny:(j + 1) * siny]
                 else:
                     downsampled = None
 

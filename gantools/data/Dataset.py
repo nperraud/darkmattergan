@@ -164,7 +164,20 @@ class Dataset_2d_patch(Dataset):
         X_u = np.concatenate([X[:, :, :, 3], X[:, :, :, 2]], axis=1)
         X_r = np.squeeze(np.concatenate([X_u, X_d], axis=2))
         return X_r
-
+    
+    def iter_cubes(self, batch_size=1, spix=None, downscale=None):
+        if spix is None:
+            transformed_data = self._transform(self._X)
+        else:
+            slice_fn = functools.partial(slice_2d, spix=spix)
+            transformed_data = slice_fn(self._transform(self._X))
+            # Reshuffle the data
+        if downscale:
+            transformed_data = blocks.downsample(transformed_data, downscale)
+        if self.shuffle:
+            self._p = np.random.permutation(transformed_data.shape[0])
+        for data in grouper(transformed_data[self._p], batch_size):
+            yield np.array(data)
 
 class Dataset_3d_patch(Dataset):
     def __init__(self, *args, spix=32, **kwargs):

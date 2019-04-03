@@ -343,7 +343,7 @@ def spectral_norm(w, iteration=1):
 
 
 
-def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="conv1d", summary=True):
+def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="conv1d", summary=True, border='SYMMETRIC'):
     '''Convolutional layer for square images'''
     if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
         stride = [stride]
@@ -357,8 +357,15 @@ def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="con
             initializer=weights_initializer)
         if use_spectral_norm:
             w = spectral_norm(w)
+            
+        # Pad the image
+        K1 = (w.shape[0]-1)//2
+        K1 = w.shape[0]//2
+        imgs = tf.pad(imgs,[[0,0],[K1,K2],[0,0]], mode=border)
+        
+        # Perform valid convolution
         conv = tf.nn.conv1d(
-            imgs, w, stride=stride[0], padding='SAME')
+            imgs, w, stride=stride[0], padding='VALID')
 
         biases = _tf_variable('biases', [nf_out], initializer=const)
         conv = tf.nn.bias_add(conv, biases)
@@ -370,7 +377,7 @@ def conv1d(imgs, nf_out, shape=[5], stride=2, use_spectral_norm=False, name="con
 
         return conv
 
-def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="conv2d", summary=True):
+def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="conv2d", summary=True, border='SYMMETRIC'):
     '''Convolutional layer for square images'''
 
     if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
@@ -386,8 +393,17 @@ def conv2d(imgs, nf_out, shape=[5, 5], stride=2, use_spectral_norm=False, name="
             initializer=weights_initializer)
         if use_spectral_norm:
             w = spectral_norm(w)
+        
+        # Pad the image
+        K11 = (w.shape[0]-1)//2
+        K12 = w.shape[0]//2
+        K21 = (w.shape[1]-1)//2
+        K22 = w.shape[1]//2
+        imgs = tf.pad(imgs,[[0,0], [K11,K12], [K21,K22], [0,0]], mode=border)
+        
+        # Perform valid convolution
         conv = tf.nn.conv2d(
-            imgs, w, strides=[1, *stride, 1], padding='SAME')
+            imgs, w, strides=[1, *stride, 1], padding='VALID')
 
         biases = _tf_variable('biases', [nf_out], initializer=const)
         conv = tf.nn.bias_add(conv, biases)
@@ -406,7 +422,8 @@ def conv3d(imgs,
            stride=2,
            use_spectral_norm=False,
            name="conv3d",
-           summary=True):
+           summary=True, 
+           border='SYMMETRIC'):
     '''Convolutional layer for square images'''
     if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
         stride = [stride, stride, stride]
@@ -423,8 +440,19 @@ def conv3d(imgs,
             initializer=weights_initializer)
         if use_spectral_norm:
             w = spectral_norm(w)
+        
+        # Pad the image
+        K11 = (w.shape[0]-1)//2
+        K12 = w.shape[0]//2
+        K21 = (w.shape[1]-1)//2
+        K22 = w.shape[1]//2
+        K31 = (w.shape[2]-1)//2
+        K32 = w.shape[2]//2
+        imgs = tf.pad(imgs,[[0,0], [K11,K12], [K21,K22], [K31,K32], [0,0]], mode=border)
+        
+        # Perform valid convolution
         conv = tf.nn.conv3d(
-            imgs, w, strides=[1, *stride, 1], padding='SAME')
+            imgs, w, strides=[1, *stride, 1], padding='VALID')
 
         biases = _tf_variable('biases', [nf_out], initializer=const)
         conv = tf.nn.bias_add(conv, biases)
@@ -567,7 +595,7 @@ def deconv3d(imgs,
         return deconv
 
 
-def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_size=2, use_spectral_norm=False, merge=False):
+def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_size=2, use_spectral_norm=False, merge=True):
     if data_size == 3:
         output_shape = [bs, sx, sx, sx, n_filters]
         deconv = deconv3d
@@ -620,7 +648,7 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
 
     return out_tensor
 
-def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, use_spectral_norm=False, merge=False):
+def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, use_spectral_norm=False, merge=True):
     if data_size == 3:
         conv = conv3d
         shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
