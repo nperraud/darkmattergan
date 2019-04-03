@@ -4,11 +4,12 @@
 #SBATCH --ntasks=1
 #SBATCH --constraint=gpu
 #SBATCH --output=out-test-%j.log
-#SBATCH --error=out-test-%j.log
+#SBATCH --error=out-test-%j-e.log
+#SBATCH --account=sd01
 
 module load daint-gpu
 module load cray-python
-module load TensorFlow/1.7.0-CrayGNU-17.12-cuda-8.0-python3
+module load TensorFlow/1.7.0-CrayGNU-18.08-cuda-9.1-python3
 
 source $SCRATCH/cgan/bin/activate
 

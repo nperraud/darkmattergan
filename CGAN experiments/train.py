@@ -1,14 +1,12 @@
 import os
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
 from copy import deepcopy
 
 import sys
 sys.path.insert(0, '../')
 from gantools import data
 from gantools import utils
-from gantools import plot
 from gantools.model import ConditionalParamWGAN
 from gantools.gansystem import GANsystem
 from gantools import evaluation
