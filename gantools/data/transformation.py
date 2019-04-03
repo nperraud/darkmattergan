@@ -588,7 +588,7 @@ def attenuation_weights_3d(ns=32):
     k = attenuation_kernel(ns)
     kk = np.concatenate((np.ones([ns]), k))[::-1]
     kk = np.expand_dims(np.expand_dims(kk, axis=0), axis=0)
-    aw = np.ones([ns*2,ns*2,nx*2])
+    aw = np.ones([ns*2,ns*2,ns*2])
     aw = (aw*kk)*kk.transpose((1,2,0))*kk.transpose((2,0,1))
     return aw
 
