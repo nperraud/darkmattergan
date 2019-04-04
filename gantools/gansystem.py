@@ -115,7 +115,7 @@ class GANsystem(NNSystem):
 
     def train(self, dataset, **kwargs):
         if self.params['Nstats']:
-            assert(dataset.N>self.params['Nstats'])
+            assert(dataset.N>=self.params['Nstats'])
             self.summary_dataset = itertools.cycle(dataset.iter(self.params['Nstats']))
             self.net.preprocess_summaries(dataset.get_samples(self.params['Nstats']), rerun=False)
         super().train(dataset, **kwargs)
