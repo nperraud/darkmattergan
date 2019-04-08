@@ -9,7 +9,7 @@ from gantools.gansystem import GANsystem
 ns = 32
 try_resume = True
 
-time_str = '0_to_32'
+time_str = 'fft-0_to_32'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
