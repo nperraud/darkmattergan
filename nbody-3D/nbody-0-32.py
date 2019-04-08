@@ -18,34 +18,43 @@ backward = data.fmap.stat_backward
 
 bn = False
 
-md=32
-params_discriminator = dict()
+md=64
 
-params_discriminator['stride'] = [2, 2, 2, 1, 1, 1]
-params_discriminator['nfilter'] = [2*md, 2*md, md, md//2, md//4,2]
-params_discriminator['shape'] = [[4, 4, 4],[4, 4, 4], [4, 4, 4],[4, 4, 4], [4, 4, 4], [4, 4, 4]]
-params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
-params_discriminator['full'] = [64, 16]
+params_discriminator = dict()
+params_discriminator['stride'] = [1, 1, 2, 2, 2]
+params_discriminator['nfilter'] = [md, md, 2*md, 4*md, 8*md]
+params_discriminator['shape'] = [[4, 4, 4],[4, 4, 4], [4, 4, 4],[4, 4, 4], [4, 4, 4]]
+params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn ]
+params_discriminator['full'] = []
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 params_discriminator['data_size'] = 3
-params_discriminator['inception'] = True
-params_discriminator['spectral_norm'] = False
+params_discriminator['inception'] = False
+params_discriminator['spectral_norm'] = True
+# params_discriminator['histogram'] = dict()
+# params_discriminator['histogram']['bins'] = 100
+# params_discriminator['histogram']['data_size'] = 3
+# params_discriminator['histogram']['full'] = 128
+# params_discriminator['histogram']['spectral_norm'] = True
 
 params_generator = dict()
-params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1]
-params_generator['latent_dim'] = 32*32*32
-params_generator['latent_dim_split'] = None
-params_generator['in_conv_shape'] =[32, 32, 32]
-params_generator['nfilter'] = [md, md, md, md, md, md, 1]
-params_generator['shape'] = [[4, 4, 4],[4, 4, 4], [4, 4, 4],[4, 4, 4], [4, 4, 4], [4, 4, 4]]
-params_generator['batch_norm'] = [bn, bn, bn, bn,bn, bn]
-params_generator['full'] = []
+params_generator['stride'] = [2, 2, 2, 1, 1]
+params_generator['latent_dim'] = 256
+params_generator['in_conv_shape'] =[4, 4, 4]
+params_generator['nfilter'] = [4*md, 2*md, md, md, 1]
+params_generator['shape'] = [[4, 4, 4],[4, 4, 4], [4, 4, 4],[4, 4, 4], [4, 4, 4]]
+params_generator['batch_norm'] = [bn, bn, bn, bn]
+params_generator['full'] = [256*md]
 params_generator['summary'] = True
-params_generator['non_lin'] = tf.nn.relu
+params_generator['non_lin'] = None
 params_generator['data_size'] = 3
-params_generator['inception'] = True
-params_generator['spectral_norm'] = False
+params_generator['inception'] = False
+params_generator['spectral_norm'] = True
+
+params_optimization = dict()
+params_optimization['batch_size'] = 8
+params_optimization['epoch'] = 100000
+params_optimization['n_critic'] = 5
 
 # Optimization parameters inspired from 'Self-Attention Generative Adversarial Networks'
 # - Spectral normalization GEN DISC

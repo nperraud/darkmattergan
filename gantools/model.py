@@ -482,6 +482,7 @@ class UpscalePatchWGAN(WGAN):
         d_params['generator']['use_Xdown'] = False
         d_params['generator']['latent_dim_split'] = None
         d_params['generator']['weights_border'] = False
+        d_params['discriminator']['fft_features'] = False
 
         return d_params
 
@@ -578,6 +579,18 @@ class UpscalePatchWGAN(WGAN):
             v = tf.concat([X, self.X_down_up, X-self.X_down_up], axis=axis)
         else:
             v = X
+        if self.params['discriminator']['fft_features']:
+            print('Use FFT features')
+            X = tf.cast(X, dtype=tf.complex64)
+            if self.data_size==2:
+                fftX = tf.abs(tf.fft2d(X))
+            elif self.data_size==3:
+                fftX = tf.abs(tf.fft3d(X))
+            else:
+                raise NotImplementedError()
+            axis = self.data_size + 1
+            v = tf.concat([v, tf.cast(fftX, dtype=tf.float32)], axis=axis)
+                
         return discriminator(v, params=self.params['discriminator'], **kwargs)
 
     def _get_corner(self, X):

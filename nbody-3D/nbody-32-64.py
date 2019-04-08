@@ -7,7 +7,7 @@ from gantools.gansystem import GANsystem
 ns = 32
 try_resume = True
 
-time_str = '32_to_64'
+time_str = 'fft-32_to_64'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
@@ -29,6 +29,8 @@ params_discriminator['summary'] = True
 params_discriminator['data_size'] = 3
 params_discriminator['inception'] = True
 params_discriminator['spectral_norm'] = False
+params_discriminator['fft_features'] = True
+
 
 params_generator = dict()
 params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]
