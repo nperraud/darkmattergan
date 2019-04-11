@@ -3,14 +3,17 @@ import os
 from gantools import data, utils
 from gantools.model import UpscalePatchWGAN, CosmoWGAN
 from gantools.gansystem import GANsystem
+from functools import partial
+
+shift = 1
+c = 20000
+forward = partial(data.fmap.stat_forward, shift=shift, c=c)
+backward = partial(data.fmap.stat_backward, shift=shift, c=c)
 
 ns = 32
 try_resume = True
 
-forward = data.fmap.stat_forward
-backward = data.fmap.stat_backward
-
-time_str = 'fft-64_to_256'
+time_str = 'psd-64_to_256'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
@@ -30,7 +33,7 @@ params_discriminator['data_size'] = 3
 params_discriminator['inception'] = True
 params_discriminator['spectral_norm'] = False
 params_discriminator['fft_features'] = True
-
+params_discriminator['psd_features'] = True
 
 params_generator = dict()
 params_generator['stride'] = [1, 1, 1, 1, 1, 1, 1, 1]

@@ -3,18 +3,20 @@ import os
 from gantools import data, utils
 from gantools.model import CosmoWGAN
 from gantools.gansystem import GANsystem
+from functools import partial
 
-# In[5]:
+
+shift = 1
+c = 20000
+forward = partial(data.fmap.stat_forward, shift=shift, c=c)
+backward = partial(data.fmap.stat_backward, shift=shift, c=c)
 
 ns = 32
 try_resume = True
 
-time_str = 'fft-0_to_32'
+time_str = 'psd-0_to_32'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
-
-forward = data.fmap.stat_forward
-backward = data.fmap.stat_backward
 
 bn = False
 
@@ -31,6 +33,8 @@ params_discriminator['summary'] = True
 params_discriminator['data_size'] = 3
 params_discriminator['inception'] = False
 params_discriminator['spectral_norm'] = True
+params_discriminator['fft_features'] = True
+params_discriminator['psd_features'] = True
 # params_discriminator['histogram'] = dict()
 # params_discriminator['histogram']['bins'] = 100
 # params_discriminator['histogram']['data_size'] = 3
