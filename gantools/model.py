@@ -1908,8 +1908,8 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
                 X = tf.cast(x[:,:,:,0], dtype=tf.complex64)
                 fftX = tf.abs(tf.fft2d(X))/tf.constant(ns, dtype=tf.float32)
             elif params['data_size']==3:
-                X = tf.cast(x[:,:,:,:,0], dtype=tf.complex64)/tf.constant(ns**(3/2), dtype=tf.float32)
-                fftX = tf.abs(tf.fft3d(X))
+                X = tf.cast(x[:,:,:,:,0], dtype=tf.complex64)
+                fftX = tf.abs(tf.fft3d(X))/tf.constant(ns**(3/2), dtype=tf.float32)
             else:
                 raise NotImplementedError()
             fftX = tf.expand_dims(fftX,axis=params['data_size']+1)
