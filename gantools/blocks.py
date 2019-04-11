@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from numpy import prod
 from gantools import utils
+import scipy
 
 
 def orthogonal_initializer(scale=1.1):
@@ -90,6 +91,24 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
 
         return bn
 
+def get_fourier_sum_matrix(ns, dim):
+    d = (np.arange(ns) - ns//2)**2
+    if dim==2:
+        d = np.expand_dims(d,axis=0)
+        DD = np.fft.ifftshift(d.T+d).flatten()
+        dd = np.unique(DD)        
+    elif dim==3:
+        d = np.expand_dims(d,axis=0)
+        d = np.expand_dims(d,axis=0)
+        DD = d.transpose((0,1,2))+d.transpose((1,2,0))+d.transpose((2,0,1))
+        DD = np.fft.ifftshift(DD).flatten()
+        dd = np.unique(DD)
+    else:
+        raise ValueError()
+    mat = np.zeros(shape=(len(dd), len(DD)))
+    for it,v in enumerate(dd):
+        mat[it] = (DD==v)
+    return scipy.sparse.coo_matrix(mat)
 
 def np_downsample_1d(x, scaling):
     unique = False

@@ -95,6 +95,8 @@ class WGAN(BaseGAN):
         d_params['discriminator']['moment'] = None # non linearity at the beginning of the discriminator
         d_params['discriminator']['minibatch_reg'] = False # Use minibatch regularization
         d_params['discriminator']['spectral_norm'] = False # use spectral norm
+        d_params['discriminator']['fft_features'] = False
+        d_params['discriminator']['psd_features'] = False
 
 
         return d_params
@@ -482,7 +484,6 @@ class UpscalePatchWGAN(WGAN):
         d_params['generator']['use_Xdown'] = False
         d_params['generator']['latent_dim_split'] = None
         d_params['generator']['weights_border'] = False
-        d_params['discriminator']['fft_features'] = False
 
         return d_params
 
@@ -579,17 +580,17 @@ class UpscalePatchWGAN(WGAN):
             v = tf.concat([X, self.X_down_up, X-self.X_down_up], axis=axis)
         else:
             v = X
-        if self.params['discriminator']['fft_features']:
-            print('Use FFT features')
-            X = tf.cast(X, dtype=tf.complex64)
-            if self.data_size==2:
-                fftX = tf.abs(tf.fft2d(X))
-            elif self.data_size==3:
-                fftX = tf.abs(tf.fft3d(X))
-            else:
-                raise NotImplementedError()
-            axis = self.data_size + 1
-            v = tf.concat([v, tf.cast(fftX, dtype=tf.float32)], axis=axis)
+#         if self.params['discriminator']['fft_features']:
+#             print('Use FFT features')
+#             X = tf.cast(X, dtype=tf.complex64)
+#             if self.data_size==2:
+#                 fftX = tf.abs(tf.fft2d(X))
+#             elif self.data_size==3:
+#                 fftX = tf.abs(tf.fft3d(X))
+#             else:
+#                 raise NotImplementedError()
+#             axis = self.data_size + 1
+#             v = tf.concat([v, tf.cast(fftX, dtype=tf.float32)], axis=axis)
                 
         return discriminator(v, params=self.params['discriminator'], **kwargs)
 
@@ -1901,6 +1902,33 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
 
 
     with tf.variable_scope(scope, reuse=reuse):
+        if params['fft_features'] or params['psd_features']:
+            ns = x.shape.as_list()[1]
+            if params['data_size']==2:
+                X = tf.cast(x[:,:,:,0], dtype=tf.complex64)
+                fftX = tf.abs(tf.fft2d(X))/tf.constant(ns, dtype=tf.float32)
+            elif params['data_size']==3:
+                X = tf.cast(x[:,:,:,:,0], dtype=tf.complex64)/tf.constant(ns**(3/2), dtype=tf.float32)
+                fftX = tf.abs(tf.fft3d(X))
+            else:
+                raise NotImplementedError()
+            fftX = tf.expand_dims(fftX,axis=params['data_size']+1)
+                
+        if params['fft_features']:
+            rprint('Use FFT features', reuse)
+            axis = params['data_size'] + 1
+            x = tf.concat([x, tf.cast(fftX, dtype=tf.float32)], axis=axis)
+        
+        if params['psd_features']:
+            rprint('Use PSD features', reuse)
+            S = get_fourier_sum_matrix(ns, params['data_size']).astype(np.float32)
+            tfS = tf.SparseTensor(
+                indices=np.array([S.row, S.col]).T,
+                values=S.data,
+                dense_shape=S.shape)
+            fftx = reshape2d(fftX)
+            psd_features = tf.transpose(tf.sparse_tensor_dense_matmul(tfS, fftx, adjoint_a=False, adjoint_b=True))
+        
         rprint('Discriminator \n'+''.join(['-']*50), reuse)
         rprint('     The input is of size {}'.format(x.shape), reuse)
         if len(params['one_pixel_mapping']):
@@ -1912,7 +1940,6 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
             non_lin_f = getattr(tf, params['non_lin'])
             x = non_lin_f(x)
             rprint('    Non lienarity: {}'.format(params['non_lin']), reuse)
-
 
         if params['cdf']:
             cdf = legacy_cdf_block(x, params, reuse)
@@ -2004,7 +2031,9 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
         if params['moment']:
             x = tf.concat([x, cov], axis=1)
             rprint('     Contenate with covairance variables to {}'.format(x.shape), reuse)           
-
+        if params['psd_features']:
+            x = tf.concat([x, psd_features], axis=1)
+            rprint('     Contenate with psd_features to {}'.format(x.shape), reuse)    
         for i in range(nfull):
             x = linear(x,
                        params['full'][i],
