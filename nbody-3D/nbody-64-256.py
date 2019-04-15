@@ -2,7 +2,7 @@ import tensorflow as tf
 import os
 from gantools import data, utils
 from gantools.model import UpscalePatchWGAN, CosmoWGAN
-from gantools.gansystem import GANsystem
+from gantools.gansystem import GANsystem, UpscaleGANsystem
 from functools import partial
 
 shift = 1
@@ -96,7 +96,7 @@ params['net']['gamma_gp'] = 10 # Gradient penalty
 params['net']['upscaling'] = 4
 
 params['optimization'] = params_optimization
-params['summary_every'] = 200 # Tensorboard summaries every ** iterations
+params['summary_every'] = 500 # Tensorboard summaries every ** iterations
 params['print_every'] = 50 # Console summaries every ** iterations
 params['save_every'] = 1000 # Save the model every ** iterations
 params['summary_dir'] = os.path.join(global_path, name +'_summary/')
@@ -111,7 +111,7 @@ class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
     pass
 
 
-wgan = GANsystem(CosmoUpscalePatchWGAN, params)
+wgan = UpscaleGANsystem(CosmoUpscalePatchWGAN, params)
 
 dataset = data.load.load_nbody_dataset(
     spix=ns,
