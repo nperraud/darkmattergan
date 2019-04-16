@@ -113,7 +113,7 @@ class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
     pass
 
 
-wgan = UpscaleGANsystem(CosmoUpscalePatchWGAN, params)
+wgan = GANsystem(CosmoUpscalePatchWGAN, params)
 
 dataset = data.load.load_nbody_dataset(
     spix=ns,
