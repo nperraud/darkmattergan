@@ -747,7 +747,7 @@ class UpscalePatchWGANBorders(UpscalePatchWGAN):
         shape = self.params['shape']
         reduction = np.prod(np.array(self.params['generator']['stride']))*2
         in_conv_shape = [el//reduction for el in shape[:-1]]
-        self.params['generator']['in_conv_shape'] = in_conv_shape
+        self._params['generator']['in_conv_shape'] = in_conv_shape
         self.X_data = tf.placeholder(tf.float32, shape=[None, *shape], name='X_data')
         self.z = tf.placeholder(
             tf.float32,
