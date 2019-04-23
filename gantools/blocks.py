@@ -618,12 +618,12 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
     if data_size == 3:
         output_shape = [bs, sx, sx, sx, n_filters]
         deconv = deconv3d
-        shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
+        shape = [[1, 1, 1], [2, 2, 2], [4, 4, 4]]
         concat_axis = 4
     elif data_size == 2:
         output_shape = [bs, sx, sx, n_filters]
         deconv = deconv2d
-        shape = [[1, 1], [3, 3], [5, 5]]
+        shape = [[1, 1], [2, 2], [4, 4]]
         concat_axis = 3
     else:
         raise NotImplementedError
@@ -636,7 +636,7 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
                           use_spectral_norm=use_spectral_norm,
                           summary=summary)
 
-    tensor_3 = deconv(in_tensor,
+    tensor_2 = deconv(in_tensor,
                           output_shape=output_shape,
                           shape=shape[1],
                           stride=stride,
@@ -645,7 +645,7 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
 
                           summary=summary)
 
-    tensor_5 = deconv(in_tensor,
+    tensor_3 = deconv(in_tensor,
                           output_shape=output_shape,
                           shape=shape[2],
                           stride=stride,
@@ -653,7 +653,7 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
                           use_spectral_norm=use_spectral_norm,
                           summary=summary)
 
-    out_tensor = tf.concat([tensor_1, tensor_3, tensor_5], axis=concat_axis)
+    out_tensor = tf.concat([tensor_1, tensor_2, tensor_3], axis=concat_axis)
 
     if merge:
         # do 1x1 convolution to reduce the number of output channels from (3 x n_filters) to n_filters
@@ -670,11 +670,11 @@ def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_si
 def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, use_spectral_norm=False, merge=True):
     if data_size == 3:
         conv = conv3d
-        shape = [[1, 1, 1], [3, 3, 3], [5, 5, 5]]
+        shape = [[1, 1, 1], [2, 2, 2], [4, 4, 4]]
         concat_axis = 4
     elif data_size == 2:
         conv = conv2d
-        shape = [[1, 1], [3, 3], [5, 5]]
+        shape = [[1, 1], [2, 2], [4, 4]]
         concat_axis = 3
     else:
         raise NotImplementedError
