@@ -1979,7 +1979,7 @@ def discriminator(x, params, z=None, reuse=True, scope="discriminator"):
 #                                     merge=(i == (nconv-1))
                                     merge=True
                                     )
-                rprint('     {} Inception(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+                rprint('     {} Inception(1x1,2x2,4x4) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
             elif params.get('separate_first', False) and i == 0:
                 n_out = params['nfilter'][i] // (int(x.shape[3]) + 1)
                 lst = []
@@ -2160,7 +2160,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 #                                     merge= (True if params['residual'] else (i == (nconv-1)) )
                                     merge= True
                                     )
-                    rprint('     {} Inception conv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+                    rprint('     {} Inception conv(1x1,2x2,4x4) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
 
                 else:
                     x = inception_deconv(in_tensor=x, 
@@ -2175,7 +2175,7 @@ def generator(x, params, X=None, y=None, reuse=True, scope="generator"):
 #                                         merge= (True if params['residual'] else (i == (nconv-1)) )
                                         merge= True
                                         )
-                    rprint('     {} Inception deconv(1x1,3x3,5x5) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
+                    rprint('     {} Inception deconv(1x1,2x2,4x4) layer with {} channels'.format(i, params['nfilter'][i]), reuse)
 
             else:       
                 x = deconv(in_tensor=x, 
