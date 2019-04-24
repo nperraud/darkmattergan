@@ -14,7 +14,7 @@ backward = partial(data.fmap.stat_backward, shift=shift, c=c)
 ns = 32
 try_resume = True
 
-time_str = 'psd-0_to_32'
+time_str = 'fft-psd-sn-0_to_32'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
@@ -31,7 +31,7 @@ params_discriminator['full'] = []
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 params_discriminator['data_size'] = 3
-params_discriminator['inception'] = False
+params_discriminator['inception'] = True
 params_discriminator['spectral_norm'] = True
 params_discriminator['fft_features'] = True
 params_discriminator['psd_features'] = True
@@ -52,7 +52,7 @@ params_generator['full'] = [256*md]
 params_generator['summary'] = True
 params_generator['non_lin'] = None
 params_generator['data_size'] = 3
-params_generator['inception'] = False
+params_generator['inception'] = True
 params_generator['spectral_norm'] = True
 
 params_optimization = dict()

@@ -43,7 +43,7 @@ params_generator = {'batch_norm': [False,
    'stride': [2, 2, 2, 2, 1, 1, 1, 1],
    'summary': True}
 
-params_optimization =  {
+params_optimization = {
     'batch_size': 8,
     'discriminator': {'kwargs': {}, 'learning_rate': 3e-05, 'optimizer': 'rmsprop'},
     'epoch': 10000,

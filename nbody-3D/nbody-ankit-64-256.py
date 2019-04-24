@@ -39,7 +39,7 @@ params_generator = {
     'summary': True,
     'use_old_gen': True}
 
-params_optimization =  {
+params_optimization = {
     'batch_size': 8,
     'discriminator': {'kwargs': {}, 'learning_rate': 3e-05, 'optimizer': 'rmsprop'},
     'epoch': 10000,
@@ -59,7 +59,7 @@ params['net']['gamma'] = 5
 params['net']['discriminator'] = params_discriminator
 params['net']['cosmology'] = params_cosmology
 params['net']['prior_distribution'] = 'gaussian'
-params['net']['upscaling'] =  4
+params['net']['upscaling'] = 4
 
 params['optimization'] = params_optimization
 params['summary_every'] = 100  # Tensorboard summaries every ** iterations
