@@ -435,8 +435,9 @@ class UpscaleGANsystem(GANsystem):
                 small = X_real
             else:
                 small = None
+            print(small.shape)
             X_fake = self.upscale_image(N=self.params['Nstats_cubes'],
-                                        small=small,
+                                        small=np.expand_dims(small, axis=self.net.params['generator']['data_size']+1),
                                         resolution=X_real.shape[1],
                                         sess=self._sess)
             feed_dict = self.compute_summaries(X_fake, feed_dict)
