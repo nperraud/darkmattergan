@@ -416,7 +416,9 @@ class UpscaleGANsystem(GANsystem):
             assert(self.net.params['generator']['data_size']>= 2)
             assert(len(dataset._X)>=self.params['Nstats_cubes'])
             self.summary_dataset_cubes = itertools.cycle(dataset.iter_cubes(self.params['Nstats_cubes'], downscale=self.net.params['upscaling']))
-            self.preprocess_summaries(dataset._X, rerun=False)
+            offset = self.summary_dataset_cubes.shape[1]//8
+            self.offset = offset
+            self.preprocess_summaries(dataset._X[:,offset:,offset:,offset:], rerun=False)
             self._global_score = np.inf
         super().train(dataset, **kwargs)
 
@@ -425,7 +427,6 @@ class UpscaleGANsystem(GANsystem):
             X_real = self.params['net']['cosmology']['backward_map'](X_real)
         for met in self._cosmo_metric_list:
             met.preprocess(X_real, **kwargs)
-
 
     def _train_log(self, feed_dict):
         super()._train_log(feed_dict)
@@ -440,7 +441,8 @@ class UpscaleGANsystem(GANsystem):
                                         small=small,
                                         resolution=X_real.shape[1],
                                         sess=self._sess)
-            feed_dict = self.compute_summaries(X_fake, feed_dict)
+            offset = self.offset
+            feed_dict = self.compute_summaries(X_fake[:,offset:,offset:,offset:], feed_dict)
             # m = self._cosmo_metric_list[0]
             # print(m.last_metric)
             # print(m._metrics[0].last_metric)
