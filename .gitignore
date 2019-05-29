@@ -1,7 +1,4 @@
 data/*
-save_test/*
-notebooks/*
-experiment-map/*
 saved_results/*
 
 # Compiled source #
@@ -59,7 +56,5 @@ tfnntools.egg-info/
 
 # Jupyter stuff  #
 ##################
-Demo_WGAN_3d.ipynb
-3d-Gaussian.ipynb
 .ipynb_checkpoints
 __pycache__
