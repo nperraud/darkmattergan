@@ -1,4 +1,0 @@
-generator_params_path=Parameters/Example/generator_params.txt
-discriminator_params_path=Parameters/Example/discriminator_params.txt
-optimizer_params_path=Parameters/Example/optimizer_params.txt
-params_path=Parameters/Example/general_params.txt

@@ -43,8 +43,8 @@ def _tf_variable(name, shape, initializer):
     Returns:
       Variable Tensor
     """
-    if True:  # with tf.device('/cpu:0'):
-        var = tf.get_variable(name, shape, initializer=initializer)
+
+    var = tf.get_variable(name, shape, initializer=initializer)
     return var
 
 
@@ -83,34 +83,33 @@ def batch_norm(x, epsilon=1e-5, momentum=0.9, name="batch_norm", train=True):
         bn = tf.contrib.layers.batch_norm(
             x,
             decay=momentum,
-            updates_collections=None,
             epsilon=epsilon,
             scale=True,
             is_training=train,
             scope=name)
-
         return bn
 
-def get_fourier_sum_matrix(ns, dim):
-    d = (np.arange(ns) - ns//2)**2
-    if dim==2:
-        d = np.expand_dims(d,axis=0)
-        DD = np.fft.ifftshift(d.T+d).flatten()
-        dd = np.unique(DD)        
-    elif dim==3:
-        d = np.expand_dims(d,axis=0)
-        d = np.expand_dims(d,axis=0)
-        DD = d.transpose((0,1,2))+d.transpose((1,2,0))+d.transpose((2,0,1))
-        DD = np.fft.ifftshift(DD).flatten()
-        dd = np.unique(DD)
-    else:
-        raise ValueError()
-    mat = np.zeros(shape=(len(dd), len(DD)))
-    for it,v in enumerate(dd):
-        mat[it] = (DD==v)
-    return scipy.sparse.coo_matrix(mat)
+# def get_fourier_sum_matrix(ns, dim):
+#     d = (np.arange(ns) - ns//2)**2
+#     if dim==2:
+#         d = np.expand_dims(d,axis=0)
+#         DD = np.fft.ifftshift(d.T+d).flatten()
+#         dd = np.unique(DD)        
+#     elif dim==3:
+#         d = np.expand_dims(d,axis=0)
+#         d = np.expand_dims(d,axis=0)
+#         DD = d.transpose((0,1,2))+d.transpose((1,2,0))+d.transpose((2,0,1))
+#         DD = np.fft.ifftshift(DD).flatten()
+#         dd = np.unique(DD)
+#     else:
+#         raise ValueError()
+#     mat = np.zeros(shape=(len(dd), len(DD)))
+#     for it,v in enumerate(dd):
+#         mat[it] = (DD==v)
+#     return scipy.sparse.coo_matrix(mat)
 
 def np_downsample_1d(x, scaling):
+    """1 dimensional numpy downscaling"""
     unique = False
     if len(x.shape) < 1:
         raise ValueError('Too few dimensions')
@@ -138,6 +137,8 @@ def np_downsample_1d(x, scaling):
 
 
 def np_downsample_2d(x, scaling):
+    """2 dimensional numpy downscaling"""
+
     unique = False
     unichannel = False
     if len(x.shape) < 2:
@@ -168,6 +169,7 @@ def np_downsample_2d(x, scaling):
 
 
 def np_downsample_3d(x, scaling):
+    """3 dimensional numpy downscaling"""
     unique = False
     unichannel = False
     if len(x.shape) < 3:
@@ -199,6 +201,8 @@ def np_downsample_3d(x, scaling):
     return dsx
 
 def downsample(imgs, s, size=None):
+    """numpy downscaling"""
+
     if size is None:
         size = utils.get_data_size(imgs)
     if size == 3:
@@ -261,6 +265,8 @@ def down_sampler(x=None, s=2, size=None):
         return tf.nn.conv1d(down_sampler_x, filt, stride=s, padding='SAME', name=op_name)
 
 def up_sampler(x, s=2, size=None, smoothout=False):
+    """Up sampling operation"""
+
     if size is None:
         size = utils.get_data_size(x)
 
@@ -330,10 +336,12 @@ def up_sampler(x, s=2, size=None, smoothout=False):
 
 
 def l2_norm(v, eps=1e-12):
+    """Normalize variable"""
     return v / (tf.reduce_sum(v ** 2) ** 0.5 + eps)
 
 
 def spectral_norm(w, iteration=1):
+    """Spectral norm"""
     w_shape = w.shape.as_list()
     w = tf.reshape(w, [-1, w_shape[-1]])
 
@@ -490,6 +498,7 @@ def deconv1d(imgs,
              name="deconv1d",
              use_spectral_norm=False,
              summary=True):
+    """1D deconvolution operation"""
     if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
         stride = [stride]
     weights_initializer = select_initializer()
@@ -534,6 +543,7 @@ def deconv2d(imgs,
              name="deconv2d",
              use_spectral_norm=False,
              summary=True):
+    """2D deconvolution operation"""
     if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
         stride = [stride, stride]
     weights_initializer = select_initializer()
@@ -579,6 +589,7 @@ def deconv3d(imgs,
              name="deconv3d",
              use_spectral_norm=False,
              summary=True):
+    """3D deconvolution operation"""
     if not(isinstance(stride ,list) or isinstance(stride ,tuple)):
         stride = [stride, stride, stride]
     weights_initializer = select_initializer()
@@ -615,6 +626,10 @@ def deconv3d(imgs,
 
 
 def inception_deconv(in_tensor, bs, sx, n_filters, stride, summary, num, data_size=2, use_spectral_norm=False, merge=True):
+    """Inception like deconvolution operation
+    
+    Warning this is not an inception cell, but something inspired by the inception cell.
+    """
     if data_size == 3:
         output_shape = [bs, sx, sx, sx, n_filters]
         deconv = deconv3d
@@ -678,7 +693,10 @@ def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, use_
         concat_axis = 3
     else:
         raise NotImplementedError
-
+    """Inception like convolution operation
+    
+    Warning this is not an inception cell, but something inspired by the inception cell.
+    """
     tensor_1 = conv(in_tensor,
                     nf_out=n_filters,
                     shape=shape[0],
@@ -719,6 +737,7 @@ def inception_conv(in_tensor, n_filters, stride, summary, num, data_size=2, use_
 
 
 def linear(input_, output_size, scope=None, summary=True):
+    """Linear operation"""
     shape = input_.get_shape().as_list()
 
     weights_initializer = select_initializer()
@@ -737,6 +756,10 @@ def linear(input_, output_size, scope=None, summary=True):
 
 
 def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
+    """Minibatch regularization
+    
+    Not entirely sure this does really work.
+    """
     x = linear(xin, n_kernels * dim_per_kernel, scope="minibatch_reg")
     activation = tf.reshape(x, [tf.shape(x)[0], n_kernels, dim_per_kernel])
     abs_dif = tf.reduce_sum(
@@ -751,6 +774,7 @@ def mini_batch_reg(xin, n_kernels=300, dim_per_kernel=50):
     return x
 
 def apply_phaseshuffle(x, rad=2, pad_type='reflect'):
+    
     b, x_len, nch = x.get_shape().as_list()
 
     phase = tf.random_uniform([], minval=-rad, maxval=rad + 1, dtype=tf.int32)
@@ -765,7 +789,6 @@ def apply_phaseshuffle(x, rad=2, pad_type='reflect'):
     return x
 
 def tf_cdf(x, n_out, name='cdf_weight', diff_weight=10, use_first_channel=True):
-
     """Helping function to get correct histograms."""
     # limit = 4.
     # wi = tf.range(0.0, limit, delta=limit/n_out, dtype=tf.float32, name='range')
