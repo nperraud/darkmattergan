@@ -1,3 +1,6 @@
 [submodule "tfnntools"]
 	path = tfnntools
 	url = https://github.com/nperraud/tfnntools.git
+[submodule "gantools"]
+	path = gantools
+	url = git@github.com:nperraud/gantools.git
