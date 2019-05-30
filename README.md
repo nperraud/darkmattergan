@@ -2,19 +2,11 @@
 
 Using Generative Adversarial Networks to generate replications of N-Body simulation images. This repository contains the code to solve different problems including (2D, 3D, 2D-time, generation part by parts)
 
+## Installation
+
+
 ## Required packages
 
-1. pynbody (only for processing the simulations)
-2. Pillow (PIL)
-3. Tensorflow
-4. h5py
-5. scikit-learn
-6. scikit-image
-7. numpy
-8. tfnntools (provided with this package, install with -e)
-9. matplotlib
-10. jupyter
-11. PyYaml
 
 *We hightly recommend to work in a virtual environnement.*
 
@@ -27,7 +19,7 @@ or if you have no gpu:
 pip install -r requirements_nogpu.txt
 ```
 
-Then you should install gantools
+For some operations, you may require `pynbody` as it was used to preprocess the simulation. If so, you need to install it separately.
 
 ## Dataset
 

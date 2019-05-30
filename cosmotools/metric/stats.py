@@ -1,7 +1,7 @@
 """This module contains the different statistic functions."""
 
 import numpy as np
-from gantools.metric import power_spectrum_phys as ps
+from . import power_spectrum_phys as ps
 import scipy.ndimage.filters as filters
 import itertools
 from gantools import utils

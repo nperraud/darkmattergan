@@ -1,3 +1,8 @@
+from gantools.model import WGAN
+from gantools.metric import StatisticalMetric, Statistic, StatisticalMetricLim, MetricSum
+from .metric.stats import mass_hist
+from .metric.stats import peak_count_hist as peak_hist
+from .metric.stats import power_spectrum_batch_phys as psd
 
 
 def psd_mean(*args,**kwargs):
@@ -13,8 +18,6 @@ def cosmo_metric_list(recompute_real=False):
     # metric_list.append(MetricSum(metric_list[:3], name ='global_score', group='cosmology', recompute_real=recompute_real, stype=0))
 
     metric_list = [MetricSum(metric_list, name ='global_score', group='cosmology', recompute_real=recompute_real, stype=0)]
-
-    # TODO: wasserstein
 
     return metric_list
 
@@ -34,7 +37,7 @@ class CosmoWGAN(WGAN):
 
     def _build_stat_summary(self):
         super()._build_stat_summary()
-        self._cosmo_metric_list = ganlist.cosmo_metric_list()
+        self._cosmo_metric_list = cosmo_metric_list()
         for met in self._cosmo_metric_list:
             met.add_summary(collections="model")
 

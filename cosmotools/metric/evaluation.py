@@ -6,7 +6,7 @@ This module contains helping functions for the evaluation of the models.
 import tensorflow as tf
 import pickle
 import numpy as np
-from gantools.metric import stats
+from . import stats
 import gantools.plot as plot
 import matplotlib
 import socket

@@ -1,14 +1,13 @@
 numpy
 tensorflow
 pillow
-pynbody
 h5py
 sklearn
 scikit-image
 pyyaml
--e .
--e tfnntools
+-e gantools
+-e gantools/tfnntools
 matplotlib
-jupyter
+jupyterlab
 moviepy
 requests
