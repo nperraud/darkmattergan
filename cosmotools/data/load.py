@@ -10,12 +10,12 @@ from gantools import blocks
 
 
 
-def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
+def load_samples_raw(ncubes=None, resolution=256, Mpch=70):
     ''' Load 2D or 3D raw images
 
     Arguments
     ---------
-    * nsamples : desired number of samples (if None: all of them)
+    * ncubes : desired number of cubes (if None: all of them)
     * resolution : [256, 512]
     * Mpch : [70, 350]
 
@@ -45,20 +45,20 @@ def load_samples_raw(nsamples=None, resolution=256, Mpch=70):
     raw_images = np.array(raw_images).astype(np.float32)
 
 
-    if nsamples is None:
+    if ncubes is None:
         return raw_images
     else:
-        if nsamples > len(raw_images):
+        if ncubes > len(raw_images):
             raise ValueError("Not enough sample")
         else:
-            print('Select {} samples out of {}.'.format(
-                nsamples, len(raw_images)))
+            print('Select {} cubes out of {}.'.format(
+                ncubes, len(raw_images)))
 
-        return raw_images[:nsamples]
+        return raw_images[:ncubes]
 
 
 def load_nbody_dataset(
-        nsamples=None,
+        ncubes=None,
         resolution=256,
         Mpch=70,
         shuffle=True,
@@ -73,7 +73,7 @@ def load_nbody_dataset(
 
      Arguments
     ---------
-    * nsamples : desired number of samples, if None => all of them (default None)
+    * ncubes : desired number of cubes, if None => all of them (default None)
     * resolution : resolution of the original cube [256, 512] (default 256)
     * Mpch : [70, 350] (default 70)
     * shuffle: shuffle the data (default True)
@@ -86,7 +86,7 @@ def load_nbody_dataset(
     '''
 
     # 1) Load raw images
-    images = load_samples_raw(nsamples=nsamples, resolution=resolution, Mpch=Mpch)
+    images = load_samples_raw(ncubes=ncubes, resolution=resolution, Mpch=Mpch)
     print("images shape = ", images.shape)
 
     # 2) Apply forward map if necessary

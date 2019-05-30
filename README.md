@@ -5,7 +5,7 @@ Using Generative Adversarial Networks to generate replications of N-Body simulat
 ## Installation
 
 
-## Required packages
+### Required packages
 
 
 *We hightly recommend to work in a virtual environnement.*

@@ -3,6 +3,8 @@ from gantools.metric import StatisticalMetric, Statistic, StatisticalMetricLim, 
 from .metric.stats import mass_hist
 from .metric.stats import peak_count_hist as peak_hist
 from .metric.stats import power_spectrum_batch_phys as psd
+from copy import deepcopy
+import numpy as np
 
 
 def psd_mean(*args,**kwargs):
