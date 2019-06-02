@@ -50,7 +50,7 @@ def dens2overdens(density, mean_density=None):
     return delta
 
 
-def power_spectrum(field_x, box_l, bin_k, field_y=None):
+def power_spectrum(field_x, box_l, bin_k, field_y=None, log_sampling=True):
     """
         Measures the mass power spectrum of a 3D input field for a given number of bins in Fourier space.
         :param field_x: 3D input field to compute the power spectrum of (typically the overdensity field), dimensionless
@@ -74,12 +74,17 @@ def power_spectrum(field_x, box_l, bin_k, field_y=None):
         _k_abs = np.sqrt(_kx ** 2. + _ky ** 2. + _kz ** 2.)
     else:
         raise ValueError('field_x is not 2D or 3D')
+    
     # The following complicated line is actually only creating a 1D array spanning k-space logarithmically from minimum _k_abs to maximum.
     # To start slightly below the minimum and finish slightly above the maximum I use ceil and floor.
     # To ceil and floor not to the next integer but to the next 15th digit, I multiply by 1e15 before flooring and divide afterwards.
     # Since the ceiled/floored value is actually the exponent used for the logspace, going to the next integer would be way too much.
-    _k_log = np.logspace(np.floor(np.log10(np.min(_k_abs[1:])) * 1.e15) / 1.e15,
-                         np.ceil(np.log10(np.max(_k_abs[1:])) * 1.e15) / 1.e15, bin_k)
+    if log_sampling:
+        _k_log = np.logspace(np.floor(np.log10(np.min(_k_abs[1:])) * 1.e15) / 1.e15,
+                             np.ceil(np.log10(np.max(_k_abs[1:])) * 1.e15) / 1.e15, bin_k)
+    else:
+        _k_log = np.linspace(np.floor(np.min(_k_abs[1:]) * 1.e15) / 1.e15,
+                             np.ceil(np.max(_k_abs[1:]) * 1.e15) / 1.e15, bin_k)
 
     X = np.fft.rfftn(np.fft.fftshift(field_x)) * (box_l / box_pix) ** box_dim
     if field_y is not None:
