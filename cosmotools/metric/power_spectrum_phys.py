@@ -52,7 +52,7 @@ def dens2overdens(density, mean_density=None):
 
 def power_spectrum(field_x, box_l, bin_k, field_y=None, log_sampling=True):
     """
-        Measures the mass power spectrum of a 3D input field for a given number of bins in Fourier space.
+        Measures the mass power spectrum of a 2D or 3D input field for a given number of bins in Fourier space.
         :param field_x: 3D input field to compute the power spectrum of (typically the overdensity field), dimensionless
         :param box_l: box length of image/cube/box or whatever, units of Mpc or Mpc/h
         :param bin_k: number of bins in Fourier space

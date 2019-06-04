@@ -126,11 +126,11 @@ def stat_backward_0(x, c=2e4):
     return res
 
 
-def stat_forward(x, c=2e4, shift=3):
+def stat_forward(x, c=2e4, shift=1):
     return stat_forward_0(x + shift, c=c) - stat_forward_0(shift, c=c)
 
 
-def stat_backward(x, c=2e4, shift=3):
+def stat_backward(x, c=2e4, shift=1):
     x = np.clip(x, 0., np.inf)
     return stat_backward_0(x + stat_forward_0(shift, c=c), c=c) - shift
 

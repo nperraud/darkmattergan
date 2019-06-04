@@ -11,7 +11,9 @@ import multiprocessing as mp
 import tensorflow as tf
 
 
-def wrapper_func(x, bin_k=50, box_l=100 / 0.7, log_sampling=True):
+
+def wrapper_func(x, bin_k=50, box_l=100 / 0.7,
+                 log_sampling=True):
     tmp = ps.dens2overdens(np.squeeze(x), np.mean(x))
     return ps.power_spectrum(field_x=tmp, box_l=box_l, bin_k=bin_k, log_sampling=log_sampling)[0]
 
@@ -49,7 +51,8 @@ def wrapper_func_cross(a,
 def power_spectrum_batch_phys(X1,
                               X2=None,
                               bin_k=50,
-                              box_l=100 / 0.7,
+                              box_ll=350, #100 / 0.7,
+                              resolution=256,
                               remove_nan=True,
                               is_3d=False,
                               multiply=False,
@@ -77,7 +80,10 @@ def power_spectrum_batch_phys(X1,
     else:
         s = sx
         # ValueError('The image need to be squared')
-
+    
+    # Compute the good value of box_l
+    box_l = box_ll*sx/resolution
+    
     if is_3d:
         _, k = ps.power_spectrum(
             field_x=X1[0].reshape(s, s, s), box_l=box_l, bin_k=bin_k, log_sampling=log_sampling)
@@ -86,11 +92,6 @@ def power_spectrum_batch_phys(X1,
             field_x=X1[0].reshape(s, s), box_l=box_l, bin_k=bin_k, log_sampling=log_sampling)
 
     num_workers = mp.cpu_count() - 1
-    # if num_workers == 23:
-    #     # Small hack for CSCS
-    #     num_workers = 2
-    #     print('CSCS: Pool reduced!')
-    # print('Pool with {} workers'.format(num_workers))
     with mp.Pool(processes=num_workers) as pool:
         if X2 is None:
             # # Pythonic version
@@ -126,8 +127,8 @@ def power_spectrum_batch_phys(X1,
                 sx=sx,
                 sy=sy,
                 sz=sz,
-                bin_k=50,
-                box_l=100 / 0.7,
+                bin_k=bin_k,
+                box_l=box_l,
                 is_3d=is_3d,
                 log_sampling=log_sampling)
             _result = pool.map(func, enumerate(X1))
@@ -295,7 +296,7 @@ def peak_count_hist(dat, bins=20, lim=None, neighborhood_size=5, threshold=0, lo
         lim = tuple(map(type(peak[0]), lim))
     # Compute histograms individually
     with mp.Pool(processes=num_workers) as pool:
-        hist_func = functools.partial(np.histogram, bins=bins, range=lim)
+        hist_func = functools.partial(unbounded_histogram, bins=bins, range=lim)
         res = np.array(pool.map(hist_func, peak_arr))
     
     # Unpack results
@@ -315,6 +316,13 @@ def peak_count_hist_real_fake(real, fake, bins=20, lim=None, log=True, neighborh
     y_fake, _, _ = peak_count_hist(fake, bins=bins, lim=lim, log=log, neighborhood_size=neighborhood_size, threshold=threshold, mean=mean)
     return y_real, y_fake, x
 
+def unbounded_histogram(dat, range=None, **kwargs):
+    if range is None:
+        return np.histogram(dat, **kwargs)
+    y, x = np.histogram(dat, range=range, **kwargs)
+    y[0] = y[0] + np.sum(dat<range[0])
+    y[-1] = y[-1] + np.sum(dat>range[1])
+    return y, x
 
 def mass_hist(dat, bins=20, lim=None, log=True, mean=True, **kwargs):
     """Make the histogram of log10(data) data.
@@ -334,7 +342,7 @@ def mass_hist(dat, bins=20, lim=None, log=True, mean=True, **kwargs):
 
     num_workers = mp.cpu_count() - 1
     with mp.Pool(processes=num_workers) as pool:
-        results = [pool.apply(np.histogram, (x,), dict(bins=bins, range=lim)) for x in log_data]
+        results = [pool.apply(unbounded_histogram, (x,), dict(bins=bins, range=lim)) for x in log_data]
     y = np.vstack([y[0] for y in results])
     x = results[0][1]
     if log:

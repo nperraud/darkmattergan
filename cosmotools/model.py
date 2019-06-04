@@ -1,8 +1,9 @@
 from gantools.model import WGAN
-from gantools.metric import StatisticalMetric, Statistic, StatisticalMetricLim, MetricSum
+from gantools.metric import StatisticalMetric, Statistic, StatisticalMetricLim, MetricSum, SimpleMetric
 from .metric.stats import mass_hist
 from .metric.stats import peak_count_hist as peak_hist
 from .metric.stats import power_spectrum_batch_phys as psd
+from .metric.score import score_histogram, score_peak_histogram, score_psd
 from copy import deepcopy
 import numpy as np
 
@@ -20,7 +21,10 @@ def cosmo_metric_list(recompute_real=False):
     # metric_list.append(MetricSum(metric_list[:3], name ='global_score', group='cosmology', recompute_real=recompute_real, stype=0))
 
     metric_list = [MetricSum(metric_list, name ='global_score', group='cosmology', recompute_real=recompute_real, stype=0)]
-
+    metric_list.append(SimpleMetric(score_psd, name ='score_psd', group='cosmology'))
+    metric_list.append(SimpleMetric(score_histogram, name ='score_histogram', group='cosmology'))
+    metric_list.append(SimpleMetric(score_peak_histogram, name ='score_peak_histogram', group='cosmology'))
+    
     return metric_list
 
 

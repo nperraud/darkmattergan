@@ -7,7 +7,7 @@ import tensorflow as tf
 import pickle
 import numpy as np
 from . import stats
-import gantools.plot as plot
+from gantools.plot import plot_with_shade
 import matplotlib
 import socket
 if 'nid' in socket.gethostname() or 'lo-' in socket.gethostname():
@@ -35,15 +35,15 @@ def generate_samples(obj, N=None, checkpoint=None, **kwards):
 # fractional_difference: if true the fractional difference is plotted as well
 # log_sampling: whether the bins are logarithmically sampled
 # cut: either None or an interval indicating where to cut the PSD
-def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_l=(5*np.pi/180), bin_k=50, confidence=None, ylim=None, fractional_difference=False, log_sampling=False, cut=None, display=True, ax=None, loc=2, lenstools=False, **kwargs):
+def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_ll=350, bin_k=50, confidence=None, ylim=None, fractional_difference=False, log_sampling=True, cut=None, display=True, ax=None, loc=1, lenstools=False, **kwargs):
     
     # Compute PSD
     if lenstools:
         psd_real, x = stats.psd_lenstools(raw_images, box_l=box_l, bin_k=bin_k, cut=cut, multiply=multiply)
         psd_gen, x = stats.psd_lenstools(gen_sample_raw, box_l=box_l, bin_k=bin_k, cut=cut, multiply=multiply)
     else:
-        psd_real, x = stats.power_spectrum_batch_phys(X1=raw_images, multiply=multiply, bin_k=bin_k, box_l=box_l, log_sampling=log_sampling, cut=cut)
-        psd_gen, x = stats.power_spectrum_batch_phys(X1=gen_sample_raw, multiply=multiply, bin_k=bin_k, box_l=box_l, log_sampling=log_sampling, cut=cut)
+        psd_real, x = stats.power_spectrum_batch_phys(X1=raw_images, multiply=multiply, bin_k=bin_k, box_ll=box_ll, log_sampling=log_sampling, cut=cut)
+        psd_gen, x = stats.power_spectrum_batch_phys(X1=gen_sample_raw, multiply=multiply, bin_k=bin_k, box_ll=box_ll, log_sampling=log_sampling, cut=cut)
     
     # Compute the mean
     psd_real_mean = np.mean(psd_real, axis=0)
@@ -60,11 +60,11 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_l=(5*np
               'Fractional difference: {}'.format(logel2, l2, logel1, l1, frac_diff))
     
     # Plot the two curves
-    plot.plot_cmp(x, psd_gen, psd_real, ax=ax, xscale='log', yscale='log', xlabel='$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', title="Power spectral density", shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, loc=loc)
+    plot_cmp(x, psd_gen, psd_real, ax=ax, xscale='log', yscale='log', xlabel='$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', title="Power spectral density", shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, loc=loc)
     return logel2, l2, logel1, l1, frac_diff
 
 
-def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=None, neighborhood_size=5, threshold=0, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
+def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim = [1.5, 13], neighborhood_size=5, threshold=0, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot peak count histogram from raw images."""
     y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, neighborhood_size=neighborhood_size, threshold=threshold, mean=False)
     l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
@@ -76,11 +76,11 @@ def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=Non
               'L2 Peak Count loss: {}\n'
               'Log l1 Peak Count loss: {}\n'
               'L1 Peak Count loss: {}'.format(logel2, l2, logel1, l1))
-    plot.plot_cmp(x, y_fake, y_real, title= 'Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
+    plot_cmp(x, y_fake, y_real, title= 'Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
     return l2, logel2, l1, logel1, rel_diff
 
 
-def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=None, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
+def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=[0.3, 4.92], confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot mass histogram from raw images."""
     y_real, y_fake, x = stats.mass_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, mean=False)
     l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
@@ -93,7 +93,7 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None
               'Log l1 Mass histogram loss: {}\n'
               'L1 Mass histogram loss: {}'.format(logel2, l2, logel1, l1))
 
-    plot.plot_cmp(x, y_fake, y_real, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
+    plot_cmp(x, y_fake, y_real, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
     return l2, logel2, l1, logel1, rel_diff
 
 
@@ -130,7 +130,7 @@ def compute_plot_psd_mode_hists(raw_images, gen_sample_raw, modes=1, multiply=Tr
     if modes == 1:
         ax = [ax]
     for i in range(modes):
-        plot.compute_and_plot_peak_cout(real_hists[i][1], fake_hists[i][0], real_hists[i][0], ax=ax[i], xlabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', ylabel='Pixel count', title="$l=" + str(int(x[idx[i]])) + "$", confidence=confidence, shade=True, loc=1)
+        compute_and_plot_peak_cout(real_hists[i][1], fake_hists[i][0], real_hists[i][0], ax=ax[i], xlabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', ylabel='Pixel count', title="$l=" + str(int(x[idx[i]])) + "$", confidence=confidence, shade=True, loc=1)
         ax[i].ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     fig.tight_layout()
 
@@ -231,18 +231,18 @@ def plot_stats(row, fake, real=None, confidence='std', box_l=(5*np.pi/180), bin_
                     psd_gen, x = stats.psd_lenstools(fake, box_l=box_l, bin_k=bin_k, cut=cut, multiply=multiply)
                 else:
                     psd_gen, x = stats.power_spectrum_batch_phys(X1=fake, box_l=box_l, bin_k=bin_k, cut=cut, multiply=multiply, log_sampling=False)
-                plot.plot_cmp(x, psd_gen, ax=col, xscale='log', xlabel='$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', title="Power spectral density", shade=True, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat])
-                # plot.plot_single(x, psd_gen, color='r', ax=col, xlabel='$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$'if multiply else '$P(l)$', title="Power spectral density", xscale='log', shade=True, confidence=confidence, ylim=ylims[stat])
+                plot_cmp(x, psd_gen, ax=col, xscale='log', xlabel='$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', title="Power spectral density", shade=True, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat])
+                # plot_single(x, psd_gen, color='r', ax=col, xlabel='$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$'if multiply else '$P(l)$', title="Power spectral density", xscale='log', shade=True, confidence=confidence, ylim=ylims[stat])
             elif stat == 1:
                 # Peak count
                 y, x, _ = stats.peak_count_hist(fake, mean=False, **kwargs)
-                plot.plot_cmp(x, y, title='Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', ax=col, shade=True, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat], algorithm='relative')
-                # plot.plot_single(x, y, color='r', ax=col, title='Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', xscale='linear', shade=True, confidence=confidence, ylim=ylims[stat])
+                plot_cmp(x, y, title='Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', ax=col, shade=True, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat], algorithm='relative')
+                # plot_single(x, y, color='r', ax=col, title='Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', xscale='linear', shade=True, confidence=confidence, ylim=ylims[stat])
             else:
                 # Mass histogram
                 y, x, _ = stats.mass_hist(fake, mean=False, **kwargs)
-                plot.plot_cmp(x, y, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', ax=col, shade=True, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat], algorithm='relative')
-                # plot.plot_single(x, y, color='r', ax=col, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', xscale='linear', shade=True, confidence=confidence, ylim=ylims[stat])
+                plot_cmp(x, y, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', ax=col, shade=True, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat], algorithm='relative')
+                # plot_single(x, y, color='r', ax=col, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', xscale='linear', shade=True, confidence=confidence, ylim=ylims[stat])
         else:    
         
             # Produce plots for both real and fake
@@ -320,10 +320,10 @@ def make_frames(X, title_func=(lambda x: x), display_loss=False, vmin=None, vmax
                     col.axis('off')
                     if col_idx == 0:
                         col.set_title("Fake")
-                        plot.plot_img(transform(fake[np.random.randint(0, len(fake))]), vmin=transform(vmin), vmax=transform(vmax), ax=col)
+                        plot_img(transform(fake[np.random.randint(0, len(fake))]), vmin=transform(vmin), vmax=transform(vmax), ax=col)
                     elif col_idx == 1 and real is not None:
                         col.set_title("Real")
-                        plot.plot_img(transform(real[np.random.randint(0, len(real))]), vmin=transform(vmin), vmax=transform(vmax), ax=col)
+                        plot_img(transform(real[np.random.randint(0, len(real))]), vmin=transform(vmin), vmax=transform(vmax), ax=col)
                     elif col_idx == 2 and params_grid is not None:
                         col.scatter(params_grid[:, 0], params_grid[:, 1])
                         col.scatter(dic['params'][0], dic['params'][1], color='r', s=80)
@@ -451,9 +451,9 @@ def compute_plot_correlation(real, fake, tick_every=3, box_l=(5*np.pi/180), bin_
     if to_plot:
         if ax is None:
             fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 5))
-        im = plot.plot_img(np.abs(corr_real), x=k, ax=ax[0], title='Real', vmin=0, vmax=1, tick_every=tick_every)
-        plot.plot_img(np.abs(corr_fake), x=k, ax=ax[1], title='Fake', vmin=0, vmax=1, tick_every=tick_every)
-        plot.plot_img(np.abs(corr_fake - corr_real), x=k, ax=ax[2], title='abs(Real - Fake)', vmin=0, vmax=1, tick_every=tick_every)
+        im = plot_img(np.abs(corr_real), x=k, ax=ax[0], title='Real', vmin=0, vmax=1, tick_every=tick_every)
+        plot_img(np.abs(corr_fake), x=k, ax=ax[1], title='Fake', vmin=0, vmax=1, tick_every=tick_every)
+        plot_img(np.abs(corr_fake - corr_real), x=k, ax=ax[2], title='abs(Real - Fake)', vmin=0, vmax=1, tick_every=tick_every)
         plt.colorbar(im, ax=ax.ravel().tolist(), shrink=0.95)
     return corr_real, corr_fake, k
 
@@ -482,9 +482,9 @@ def plot_correlations(corr, k, params, param_str=(lambda x: str(x)), tick_every=
     scores = []
     for row in ax:
         c_r, c_f = corr[idx]
-        im = plot.plot_img(np.abs(c_r), x=k, ax=row[0], vmin=0, vmax=1, tick_every=tick_every)
-        plot.plot_img(np.abs(c_f), x=k, ax=row[1], vmin=0, vmax=1, tick_every=tick_every)
-        plot.plot_img(np.abs(c_r - c_f), x=k, ax=row[2], vmin=0, vmax=1, tick_every=tick_every)
+        im = plot_img(np.abs(c_r), x=k, ax=row[0], vmin=0, vmax=1, tick_every=tick_every)
+        plot_img(np.abs(c_f), x=k, ax=row[1], vmin=0, vmax=1, tick_every=tick_every)
+        plot_img(np.abs(c_r - c_f), x=k, ax=row[2], vmin=0, vmax=1, tick_every=tick_every)
         plt.colorbar(im, ax=row.ravel().tolist(), shrink=0.95)
         if idx == 0:
             row[0].set_title('Real', fontsize=14)
@@ -623,3 +623,229 @@ def compute_plot_fid(real_images, fake_images, params, regressor_path, reg_class
     fig.tight_layout()
 
     return fids, fig
+
+
+
+
+def plot_images_psd(images, title, filename=None, sigma_smooth=None):
+    my_dpi = 200
+
+    clip_max = 1e10
+
+    images = np.clip(images, -1, clip_max)
+    images = utils.makeit_square(images)
+
+    n_rows = len(sigma_smooth)
+    # n = n_rows*n_cols
+    n = n_rows
+    n_cols = 2
+    # n_obs = images.shape[0]
+    size_image = images.shape[1]
+    m = max(5, size_image / my_dpi)
+    plt.figure(figsize=(n_cols * m, n_rows * m), dpi=my_dpi)
+
+    gs = gridspec.GridSpec(n_rows, n_cols)
+    gs.update(wspace=0.1, hspace=0.1)
+
+    j = 0
+    for i in range(n):
+        # fig.add_subplot(gs[i]).set_xlabel(i)
+        images1 = ndimage.gaussian_filter(images, sigma=sigma_smooth[i])
+        ps_real, k = metric.power_spectrum_batch_phys(X1=images1)
+
+        # PLOTING THE IMAGE
+        ax = plt.subplot(gs[j])
+        plot_array_plt(
+            ndimage.gaussian_filter(images[1], sigma=sigma_smooth[i]),
+            ax=ax,
+            color='white')
+        ax.set_ylabel(
+            '$\sigma_{{smooth}} = {}$'.format(sigma_smooth[i]), fontsize=10)
+        linestyle = {
+            "linewidth": 1,
+            "markeredgewidth": 0,
+            "markersize": 3,
+            "marker": "o",
+            "linestyle": "-"
+        }
+
+        # PSD
+        ax1 = plt.subplot(gs[j + 1])
+        ax1.set_xscale("log")
+        ax1.set_yscale("log")
+
+        plot_with_shade(
+            ax1,
+            k,
+            ps_real,
+            color='b',
+            label="Real $\mathcal{F}(X))^2$",
+            **linestyle)
+        ax1.set_ylim(bottom=0.1)
+        if i == 0:
+            ax1.title.set_text("2D Power Spectrum\n")
+            ax1.title.set_fontsize(11)
+
+        ax1.tick_params(axis='both', which='major', labelsize=10)
+        if i == n - 1:
+            ax1.set_xlabel("$k$", fontsize=10)
+        else:
+            ax1.set_xticklabels(())
+        j += 2
+        # ax1.set_aspect('equal')
+
+    if filename is not None:
+
+        filename = os.path.join('', '{}.png'.format(filename))
+        plt.savefig(
+            filename, bbox_inches='tight', dpi=my_dpi
+        )  # bbox_extra_artists=(txt_top)) #, txt_left))  # Save Image
+    plt.show()
+
+
+# Plot a single curve
+def plot_single(x, y, color='b', ax=None, label=None, xscale='linear', yscale='log', xlabel="", ylabel="", title="", shade=False, confidence=None, xlim=None, ylim=None):
+    if ax is None:
+        ax = plt.gca()
+    ax.set_xscale(xscale)
+    ax.set_yscale(yscale)
+    linestyle = {
+        "linewidth": 1,
+        "markeredgewidth": 0,
+        "markersize": 3,
+        "marker": "o",
+        "linestyle": "-"
+    }
+    if shade:
+        plot_with_shade(ax, x, y, label=label, color=color, confidence=confidence, **linestyle)
+    else:
+        if confidence is not None:
+            y = np.mean(y, axis=0)
+        ax.plot(x, y, label=label, color=color, **linestyle)
+    ax.set_xlabel(xlabel, fontsize=14)
+    ax.set_ylabel(ylabel, fontsize=14)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        if isinstance(ylim, list):
+            ylim = ylim[0]
+        ax.set_ylim(ylim)
+    ax.title.set_text(title + "\n")
+    ax.title.set_fontsize(16)
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    if label:
+        ax.legend(fontsize=14, loc=3)
+
+
+# Comparison plot between two curves real and fake corresponding to axis x
+def plot_cmp(x, fake, real=None, xscale='linear', yscale='log', xlabel="", ylabel="", ax=None, title="", shade=False, confidence=None, xlim=None, ylim=None, fractional_difference=False, algorithm='classic', loc=3):
+    if ax is None:
+        ax = plt.gca()
+    if real is None:
+        # Plot a line that will be canceled by fake
+        # In this way the fractional difference is zero
+        plot_single(x, fake, color='b', ax=ax, label="Real", xscale=xscale, yscale=yscale, xlabel=xlabel, ylabel=ylabel, title=title, shade=False, confidence=confidence, xlim=xlim, ylim=ylim)
+    else:
+        plot_single(x, real, color='b', ax=ax, label="Real", xscale=xscale, yscale=yscale, xlabel=xlabel, ylabel=ylabel, title=title, shade=shade, confidence=confidence, xlim=xlim, ylim=ylim)
+    plot_single(x, fake, color='r', ax=ax, label="Fake", xscale=xscale, yscale=yscale, xlabel=xlabel, ylabel=ylabel, title=title, shade=shade, confidence=confidence, xlim=xlim, ylim=ylim)
+    ax.legend(fontsize=14, loc=loc)
+    if fractional_difference:
+        if real is None:
+            real = fake
+        if shade:
+            real = np.mean(real, axis=0)
+            fake = np.mean(fake, axis=0)
+        plot_fractional_difference(x, real, fake, xscale=xscale, yscale='linear', ax=ax, color='g', ylim=ylim[1] if isinstance(ylim, list) else None, algorithm=algorithm, loc=loc)
+        
+        
+# Plot an image
+def plot_img(img, x=None, title="", ax=None, cmap=plt.cm.plasma, vmin=None, vmax=None, tick_every=10, colorbar=False, log_norm=False):
+    if ax is None:
+        ax = plt.gca()
+    img = np.squeeze(img)
+    im = ax.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax, norm=LogNorm() if log_norm else None)
+    ax.set_title(title)
+    ax.title.set_fontsize(16)
+    if x is not None:
+        # Define axes
+        ticklabels = []
+        for i in range(len(x)):
+            if i % tick_every == 0:
+                ticklabels.append(str(int(round(x[i], 0))))
+        ticks = np.linspace(0, len(x) - (len(x) % tick_every), len(ticklabels))
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(ticklabels)
+        ax.set_yticks(ticks)
+        ax.set_yticklabels(ticklabels)
+    else:
+        ax.axis('off')
+    if colorbar:
+        plt.colorbar(im, ax=ax)
+    return im
+
+
+# Plot fractional difference
+# if algorithm='classic' then the classic fractional difference abs(real - fake) / real is computed
+# if algorithm='relative' then abs(real-fake) / std(real) is computed
+def plot_fractional_difference(x, real, fake, xlim=None, ylim=None, xscale="log", yscale="linear", title="", ax=None, color='b', algorithm='classic', loc=3):
+    if ax is None:
+        ax1 = plt.gca()
+    else:
+        ax1 = ax.twinx()
+    diff = np.abs(real - fake)
+    if algorithm == 'classic':
+        diff = diff / real
+    elif algorithm == 'relative':
+        diff = diff / np.std(real, axis=0)
+    else:
+        raise ValueError("Unknown algorithm name " + str(algorithm))
+    plot_single(x, diff, ax=ax1, xscale=xscale, yscale=yscale, title=title, color=color, label='Frac. diff.' if algorithm == 'classic' else 'Rel. diff.', ylim=ylim)
+    ax1.tick_params(axis='y', labelsize=12, labelcolor=color)
+
+    # Adjust legends
+    if ax is not None:
+        lines, labels = ax.get_legend_handles_labels()
+        lines2, labels2 = ax1.get_legend_handles_labels()
+        ax.get_legend().remove()
+        ax1.legend(lines + lines2, labels + labels2, loc=loc, fontsize=14)
+
+
+def plot_histogram(x, histo, yscale='log', tick_every=10, bar_width=1):
+    plt.bar(np.arange(len(histo)), histo, bar_width)
+    positions, labels = ([], [])
+    for idx in range(len(x)):
+        if idx == len(x) - 1:
+            positions.append(idx)
+            labels.append(np.round(x[idx], 2))
+        if idx % tick_every == 0:
+            positions.append(idx)
+            labels.append(np.round(x[idx], 2))
+    plt.xticks(positions, labels)
+    plt.yscale(yscale)
+
+
+# Plot the scores as a heatmap on the parameter grid
+# test_scores: array containing the scores for different parameters
+# test_params: array of shape (n, 2) containing the parameters
+# thresholds: if None a single heatmap with continuous values is produced
+#             if a list is provided a subplot containing different discrete heatmaps 
+#             (red points if below threshold and green otherwise) are produced
+def plot_heatmap(test_scores, test_params, train_scores=None, train_params=None, vmin=0, vmax=0.25, thresholds=None, labels=['$\Omega_M$', '$\sigma_8$']):
+    if thresholds is None:
+        plt.scatter(test_params[:, 0], test_params[:, 1], c=test_scores, vmin=vmin, vmax=vmax, cmap=plt.cm.RdYlGn_r, edgecolor='k')
+        if train_scores is not None and train_params is not None:
+            plt.scatter(train_params[:, 0], train_params[:, 1], c=train_scores, vmin=vmin, vmax=vmax, cmap=plt.cm.RdYlGn_r, edgecolor='k', marker='s')
+        plt.xlabel(labels[0])
+        plt.ylabel(labels[1])
+        plt.colorbar()
+    else:
+        _, ax = plt.subplots(nrows=1, ncols=len(thresholds), figsize=(len(thresholds) * 5, 5))
+        for j in range(len(thresholds)):
+            if train_params is not None and train_scores is not None:
+                for i in range(len(train_params)):
+                    ax[j].scatter(train_params[i, 0], train_params[i, 1], c='g' if train_scores[i] <= thresholds[j] else 'r', marker='s')
+            for i in range(len(test_params)):
+                ax[j].scatter(test_params[i, 0], test_params[i, 1], c='g' if test_scores[i] <= thresholds[j] else 'r')
+            ax[j].set_xlabel(labels[0])
+            ax[j].set_ylabel(labels[1])
+            ax[j].set_title('Threshold: ' + str(thresholds[j]))
