@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import os
 from gantools.model import *
 from gantools.gansystem import *
+from .score import safe_fd,fd2score
 
 
 def generate_samples(obj, N=None, checkpoint=None, **kwards):
@@ -39,62 +40,79 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_ll=350,
     
     # Compute PSD
     if lenstools:
+        raise NotImplementedError('Need to be fixed')
         psd_real, x = stats.psd_lenstools(raw_images, box_l=box_l, bin_k=bin_k, cut=cut, multiply=multiply)
         psd_gen, x = stats.psd_lenstools(gen_sample_raw, box_l=box_l, bin_k=bin_k, cut=cut, multiply=multiply)
     else:
         psd_real, x = stats.power_spectrum_batch_phys(X1=raw_images, multiply=multiply, bin_k=bin_k, box_ll=box_ll, log_sampling=log_sampling, cut=cut)
         psd_gen, x = stats.power_spectrum_batch_phys(X1=gen_sample_raw, multiply=multiply, bin_k=bin_k, box_ll=box_ll, log_sampling=log_sampling, cut=cut)
-    
     # Compute the mean
     psd_real_mean = np.mean(psd_real, axis=0)
     psd_gen_mean = np.mean(psd_gen, axis=0)
 
-    # Compute the difference between the curves
-    l2, logel2, l1, logel1 = stats.diff_vec(psd_real_mean, psd_gen_mean)
-    frac_diff = stats.fractional_diff(psd_real_mean, psd_gen_mean).mean()
+#     # Compute the difference between the curves
+#     l2, logel2, l1, logel1 = stats.diff_vec(psd_real_mean, psd_gen_mean)
+#     frac_diff = stats.fractional_diff(psd_real_mean, psd_gen_mean).mean()
+    npix = np.prod(raw_images.shape[1:])
+    d = safe_fd(psd_real,psd_gen, npix)
+    score = fd2score(d)
     if display:
-        print('Log l2 PSD loss: {}\n'
-              'L2 PSD loss: {}\n'
-              'Log l1 PSD loss: {}\n'
-              'L1 PSD loss: {}\n'
-              'Fractional difference: {}'.format(logel2, l2, logel1, l1, frac_diff))
+        print('PSD Frechet Distance: {}\n'
+              'PSD Score           : {}\n'.format(d, score))
+#         print('Log l2 PSD loss: {}\n'
+#               'L2 PSD loss: {}\n'
+#               'Log l1 PSD loss: {}\n'
+#               'L1 PSD loss: {}\n'
+#               'Fractional difference: {}'.format(logel2, l2, logel1, l1, frac_diff))
     
     # Plot the two curves
     plot_cmp(x, psd_gen, psd_real, ax=ax, xscale='log', yscale='log', xlabel='$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', title="Power spectral density", shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, loc=loc)
-    return logel2, l2, logel1, l1, frac_diff
-
+    return score
 
 def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim = [1.5, 13], neighborhood_size=5, threshold=0, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot peak count histogram from raw images."""
     y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, neighborhood_size=neighborhood_size, threshold=threshold, mean=False)
-    l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
-    rel_diff = None
-    if confidence is not None:
-        rel_diff = stats.relative_diff(y_real, y_fake).mean()
+#     l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
+#     rel_diff = None
+#     if confidence is not None:
+#         rel_diff = stats.relative_diff(y_real, y_fake).mean()
+#     if display:
+#         print('Log l2 Peak Count loss: {}\n'
+#               'L2 Peak Count loss: {}\n'
+#               'Log l1 Peak Count loss: {}\n'
+#               'L1 Peak Count loss: {}'.format(logel2, l2, logel1, l1))
+    npix = np.prod(raw_images.shape[1:])
+    d = safe_fd(y_real,y_fake, npix)
+    score = fd2score(d)
     if display:
-        print('Log l2 Peak Count loss: {}\n'
-              'L2 Peak Count loss: {}\n'
-              'Log l1 Peak Count loss: {}\n'
-              'L1 Peak Count loss: {}'.format(logel2, l2, logel1, l1))
+        print('Peak Frechet Distance: {}\n'
+              'Peak Score           : {}\n'.format(d, score))
+
     plot_cmp(x, y_fake, y_real, title= 'Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
-    return l2, logel2, l1, logel1, rel_diff
+    return score
 
 
 def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=[0.3, 4.92], confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot mass histogram from raw images."""
     y_real, y_fake, x = stats.mass_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, mean=False)
-    l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
-    rel_diff = None
-    if confidence is not None:
-        rel_diff = stats.relative_diff(y_real, y_fake).mean()
+#     l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
+#     rel_diff = None
+#     if confidence is not None:
+#         rel_diff = stats.relative_diff(y_real, y_fake).mean()
+#     if display:
+#         print('Log l2 Mass histogram loss: {}\n'
+#               'L2 Peak Mass histogram: {}\n'
+#               'Log l1 Mass histogram loss: {}\n'
+#               'L1 Mass histogram loss: {}'.format(logel2, l2, logel1, l1))
+    npix = np.prod(raw_images.shape[1:])
+    d = safe_fd(y_real,y_fake, npix)
+    score = fd2score(d)
     if display:
-        print('Log l2 Mass histogram loss: {}\n'
-              'L2 Peak Mass histogram: {}\n'
-              'Log l1 Mass histogram loss: {}\n'
-              'L1 Mass histogram loss: {}'.format(logel2, l2, logel1, l1))
-
+        print('Mass Frechet Distance: {}\n'
+              'Mass Score           : {}\n'.format(d, score))
+        
     plot_cmp(x, y_fake, y_real, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
-    return l2, logel2, l1, logel1, rel_diff
+    return score
 
 
 # Compute same histogram as in mustafa (Figure 3b)

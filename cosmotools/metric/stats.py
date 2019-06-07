@@ -180,25 +180,24 @@ def histogram(x, bins, probability=True):
     return edges, density
 
 
-def peak_count(X, neighborhood_size=5, threshold=0):
+def peak_count(X, neighborhood_size=5, threshold=0.5):
     """
-    :param X: numpy array shape [size_image,size_image] or as a vector
+    Peak cound for a 2D or a 3D square image
+    :param X: numpy array shape [n,n] or [n,n,n]
     :param neighborhood_size: size of the local neighborhood that should be filtered
     :param threshold: minimum distance betweent the minimum and the maximum to be considered a local maximum
-                      Helps remove noise peaks
-    :return: number of peaks found in the array (int)
+                      Helps remove noise peaks (0.5 since the number of particle is supposed to be an integer)
+    :return: vector of peaks found in the array (int)
     """
+    size = len(X.shape)
     if len(X.shape) == 1:
-        n = int(X.shape[0]**0.5)
+        pass
+    elif size==2:
+        assert(X.shape[0]==X.shape[1])
+    elif size==3:
+        assert(X.shape[0]==X.shape[1]==X.shape[2])
     else:
-        n = X.shape[0]
-    try:
-        X = X.reshape(n, n)
-    except:
-        try:
-            X = X.reshape(n, n, n)
-        except:
-            raise Exception(" [!] Image not squared ")
+        raise Exception(" [!] Too many dimensions")
 
     # PEAK COUNTS
     data_max = filters.maximum_filter(X, neighborhood_size)
@@ -282,6 +281,10 @@ def peak_count_hist(dat, bins=20, lim=None, neighborhood_size=5, threshold=0, lo
     bins : number of bins for the histogram (default 20)
     lim  : limit for the histogram, if None, then min(peak), max(peak)
     """
+    
+    # Remove single dimension...
+    dat = np.squeeze(dat)
+    
     num_workers = mp.cpu_count() - 1
     with mp.Pool(processes=num_workers) as pool:
         peak_count_arg = functools.partial(peak_count, neighborhood_size=neighborhood_size, threshold=threshold)

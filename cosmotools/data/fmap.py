@@ -134,7 +134,45 @@ def stat_backward(x, c=2e4, shift=1):
     x = np.clip(x, 0., np.inf)
     return stat_backward_0(x + stat_forward_0(shift, c=c), c=c) - shift
 
+def log_norm_forward_0(x, c=8000.0):
+    if not type(x).__module__ == np.__name__:
+        x = np.array([x])
+    res = np.zeros(shape=x.shape, dtype=np.float32)
 
+    mask = (x > c)
+    maski = (mask == False)
+
+    res[maski] = np.log(x[maski] + 1) - np.log(c + 1)
+    res[mask] = ((x[mask] + 1) / (c + 1) - 1)
+    return res
+
+def log_norm_forward(x, c=8000.0, scale=6.0):
+    shift = log_norm_forward_0(0.0, c)
+    #print("shift=", shift)
+    y = log_norm_forward_0(x, c)
+    #print("log_norm_forward_0 = ", y)
+    #print("ret = ", (y - shift) / scale)
+    return ((y - shift) / scale)
+
+
+def log_norm_backward_0(y, c=8000.0):
+    if not type(y).__module__ == np.__name__:
+        y = np.array([y])
+    res = np.zeros(shape=y.shape, dtype=np.float32)
+
+    mask = (y > 0)
+    maski = (mask == False)
+
+    res[maski] = np.exp(y[maski] + np.log(c + 1)) - 1
+    res[mask] = ((y[mask] + 1) * (c + 1)) - 1
+    return res
+
+def log_norm_backward(y, c=8000.0, scale=6.0):
+    shift = log_norm_forward_0(0.0, c)
+    #print("shift = ", shift)
+    y = (y * scale) + shift
+    #print("y=", y)
+    return log_norm_backward_0(y, c)
 
 forward = stat_forward
 backward = stat_backward

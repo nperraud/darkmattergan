@@ -58,6 +58,7 @@ def power_spectrum(field_x, box_l, bin_k, field_y=None, log_sampling=True):
         :param bin_k: number of bins in Fourier space
         :return: power_k, k: 1D mass power spectrum of field_x, same units as [box_l]**3 and corresponding k values
         """
+    
     # assert np.ndim(field_x) == 3, 'field_x is not 3D'
     box_pix = np.size(field_x, axis=0)  # pixel number per axis
     box_dim = np.ndim(field_x)  # dimension
@@ -85,12 +86,11 @@ def power_spectrum(field_x, box_l, bin_k, field_y=None, log_sampling=True):
     else:
         _k_log = np.linspace(np.floor(np.min(_k_abs[1:]) * 1.e15) / 1.e15,
                              np.ceil(np.max(_k_abs[1:]) * 1.e15) / 1.e15, bin_k)
-
     X = np.fft.rfftn(np.fft.fftshift(field_x)) * (box_l / box_pix) ** box_dim
     if field_y is not None:
         Y = np.conj(np.fft.rfftn(np.fft.fftshift(field_y))) * (box_l / box_pix) ** box_dim
-
     power_k = np.empty(np.size(_k_log) - 1)
+    mask_tot = np.zeros(_k_abs.shape)
     for i in xrange(np.size(_k_log) - 1):
         mask = (_k_abs >= _k_log[i]) & (_k_abs < _k_log[i + 1])
         if field_y is None:
@@ -103,7 +103,12 @@ def power_spectrum(field_x, box_l, bin_k, field_y=None, log_sampling=True):
                 power_k[i] = np.mean(np.real(X[mask] * np.conj(Y[mask]))) / box_l ** box_dim
             else:
                 power_k[i] = np.nan            
-
+#         mask_tot = mask_tot+mask
+#     print(np.sum(mask_tot>1))
+#     print(np.sum(mask_tot==0))
+#     print(_k_log)
+#     print(np.min(_k_abs), np.max(_k_abs))
+#     print(np.sum(mask_tot==0)/np.prod(mask_tot.shape))
     k = (_k_log[1:] + _k_log[:-1]) / 2
 
     return power_k, k
