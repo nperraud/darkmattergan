@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from gantools.gansystem import UpscaleGANsystem
 from .model import cosmo_metric_list
+import itertools
 
 
 class CosmoUpscaleGANsystem(UpscaleGANsystem):
@@ -32,7 +33,7 @@ class CosmoUpscaleGANsystem(UpscaleGANsystem):
             assert(self.net.params['generator']['data_size']>= 2)
             assert(len(dataset._X)>=self.params['Nstats_cubes'])
             self.summary_dataset_cubes = itertools.cycle(dataset.iter_cubes(self.params['Nstats_cubes'], downscale=self.net.params['upscaling']))
-            offset = self.summary_dataset_cubes.shape[1]//8
+            offset = next(self.summary_dataset_cubes).shape[1]//8
             self.offset = offset
             self.preprocess_summaries(dataset._X[:,offset:,offset:,offset:], rerun=False)
             self._global_score = np.inf

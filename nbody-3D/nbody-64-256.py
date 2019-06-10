@@ -1,13 +1,16 @@
 import sys
 sys.path.insert(0, '../')
 import os
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
+
 import tensorflow as tf
 from gantools import utils
 from cosmotools.data import load
 from cosmotools.data import fmap
 from gantools.model import UpscalePatchWGAN
 from cosmotools.model import CosmoWGAN
-from gantools.gansystem import GANsystem, UpscaleGANsystem
+from gantools.gansystem import GANsystem
+from cosmotools.gansystem import CosmoUpscaleGANsystem as UpscaleGANsystem
 from functools import partial
 
 shift = 1
@@ -87,11 +90,11 @@ params['print_every'] = 50 # Console summaries every ** iterations
 params['save_every'] = 1000 # Save the model every ** iterations
 params['summary_dir'] = os.path.join(global_path, name +'_summary/')
 params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
-params['Nstats'] = 30
-params['Nstats_cubes'] = 10
+
 
 resume, params = utils.test_resume(try_resume, params)
-
+params['Nstats'] = 100
+params['Nstats_cubes'] = 10
 
 class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
     pass

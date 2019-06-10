@@ -9,7 +9,8 @@ from cosmotools.data import load
 from cosmotools.data import fmap
 from gantools.model import UpscalePatchWGAN
 from cosmotools.model import CosmoWGAN
-from gantools.gansystem import GANsystem, UpscaleGANsystem
+# from cosmotools.gansystem import CosmoUpscaleGANsystem as UpscaleGANsystem
+from gantools.gansystem import UpscaleGANsystem
 from functools import partial
 
 shift = 1
@@ -89,16 +90,21 @@ params['net']['gamma_gp'] = 10 # Gradient penalty
 params['net']['upscaling'] = 4
 
 params['optimization'] = params_optimization
-params['summary_every'] = 10 # Tensorboard summaries every ** iterations
-params['print_every'] = 1 # Console summaries every ** iterations
+params['summary_every'] = 200 # Tensorboard summaries every ** iterations
+params['print_every'] = 10 # Console summaries every ** iterations
 params['save_every'] = 1000 # Save the model every ** iterations
+params['Nstats'] = 200
+params['Nstats_cubes'] = 10
 params['summary_dir'] = os.path.join(global_path, name +'_summary/')
 params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
-params['Nstats'] = 30
-params['Nstats_cubes'] = 10
+
 
 resume, params = utils.test_resume(try_resume, params)
-
+params['summary_every'] = 200 # Tensorboard summaries every ** iterations
+params['print_every'] = 10 # Console summaries every ** iterations
+params['save_every'] = 1000 # Save the model every ** iterations
+params['Nstats'] = 200
+params['Nstats_cubes'] = 10
 
 class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
     pass
