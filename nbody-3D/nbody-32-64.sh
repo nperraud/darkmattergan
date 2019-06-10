@@ -9,8 +9,8 @@
 
 module load daint-gpu
 module load cray-python
-module load TensorFlow/1.7.0-CrayGNU-18.08-cuda-9.1-python3
+module load TensorFlow/1.12.0-CrayGNU-18.08-cuda-9.1-python3
 
-source /scratch/snx3000/nperraud/upgan2/bin/activate
+source /users/nperraud/upgan/bin/activate
 
 srun python nbody-32-64.py
