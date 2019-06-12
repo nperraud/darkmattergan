@@ -60,7 +60,7 @@ def load_samples_raw(ncubes=None, resolution=256, Mpch=70):
 def load_nbody_dataset(
         ncubes=None,
         resolution=256,
-        Mpch=70,
+        Mpch=350,
         shuffle=True,
         forward_map = None,
         spix=128,
