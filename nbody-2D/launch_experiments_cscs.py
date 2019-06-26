@@ -5,9 +5,8 @@ Script to run experiments on the Swiss National Supercomputing Centre (CSCS).
 https://www.cscs.ch/
 """
 
+import time
 import os
-
-import numpy as np
 
 txtfile = '''#!/bin/bash -l
 #SBATCH --time=6:00:00
@@ -27,7 +26,7 @@ srun python experiments.py {0}
 
 
 def launch_simulation(ns):
-    sbatch_txt = txtfile.format(ns
+    sbatch_txt = txtfile.format(ns)
     with open('launch.sh', 'w') as file:
         file.write(sbatch_txt)
     os.system("sbatch launch.sh")
@@ -38,4 +37,5 @@ if __name__ == '__main__':
     ns = 32
     for _ in range(5,9):
         launch_simulation(ns)
+        time.sleep(2)
         ns = ns*2
