@@ -30,6 +30,7 @@ def launch_simulation(ns):
     with open('launch.sh', 'w') as file:
         file.write(sbatch_txt)
     os.system("sbatch launch.sh")
+    time.sleep(1)
     os.remove('launch.sh')
 
 
@@ -38,5 +39,5 @@ if __name__ == '__main__':
     for _ in range(4):
         print(ns)
         launch_simulation(ns)
-        time.sleep(2)
         ns = ns*2
+        time.sleep(1)
