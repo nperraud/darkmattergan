@@ -28,11 +28,11 @@ For a local installation, follow the below instructions.
 *We hightly recommend to work in a virtual environnement.*
 
 You can simply install those packages with the following command:
-	```
+	```sh
 	pip install -r requirements.txt
 	```
 or if you have no gpu:
-	```
+	```sh
 	pip install -r requirements_nogpu.txt
 	```
 
@@ -51,7 +51,7 @@ The positions of these particles are modified due to gravitational forces and ex
 N-body simulations use periodic boundary condition, where particles leaving the volume on one face enter it back from the opposite side.
 
 To download the dataset, you can simply execute the code:
-```
+```sh
 python download_nbody.py
 ```
 
@@ -89,9 +89,12 @@ Reminder: **Before computing the score, the data need to be remapped to its init
 ## Training and evaluation
 The training of the model is done using the script found in the folder `nbody-3D`. These script will create checkpoints and tensorboard summaries in the folder `saved_results`. The evaluation is then done using the notebook `generate_sample_3d.ipynb` in the folder `notebooks`. You will need to choose manually good checkpoints in order to get the best results.
 
-Alternatively, you can avoid training the model and download the checkpoints on .... 
-The easiest way is to use the the script: ....
+Alternatively, you can avoid training the model and download the checkpoints on https://zenodo.org/record/3257564
 
+The easiest way is to use the the script: `download_checkpoints.py`.
+```sh
+python download_checkpoints.py
+```
 
 ## Example
 You can find an example in the demo notebook
