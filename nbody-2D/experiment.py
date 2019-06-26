@@ -21,7 +21,7 @@ from cosmotools.model import CosmoWGAN
 
 
 if len(sys.argv) > 1:
-    ns = sys.argv[1]
+    ns = int(sys.argv[1])
 else:
     ns = 32 #(between 32 and 256)
 
