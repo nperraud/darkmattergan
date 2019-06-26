@@ -92,8 +92,10 @@ def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=Non
     return score
 
 
-def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=[0.3, 4.92], confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
+def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=[0, 4.92], confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot mass histogram from raw images."""
+#     raw_max = 250884    
+#     lim = [np.log10(1), np.log10(raw_max/3)]
     y_real, y_fake, x = stats.mass_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, mean=False)
 #     l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
 #     rel_diff = None

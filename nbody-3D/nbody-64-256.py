@@ -20,7 +20,7 @@ backward = partial(fmap.stat_backward, shift=shift, c=c)
 ns = 32
 try_resume = True
 
-time_str = 'fft-psd-sn-64_to_256'
+time_str = '64_to_256'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 

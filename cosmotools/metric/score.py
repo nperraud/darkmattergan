@@ -40,7 +40,7 @@ def fd_histogram(real, fake):
 def score_histogram(real, fake):
     """Compute the mass histogram score from real and fake image."""
     d = fd_histogram(real, fake)
-    return -np.log(d)
+    return fd2score(d)
 
 def fd_peak_histogram(real, fake):
     """Compute the peak histogram Frechet distance from real and fake image."""
@@ -70,7 +70,7 @@ def fd_peak_histogram(real, fake):
 def score_peak_histogram(real, fake):
     """Compute the peak histogram score from real and fake image."""
     d = fd_peak_histogram(real, fake)
-    return -np.log(d)
+    return fd2score(d)
 
 
 def fd_psd(real, fake):
@@ -94,7 +94,7 @@ def fd_psd(real, fake):
 
 def score_psd(real, fake):
     d = fd_psd(real, fake)
-    return -np.log(d)
+    return fd2score(d)
 
 
 def safe_fd(y_real, y_fake, npix):
