@@ -35,7 +35,8 @@ def launch_simulation(ns):
 
 if __name__ == '__main__':
     ns = 32
-    for _ in range(5,9):
+    for _ in range(4):
+        print(ns)
         launch_simulation(ns)
         time.sleep(2)
         ns = ns*2
