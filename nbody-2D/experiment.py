@@ -25,7 +25,7 @@ if len(sys.argv) > 1:
 else:
     ns = 32 #(between 32 and 256)
 
-try_resume = False # Try to resume previous simulation
+try_resume = True # Try to resume previous simulation
 Mpch = 350 # Type of dataset (select 70 or 350)
 
 forward = fmap.stat_forward
