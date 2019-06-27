@@ -30,10 +30,12 @@ For a local installation, follow the below instructions.
 You can simply install those packages with the following command:
 	```sh
 	pip install -r requirements.txt
+	
 	```
 or if you have no gpu:
 	```sh
 	pip install -r requirements_nogpu.txt
+	
 	```
 
 For some operations, you may require `pynbody` as it was used to preprocess the simulation. If so, you need to install it separately.
