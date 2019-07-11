@@ -21,7 +21,7 @@ N-body simulations use periodic boundary condition, where particles leaving the 
 
 We created N-body simulations of cosmic structures in boxes of size 100 Mpc and 500 Mpc with 512^3 and 1,024^3 particles respectively.
 We used L-PICOLA [21] to create 10 and 30 independent simulation boxes for both box sizes.
-The cosmological model used was ΛCDM (Cold Dark Matter) with Hubble constant H0 = 100, h = 70 km s−1 Mpc−1,
+The cosmological model used was ΛCDM (Cold Dark Matter) with Hubble constant H0 = 500, h = 350 km s−1 Mpc−1,
 dark energy density Omega_Lambda = 0.72 and matter density Omega_m = 0.28.
 We used the particle distribution at redshift z = 0.
 
