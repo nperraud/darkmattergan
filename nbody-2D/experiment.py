@@ -119,7 +119,7 @@ params['print_every'] = 50 # Console summaries every ** iterations
 params['save_every'] = 2000 # Save the model every ** iterations
 params['summary_dir'] = os.path.join(global_path, name +'_summary/')
 params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
-params['Nstats'] = 2000
+params['Nstats'] = (64*32*32)//ns
 
 
 

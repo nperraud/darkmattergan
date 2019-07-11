@@ -28,11 +28,11 @@ For a local installation, follow the below instructions.
 *We hightly recommend to work in a virtual environnement.*
 
 You can simply install those packages with the following command:
-	```sh
+	```
 	pip install -r requirements.txt
 	```
 or if you have no gpu:
-	```sh
+	```
 	pip install -r requirements_nogpu.txt
 	```
 
