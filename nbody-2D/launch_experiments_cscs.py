@@ -21,7 +21,7 @@ module load cray-python
 module load TensorFlow/1.12.0-CrayGNU-18.08-cuda-9.1-python3
 source /users/nperraud/upgan/bin/activate
 
-srun python experiments.py {0}
+srun python experiment.py {0}
 '''
 
 
