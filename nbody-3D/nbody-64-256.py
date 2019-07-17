@@ -20,7 +20,7 @@ backward = partial(fmap.stat_backward, shift=shift, c=c)
 ns = 32
 try_resume = True
 
-time_str = '64_to_256'
+time_str = '64_to_256_nospectralnorm'
 global_path = '../saved_results/nbody/'
 name = 'WGAN_' + time_str
 
@@ -29,17 +29,17 @@ bn=False
 md=32
 params_discriminator = dict()
 
-params_discriminator['stride'] = [2, 2, 2, 1, 1, 1]
-params_discriminator['nfilter'] = [2*md, 2*md, md, md//2, md//4,2]
-params_discriminator['shape'] = [[4, 4, 4],[4, 4, 4], [4, 4, 4],[4, 4, 4], [4, 4, 4], [4, 4, 4]]
-params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn]
+params_discriminator['stride'] = [2, 1, 1, 1, 1, 1, 2, 2]
+params_discriminator['nfilter'] = [2*md, 2*md, md, md, md, md, md, md]
+params_discriminator['shape'] = [[4, 4, 4],[4,4,4],[4, 4, 4], [4,4,4], [4, 4, 4],[4, 4, 4], [4, 4, 4], [4, 4, 4]]
+params_discriminator['batch_norm'] = [bn, bn, bn, bn, bn, bn, bn, bn]
 params_discriminator['full'] = [64, 16]
 params_discriminator['minibatch_reg'] = False
 params_discriminator['summary'] = True
 params_discriminator['data_size'] = 3
 params_discriminator['inception'] = True
-params_discriminator['spectral_norm'] = True
-params_discriminator['fft_features'] = True
+params_discriminator['spectral_norm'] = False
+params_discriminator['fft_features'] = False
 params_discriminator['psd_features'] = True
 
 params_generator = dict()
@@ -55,9 +55,9 @@ params_generator['summary'] = True
 params_generator['non_lin'] = tf.nn.relu
 params_generator['data_size'] = 3
 params_generator['inception'] = True
-params_generator['spectral_norm'] = True
+params_generator['spectral_norm'] = False
 params_generator['use_Xdown'] = False
-params_generator['weights_border'] = True
+params_generator['weights_border'] = False
 
 
 params_optimization = dict()
@@ -92,7 +92,7 @@ params['save_dir'] = os.path.join(global_path, name + '_checkpoints/')
 
 
 resume, params = utils.test_resume(try_resume, params)
-params['Nstats'] = 100
+params['Nstats'] = 30
 params['Nstats_cubes'] = 10
 
 class CosmoUpscalePatchWGAN(UpscalePatchWGAN, CosmoWGAN):
