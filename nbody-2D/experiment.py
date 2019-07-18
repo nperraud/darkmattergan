@@ -39,7 +39,6 @@ dataset = load.load_nbody_dataset(ncubes=30, spix=ns, Mpch=Mpch, forward_map=for
 
 name = 'WGAN{}'.format(ns) + 'test_' + '2D'
 
-fac = ns
 bn = False
 
 md=32
@@ -60,8 +59,8 @@ params_discriminator['psd_features'] = False
 
 params_generator = dict()
 params_generator['stride'] = [1, 2, 2, 2, 1]
-params_generator['latent_dim'] = fac*fac*md
-params_generator['in_conv_shape'] =[4*ns//32,4*ns//32]
+params_generator['latent_dim'] = (ns**2)//2
+params_generator['in_conv_shape'] =[ns//8,ns//8]
 params_generator['nfilter'] = [md, 2*md, 4*md, 2*md, 1]
 params_generator['shape'] = [[4, 4],[4, 4], [4, 4],[4, 4],[4, 4]]
 params_generator['batch_norm'] = [bn, bn, bn,bn ]
@@ -72,20 +71,9 @@ params_generator['data_size'] = 2
 params_generator['inception'] = False
 params_generator['spectral_norm'] = False
 
-# Optimization parameters inspired from 'Self-Attention Generative Adversarial Networks'
-# - Spectral normalization GEN DISC
-# - Batch norm GEN
-# - TTUR ('GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium')
-# - ADAM  beta1=0 beta2=0.9, disc lr 0.0004, gen lr 0.0001
-# - Hinge loss
-# Parameters are similar to the ones in those papers...
-# - 'PROGRESSIVE GROWING OF GANS FOR IMPROVED QUALITY, STABILITY, AND VARIATION'
-# - 'LARGE SCALE GAN TRAINING FOR HIGH FIDELITY NATURAL IMAGE SYNTHESIS'
-# - 'CGANS WITH PROJECTION DISCRIMINATOR'
-
 params_optimization = dict()
 params_optimization['batch_size'] = 32
-params_optimization['epoch'] = (fac**2)//64
+params_optimization['epoch'] = (ns**2)//64
 params_optimization['n_critic'] = 5
 # params_optimization['generator'] = dict()
 # params_optimization['generator']['optimizer'] = 'adam'
