@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import os
 from gantools.model import *
 from gantools.gansystem import *
-from .score import safe_fd,fd2score
+from .score import safe_fd,fd2score, lim_hist, lim_peak
 
 
 def generate_samples(obj, N=None, checkpoint=None, **kwards):
@@ -69,7 +69,7 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_ll=350,
     plot_cmp(x, psd_gen, psd_real, ax=ax, xscale='log', yscale='log', xlabel='$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', title="Power spectral density", shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, loc=loc)
     return score
 
-def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim = [1.5, 13], neighborhood_size=5, threshold=0, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
+def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim = lim_peak, neighborhood_size=5, threshold=0, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot peak count histogram from raw images."""
     y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, neighborhood_size=neighborhood_size, threshold=threshold, mean=False)
 #     l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
@@ -92,7 +92,7 @@ def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=Non
     return score
 
 
-def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=[0, 4.92], confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
+def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=lim_hist, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot mass histogram from raw images."""
 #     raw_max = 250884    
 #     lim = [np.log10(1), np.log10(raw_max/3)]

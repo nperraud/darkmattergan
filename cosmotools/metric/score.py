@@ -14,18 +14,22 @@ from .stats import power_spectrum_batch_phys as psd
 import numpy as np
 from gantools.metric.fd import compute_fd
 
+raw_max = 250884    
+lim_hist = [np.log10(2), np.log10(raw_max/3)]
+
+lim_peak = [1.5, 13]
+
 def fd_histogram(real, fake):
     """Compute the mass histogram Frechet distance from real and fake image."""
     
     assert(np.squeeze(real).shape==np.squeeze(fake).shape)
     # A) Define the limit for the histogram. We avoid some corner cases
     # raw_max = np.max(backward(dataset.get_all_data().flatten()))
-    raw_max = 250884    
-    lim = [np.log10(1), np.log10(raw_max/3)]
+
     
     # B) Compute the histograms
-    y_real, x_real, lim_real = mass_hist(real, log=True, mean=False, lim=lim)
-    y_fake, x_fake, lim_fake = mass_hist(fake, log=True, mean=False, lim=lim)
+    y_real, x_real, lim_real = mass_hist(real, log=True, mean=False, lim=lim_hist)
+    y_fake, x_fake, lim_fake = mass_hist(fake, log=True, mean=False, lim=lim_hist)
     
     # C) Do some testing
     np.testing.assert_allclose(x_real,x_fake)
@@ -49,11 +53,11 @@ def fd_peak_histogram(real, fake):
     # A) Define the limit for the histogram. We avoid some corner cases
     # _, _, lim_real = peak_count_hist(backward(dataset.get_samples(dataset.N)), log=True, mean=False)
     # print(lim_real)
-    lim = [1.5, 13]
+
     
     # B) Compute the histograms
-    y_real, x_real, lim_real = peak_count_hist(real, log=True, mean=False, lim=lim)
-    y_fake, x_fake, lim_fake = peak_count_hist(fake, log=True, mean=False, lim=lim)
+    y_real, x_real, lim_real = peak_count_hist(real, log=True, mean=False, lim=lim_peak)
+    y_fake, x_fake, lim_fake = peak_count_hist(fake, log=True, mean=False, lim=lim_peak)
     
     # C) Do some testing
     np.testing.assert_allclose(x_real,x_fake)
@@ -107,7 +111,9 @@ def safe_fd(y_real, y_fake, npix):
 
     
     # E) Define a lower limit and compute the log
-    low_lim = max(1/npix, 1e-5)
+    low_lim = 1e-5
+#     low_lim = max(1/npix, 1e-5)
+#     low_lim = max(np.min(np.mean(y_real, axis=0)), 1e-5)
     y_real_log = np.log10(y_real+low_lim)
     y_fake_log = np.log10(y_fake+low_lim)
     
@@ -118,4 +124,4 @@ def safe_fd(y_real, y_fake, npix):
 
 def fd2score(x):
     """Frechet distance to score"""
-    return -np.log(x)
+    return 1/x
