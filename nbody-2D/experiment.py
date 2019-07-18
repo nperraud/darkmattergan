@@ -37,7 +37,7 @@ global_path = '../saved_results/nbody-2d/'
 
 dataset = load.load_nbody_dataset(ncubes=30, spix=ns, Mpch=Mpch, forward_map=forward)
 
-name = 'WGAN{}'.format(ns) + 'test_' + '2D'
+name = 'WGAN{}'.format(ns) + 'test_full_' + '2D'
 
 bn = False
 
@@ -59,17 +59,18 @@ params_discriminator['psd_features'] = False
 
 params_generator = dict()
 params_generator['stride'] = [1, 2, 2, 2, 1]
-params_generator['latent_dim'] = (ns**2)//2
+params_generator['latent_dim'] = ns*2
 params_generator['in_conv_shape'] =[ns//8,ns//8]
 params_generator['nfilter'] = [md, 2*md, 4*md, 2*md, 1]
 params_generator['shape'] = [[4, 4],[4, 4], [4, 4],[4, 4],[4, 4]]
 params_generator['batch_norm'] = [bn, bn, bn,bn ]
-params_generator['full'] = []
+params_generator['full'] = [(ns//8)**2 *8]
 params_generator['summary'] = True
 params_generator['non_lin'] = None
 params_generator['data_size'] = 2
 params_generator['inception'] = False
 params_generator['spectral_norm'] = False
+
 
 params_optimization = dict()
 params_optimization['batch_size'] = 32
