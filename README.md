@@ -17,11 +17,11 @@ The paper *[Cosmological N-body simulations: a challenge for scalable generative
 
 ## Installation
 
-For a local installation, follow the below instructions.
+For a local installation, follow the instructions below.
 
 1. Clone this repository.
    ```sh
-   git clone .....
+   git clone https://github.com/nperraud/3DcosmoGAN
    cd cosmotools
    ```
 2. Initialize all the submodules (submodules are git repositories within the git repositories).
@@ -33,7 +33,7 @@ For a local installation, follow the below instructions.
 
 ## Required packages
 
-*We hightly recommend to work in a virtual environnement.*
+*We highly recommend working in a virtual environment.*
 
 You can simply install those packages with the following command:
 	```
@@ -48,12 +48,12 @@ For some operations, you may require `pynbody` as it was used to preprocess the 
 
 ## Dataset
 
-The dataset consists of 30 N-body simulations at a scale of 500 MPch and 10 simulations at a scale of 100 Mpch. The dataset is availlable on Zenodo at: 
+The dataset consists of 30 N-body simulations at a scale of 500 MPch and 10 simulations at a scale of 100 Mpch. The dataset is available on Zenodo at: 
 https://zenodo.org/record/1464832
 
-The dataset does not contain the Nbody simulations as they have a very large size. Instead, we sliced the space into 256 x 256 x 256 cubical areas and counted the number of particules in each area. The result are 3D histograms, where the number of particles is a proxy for matter density.
+The dataset does not contain the Nbody simulations as they have a very large size. Instead, we sliced the space into 256 x 256 x 256 cubic areas and counted the number of particles in each area. The result consists of 3D histograms, where the number of particles is a proxy for matter density.
 
-N-body simulation evolves a cosmological matter distribution over time, starting from soon after the big bang.
+N-body simulation evolves a cosmological matter distribution over time, starting from soon after the Big Bang.
 It represents matter density distribution as a finite set of massive particles, typically order of trillions.
 The positions of these particles are modified due to gravitational forces and expansion of the cosmological volume due to cosmic acceleration.
 N-body simulations use periodic boundary condition, where particles leaving the volume on one face enter it back from the opposite side.
@@ -75,7 +75,7 @@ Warning the all evaluation pipeline is tuned for the 500MPch dataset. If you wan
 
 ## Processing the simulations
 
-The first step of the preprocessing is to compute the mass density of particles for each some division of the volume. This step is already done and you can directly access the cubes. The code used to do this is located at `cosmotools/data/generate_cosmo_dataset.py`. We splitted the cube into 256 x 256 x 256 sub-volumes.
+The first step of the preprocessing is to compute the mass density of particles for each some division of the volume. This step is already done and you can directly access the cubes. The code used to do this is located at `cosmotools/data/generate_cosmo_dataset.py`. We split the cube into 256 x 256 x 256 sub-volumes.
 
 **The second step is very important and should be carefully handled.** 
 Because of the physical law of gravity, most of the universe is empty, while most of the matter is concentrated in a few small areas and filaments.
@@ -100,7 +100,7 @@ These scripts will create checkpoints and tensorboard summaries in the folder `s
 
 Alternatively, you can avoid training the model and download the checkpoints on https://zenodo.org/record/3257564
 
-The easiest way is to use the the script: `download_checkpoints.py`.
+The easiest way is to use the script: `download_checkpoints.py`.
 ```sh
 python download_checkpoints.py
 ```
@@ -116,11 +116,11 @@ python download_checkpoints.py
 Check the samples in video [here](https://www.youtube.com/watch?v=nWXP6DVEalA).
 
 ## Training and evaluation (2D)
-While the paper focuses on the 3d case, we also made some benchmark in 2D. To train our base architecture, you can use the scripts in the folder `nbody-2d`. To launch the training for a GAN generating images of size 128, you can use:
+While the paper focuses on the 3d case, we also made some benchmark in 2D. To train our base architecture, you can use the scripts in the folder `nbody-2d`. To launch the training for a GAN generating images of size 128, you can use
 ```sh
 python experiment.py 128
 ```
-The script works for the size 32,64,128,256 but can trivially adapted to any size.
+The script works for the size 32,64,128,256 but can trivially be adapted to any size.
 
 The evaluation is done with the notebook: `results_2d.ipynb` from the folder `notebooks`.
 
