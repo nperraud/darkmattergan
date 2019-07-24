@@ -1,8 +1,6 @@
+# N-body simulations 3D images dataset: Cosmological N-body simulations: a challenge for scalable generative models
 
-# This is the N-body simulations 3D images dataset used in the following paper:
-
-* Scalable Generative Adversarial Networks for Multi-dimensional Images
-Ankit Srivastava, Nathanaël Perraudin, Aurelien Lucchi, Tomasz Kacprzak, Thomas Hofmann, Alexandre Refregier, Adam Amara
+Nathanaël Perraudin, Ankit Srivastava, Aurelien Lucchi, Tomasz Kacprzak, Thomas Hofmann, Alexandre Refregier, Adam Amara
 
 The dataset does not contain the Nbody simulations as they have a very large size. Instead, we sliced the space into 256 x 256 x 256 cubical areas and counted the number of particules in each area. The result are 3D histograms, where the number of particles is a proxy for matter density.
 
