@@ -1,4 +1,4 @@
-# Cosmological N-body simulations: a challenge for scalable generative models
+# 3Dcosmo: a benchmark dataset for large 3-dimensional generative models (and 2-dimensional as well)
 
 [Nathanaël Perraudin][nath], Ankit Srivastava, [Tomasz Kacprzak][tomek], [Aurelien Lucchi][aurelien], [Thomas Hofmann][thomas], [Alexandre Réfrégier][alex], [Adam Amara][adam]
 
@@ -9,9 +9,9 @@
 [alex]:https://cosmology.ethz.ch/
 [adam]:https://cosmology.ethz.ch/
 
-This repository contains the code to take part in the CosmoGen (2D and 3D) challenge. The idea is to use generative models to generate replications of N-Body simulation images. You will find here: baselines for the 2D and 3D case, as well as a pipeline and a score to evaluate your model.
+This repository contains the code to take part in the 3DCosmo benchmark. The idea is to use generative models to generate replications of N-Body simulation images. You will find here: baselines for the 2D and 3D case, as well as a pipeline and a score to evaluate your model.
 
-The paper *[Cosmological N-body simulations: a challenge for scalable generative models][linkpaper]* focus mostly on scaling GAN to very large samples ( 256x256x256 pixels). 
+This code is assotiated with the paper *[Cosmological N-body simulations: a challenge for scalable generative models][linkpaper]*  that focuses mostly on scaling GAN to very large samples ( 256x256x256 pixels). 
 
 [linkpaper]:https://...
 
@@ -27,11 +27,10 @@ For a local installation, follow the instructions below.
 2. Initialize all the submodules (submodules are git repositories within the git repositories).
 	```sh
 	git submodule update --init --recursive
-	git pull --recurse-submodules
 	```
 
 
-## Required packages
+### Required packages
 
 *We highly recommend working in a virtual environment.*
 
@@ -45,6 +44,8 @@ or if you have no gpu:
 	```
 
 For some operations, you may require `pynbody` as it was used to preprocess the simulation. If so, you need to install it separately.
+
+
 
 ## Dataset
 
@@ -150,8 +151,15 @@ The main contributor is Perraudin Nathanaël. He was helped by Rosenthal Jonatha
 The content of this repository is released under the terms of the [MIT license](LICENCE.txt).
 Please consider citing our papers if you use it.
 
-	```
-	todo
-	```
+```
+@inproceedings{perraudin2019cosmological,
+  title = {Cosmological N-body simulations: a challenge for scalable generative models},
+  author = {Nathana\"el, Perraudin and Ankit, Srivastava and Kacprzak, Tomasz and Lucchi, Aurelien and Hofmann, Thomas and R{\'e}fr{\'e}gier, Alexandre and Amara, Adam},
+  year = {2019},
+  archivePrefix = {arXiv},
+  eprint = {....},
+  url = {https://arxiv.org/abs/...},
+}
+```
 
 
