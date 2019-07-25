@@ -1,13 +1,12 @@
 # 3Dcosmo: a benchmark dataset for large 3-dimensional generative models (and 2-dimensional as well)
 
-[Nathanaël Perraudin][nath], Ankit Srivastava, [Tomasz Kacprzak][tomek], [Aurelien Lucchi][aurelien], [Thomas Hofmann][thomas], [Alexandre Réfrégier][alex], [Adam Amara][adam]
+[Nathanaël Perraudin][nath], Ankit Srivastava, [Tomasz Kacprzak][tomek], [Aurelien Lucchi][aurelien], [Thomas Hofmann][thomas], [Alexandre Réfrégier][alex]
 
 [nath]: https://perraudin.info
 [tomek]: http://www.ipa.phys.ethz.ch/people/person-detail.MjEyNzM5.TGlzdC82NjQsNTkxMDczNDQw.html
 [aurelien]:http://people.inf.ethz.ch/alucchi/
 [thomas]:http://www.da.inf.ethz.ch/people/ThomasHofmann/
 [alex]:https://cosmology.ethz.ch/
-[adam]:https://cosmology.ethz.ch/
 
 This repository contains the code to take part in the 3DCosmo benchmark. The idea is to use generative models to generate replications of N-Body simulation images. You will find here: baselines for the 2D and 3D case, as well as a pipeline and a score to evaluate your model.
 
@@ -154,7 +153,7 @@ Please consider citing our papers if you use it.
 ```
 @inproceedings{perraudin2019cosmological,
   title = {Cosmological N-body simulations: a challenge for scalable generative models},
-  author = {Nathana\"el, Perraudin and Ankit, Srivastava and Kacprzak, Tomasz and Lucchi, Aurelien and Hofmann, Thomas and R{\'e}fr{\'e}gier, Alexandre and Amara, Adam},
+  author = {Nathana\"el, Perraudin and Ankit, Srivastava and Kacprzak, Tomasz and Lucchi, Aurelien and Hofmann, Thomas and R{\'e}fr{\'e}gier, Alexandre},
   year = {2019},
   archivePrefix = {arXiv},
   eprint = {....},

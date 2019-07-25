@@ -1,7 +1,7 @@
 # 3Dcosmo: a benchmark dataset for large 3-dimensional generative models (and 2-dimensional as well)
 
 This is the N-body simulations 3D images dataset used in the paper *Cosmological N-body simulations: a challenge for scalable generative models*,
-Nathanaël Perraudin, Ankit Srivastava, Aurelien Lucchi, Tomasz Kacprzak, Thomas Hofmann, Alexandre Refregier, Adam Amara
+Nathanaël Perraudin, Ankit Srivastava, Aurelien Lucchi, Tomasz Kacprzak, Thomas Hofmann, Alexandre Refregier
 
 The dataset does not contain the Nbody simulations as they have a very large size. Instead, we sliced the space into 256 x 256 x 256 cubical areas and counted the number of particules in each area. The result are 3D histograms, where the number of particles is a proxy for matter density.
 
@@ -13,7 +13,7 @@ Please consider citing our paper if you use it.
 ```
 @inproceedings{perraudin2019cosmological,
   title = {Cosmological N-body simulations: a challenge for scalable generative models},
-  author = {Nathana\"el, Perraudin and Ankit, Srivastava and Kacprzak, Tomasz and Lucchi, Aurelien and Hofmann, Thomas and R{\'e}fr{\'e}gier, Alexandre and Amara, Adam},
+  author = {Nathana\"el, Perraudin and Ankit, Srivastava and Kacprzak, Tomasz and Lucchi, Aurelien and Hofmann, Thomas and R{\'e}fr{\'e}gier, Alexandre},
   year = {2019},
   archivePrefix = {arXiv},
   eprint = {....},
