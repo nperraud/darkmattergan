@@ -11,7 +11,6 @@ import multiprocessing as mp
 import tensorflow as tf
 
 
-
 def wrapper_func(x, bin_k=50, box_l=100 / 0.7,
                  log_sampling=True):
     tmp = ps.dens2overdens(np.squeeze(x), np.mean(x))
@@ -356,7 +355,6 @@ def mass_hist(dat, bins=20, lim=None, log=True, mean=True, **kwargs):
         return np.mean(y, axis=0), x, lim
     else:
         return y, x, lim
-
 
 def mass_hist_real_fake(real, fake, bins=20, lim=None, log=True, mean=True):
     if lim is None:

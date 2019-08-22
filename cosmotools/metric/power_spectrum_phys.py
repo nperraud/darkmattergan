@@ -86,6 +86,7 @@ def power_spectrum(field_x, box_l, bin_k, field_y=None, log_sampling=True):
     else:
         _k_log = np.linspace(np.floor(np.min(_k_abs[1:]) * 1.e15) / 1.e15,
                              np.ceil(np.max(_k_abs[1:]) * 1.e15) / 1.e15, bin_k)
+
     X = np.fft.rfftn(np.fft.fftshift(field_x)) * (box_l / box_pix) ** box_dim
     if field_y is not None:
         Y = np.conj(np.fft.rfftn(np.fft.fftshift(field_y))) * (box_l / box_pix) ** box_dim
