@@ -1,5 +1,5 @@
-numpy
-tensorflow-gpu
+numpy==1.16
+tensorflow-gpu==1.13.2
 pillow
 h5py
 sklearn
