@@ -12,7 +12,7 @@ This repository contains the code to take part in the 3DCosmo benchmark. The ide
 
 This code is assotiated with the paper *[Cosmological N-body simulations: a challenge for scalable generative models][linkpaper]*  that focuses mostly on scaling GAN to very large samples ( 256x256x256 pixels). 
 
-[linkpaper]:https://...
+[linkpaper]: https://arxiv.org/abs/1908.05519
 
 ## Installation
 
@@ -24,9 +24,9 @@ For a local installation, follow the instructions below.
    cd cosmotools
    ```
 2. Initialize all the submodules (submodules are git repositories within the git repositories).
-	```sh
-	git submodule update --init --recursive
-	```
+    ```sh
+   git submodule update --init --recursive
+   ```
 
 
 ### Required packages
@@ -34,13 +34,13 @@ For a local installation, follow the instructions below.
 *We highly recommend working in a virtual environment.*
 
 You can simply install those packages with the following command:
-	```
-	pip install -r requirements.txt
-	```
+   ```
+   pip install -r requirements.txt
+   ```
 or if you have no gpu:
-	```
-	pip install -r requirements_nogpu.txt
-	```
+   ```
+   pip install -r requirements_nogpu.txt
+   ```
 
 For some operations, you may require `pynbody` as it was used to preprocess the simulation. If so, you need to install it separately.
 

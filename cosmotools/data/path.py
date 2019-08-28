@@ -6,11 +6,11 @@ def root_path():
     hostname = socket.gethostname()
     # Check if we are on pizdaint
     if 'nid' in hostname:
-        rootpath = '/scratch/snx3000/nperraud/pre_processed_data/' 
+        rootpath = '/scratch/snx3000/nperraud/' 
     elif 'omenx' in hostname:
-        rootpath = '/store/nati/datasets/cosmology/pre_processed_data/'         
+        rootpath = '/store/nati/datasets/cosmology/'         
     else:
         # This should be done in a different way
         utils_module_path = os.path.dirname(__file__)
-        rootpath = utils_module_path + '/../../data/nbody/preprocessed_data/'
+        rootpath = utils_module_path + '/../../data/nbody/'
     return rootpath

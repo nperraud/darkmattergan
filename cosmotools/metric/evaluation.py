@@ -30,17 +30,18 @@ def generate_samples(obj, N=None, checkpoint=None, **kwards):
 
 # Compute and plot PSD from raw images
 # multiply is a boolean flag indicating whether to multiply the PSD by k*(k+1)/(2*pi)
-# box_l indicates the image resolution in radians
+# box_l indicates the image resolution in radians (for spherical image, using with lenstool)
+# box_ll size of the box in MegaParsec[Mpc] (for flat or cubic image, not using lenstool)
 # bin_k is the number of bins
 # confidence is either None, a number between 0 and 1 or 'std'. If 'std' then the standard deviation is plotted as shading, otherwise either the confidence interval or nothing
 # fractional_difference: if true the fractional difference is plotted as well
 # log_sampling: whether the bins are logarithmically sampled
 # cut: either None or an interval indicating where to cut the PSD
-def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_ll=350, bin_k=50, confidence=None, ylim=None, fractional_difference=False, log_sampling=True, cut=None, display=True, ax=None, loc=1, lenstools=False, **kwargs):
+def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_l=5*np.pi/180, box_ll=350, bin_k=50, confidence=None, ylim=None, fractional_difference=False, log_sampling=True, cut=None, display=True, ax=None, loc=1, lenstools=False, **kwargs):
     
     # Compute PSD
     if lenstools:
-        raise NotImplementedError('Need to be fixed')
+#         raise NotImplementedError('Need to be fixed')
         psd_real, x = stats.psd_lenstools(raw_images, box_l=box_l, bin_k=bin_k, cut=cut, multiply=multiply)
         psd_gen, x = stats.psd_lenstools(gen_sample_raw, box_l=box_l, bin_k=bin_k, cut=cut, multiply=multiply)
     else:
@@ -777,7 +778,6 @@ def plot_cmp(x, fake, real=None, xscale='linear', yscale='log', xlabel="", ylabe
             fake = np.mean(fake, axis=0)
         plot_fractional_difference(x, real, fake, xscale=xscale, yscale='linear', ax=ax, color='g', ylim=ylim[1] if isinstance(ylim, list) else None, algorithm=algorithm, loc=loc)
         
-        
 # Plot an image
 def plot_img(img, x=None, title="", ax=None, cmap=plt.cm.plasma, vmin=None, vmax=None, tick_every=10, colorbar=False, log_norm=False):
     if ax is None:
@@ -829,19 +829,6 @@ def plot_fractional_difference(x, real, fake, xlim=None, ylim=None, xscale="log"
         ax.get_legend().remove()
         ax1.legend(lines + lines2, labels + labels2, loc=loc, fontsize=14)
 
-
-def plot_histogram(x, histo, yscale='log', tick_every=10, bar_width=1):
-    plt.bar(np.arange(len(histo)), histo, bar_width)
-    positions, labels = ([], [])
-    for idx in range(len(x)):
-        if idx == len(x) - 1:
-            positions.append(idx)
-            labels.append(np.round(x[idx], 2))
-        if idx % tick_every == 0:
-            positions.append(idx)
-            labels.append(np.round(x[idx], 2))
-    plt.xticks(positions, labels)
-    plt.yscale(yscale)
 
 
 # Plot the scores as a heatmap on the parameter grid
