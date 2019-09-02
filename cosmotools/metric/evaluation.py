@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import os
 from gantools.model import *
 from gantools.gansystem import *
-from gantools.plot import plot_fractional_difference, plot_img, plot_cmp, plot_heatmap, plot_single
+from gantools.plot import plot_img, plot_cmp, plot_heatmap, plot_single
 from .score import safe_fd,fd2score, lim_hist, lim_peak
 
 
@@ -48,6 +48,9 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_l=5*np.
     else:
         psd_real, x = stats.power_spectrum_batch_phys(X1=raw_images, multiply=multiply, bin_k=bin_k, box_ll=box_ll, log_sampling=log_sampling, cut=cut)
         psd_gen, x = stats.power_spectrum_batch_phys(X1=gen_sample_raw, multiply=multiply, bin_k=bin_k, box_ll=box_ll, log_sampling=log_sampling, cut=cut)
+    
+    if confidence is not None:
+        rel_diff = stats.relative_diff(psd_real, psd_gen).mean()
     # Compute the mean
     psd_real_mean = np.mean(psd_real, axis=0)
     psd_gen_mean = np.mean(psd_gen, axis=0)
@@ -69,11 +72,17 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_l=5*np.
     
     # Plot the two curves
     plot_cmp(x, psd_gen, psd_real, ax=ax, xscale='log', yscale='log', xlabel='$k$' if multiply else '$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(k)$', title="Power spectral density", shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, loc=loc)
-    return score
+    if confidence is not None:
+        return score, rel_diff
+    else:
+        return score
 
 def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim = lim_peak, neighborhood_size=5, threshold=0, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot peak count histogram from raw images."""
     y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, neighborhood_size=neighborhood_size, threshold=threshold, mean=False)
+    
+    if confidence is not None:
+        rel_diff = stats.relative_diff(y_real, y_fake).mean()
 #     l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
 #     rel_diff = None
 #     if confidence is not None:
@@ -91,7 +100,10 @@ def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=Non
               'Peak Score           : {}\n'.format(d, score))
 
     plot_cmp(x, y_fake, y_real, title= 'Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
-    return score
+    if confidence is not None:
+        return score, rel_diff
+    else:
+        return score
 
 
 def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=lim_hist, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
@@ -99,6 +111,9 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None
 #     raw_max = 250884    
 #     lim = [np.log10(1), np.log10(raw_max/3)]
     y_real, y_fake, x = stats.mass_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, mean=False)
+    
+    if confidence is not None:
+        rel_diff = stats.relative_diff(y_real, y_fake).mean()
 #     l2, logel2, l1, logel1 = stats.diff_vec(np.mean(y_real, axis=0), np.mean(y_fake, axis=0))
 #     rel_diff = None
 #     if confidence is not None:
@@ -116,7 +131,10 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None
               'Mass Score           : {}\n'.format(d, score))
         
     plot_cmp(x, y_fake, y_real, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
-    return score
+    if confidence is not None:
+        return score, rel_diff
+    else:
+        return score
 
 
 # Compute same histogram as in mustafa (Figure 3b)
