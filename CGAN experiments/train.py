@@ -13,7 +13,9 @@ from cosmotools.data import load
 from gantools import utils
 from gantools.model import ConditionalParamWGAN
 from gantools.gansystem import GANsystem
+from gantools.data import transformation
 from cosmotools.model import CosmoWGAN
+from cosmotools.data import load
 
 class CosmoConditionalParamWGAN(ConditionalParamWGAN, CosmoWGAN):
     pass
@@ -26,7 +28,7 @@ def non_lin(x):
 
 dataset_train_shuffled_name = 'kids_train_shuffled.h5'
 
-dataset = load.load_params_dataset(filename=dataset_train_shuffled_name, batch=15000, shape=[ns, ns], transform=data.transformation.random_transpose_2d)
+dataset = load.load_params_dataset(filename=dataset_train_shuffled_name, batch=15000, shape=[ns, ns], transform=transformation.random_transpose_2d)
 
 time_str = '2D'
 global_path = '../saved_results/'
