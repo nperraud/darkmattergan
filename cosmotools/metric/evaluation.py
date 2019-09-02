@@ -136,9 +136,8 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None
     else:
         return score
 
-
 # Compute same histogram as in mustafa (Figure 3b)
-def compute_plot_psd_mode_hists(raw_images, gen_sample_raw, modes=1, multiply=True, box_l=(5*np.pi/180), bin_k=50, log_sampling=False, cut=None, hist_bin=20, hist_batch=1, confidence=None, lenstools=False, loc=1):
+def compute_plot_psd_mode_hists(raw_images, gen_sample_raw, modes=1, multiply=True, box_l=(5*np.pi/180), bin_k=50, log_sampling=False, cut=None, hist_bin=20, hist_batch=1, confidence=None, lenstools=False):
     
     # Compute PSD    
     if lenstools:
@@ -170,7 +169,7 @@ def compute_plot_psd_mode_hists(raw_images, gen_sample_raw, modes=1, multiply=Tr
     if modes == 1:
         ax = [ax]
     for i in range(modes):
-        compute_and_plot_peak_cout(real_hists[i][1], fake_hists[i][0], real_hists[i][0], ax=ax[i], xlabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', ylabel='Pixel count', title="$l=" + str(int(x[idx[i]])) + "$", confidence=confidence, shade=True, loc=1)
+        plot_cmp(real_hists[i][1], fake_hists[i][0], real_hists[i][0], ax=ax[i], xlabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(l)$', ylabel='Pixel count', title="$l=" + str(int(x[idx[i]])) + "$", confidence=confidence, shade=True, loc=1)
         ax[i].ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     fig.tight_layout()
 
