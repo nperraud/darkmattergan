@@ -8,8 +8,7 @@
 
 module load daint-gpu
 module load cray-python
-module load TensorFlow/1.7.0-CrayGNU-17.12-cuda-8.0-python3
-
-source $SCRATCH/cgan/bin/activate
+module load TensorFlow/1.12.0-CrayGNU-18.08-cuda-9.1-python3
+source /users/nperraud/upgan/bin/activate
 
 srun python model_selection_kids.py

@@ -13,6 +13,7 @@ from cosmotools.data import load
 from gantools import utils
 from gantools.model import ConditionalParamWGAN
 from gantools.gansystem import GANsystem
+from cosmotools.model import CosmoWGAN
 
 class CosmoConditionalParamWGAN(ConditionalParamWGAN, CosmoWGAN):
     pass
