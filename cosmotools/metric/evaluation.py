@@ -329,7 +329,7 @@ def compute_plots_for_params(params, real, fake, param_str=(lambda x: str(x[0])[
 # if save_frames_folder is set, frames are saved into that folder
 # returns a list of frames
 def make_frames(X, title_func=(lambda x: x), display_loss=False, vmin=None, vmax=None, params_grid=None, transform=(lambda x: x), save_frames_dir=None, dpi=150, **kwargs):
-
+    from moviepy.video.io.bindings import mplfig_to_npimage
     if save_frames_dir is not None and not os.path.exists(save_frames_dir):
         os.makedirs(save_frames_dir)
 
