@@ -13,6 +13,8 @@ import socket
 if 'nid' in socket.gethostname() or 'lo-' in socket.gethostname():
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+
 import os
 from gantools.model import *
 from gantools.gansystem import *
