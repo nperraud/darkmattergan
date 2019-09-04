@@ -1,27 +1,51 @@
+# 3Dcosmo: a benchmark dataset for large 3-dimensional generative models (and 2-dimensional as well)
 
-# This is the N-body simulations 3D images dataset used in the following paper:
-
-* Scalable Generative Adversarial Networks for Multi-dimensional Images
-Ankit Srivastava, Nathanaël Perraudin, Aurelien Lucchi, Tomasz Kacprzak, Thomas Hofmann, Alexandre Refregier, Adam Amara
+This is the N-body simulations 3D images dataset used in the paper *Cosmological N-body simulations: a challenge for scalable generative models*,
+Nathanaël Perraudin, Ankit Srivastava, Aurelien Lucchi, Tomasz Kacprzak, Thomas Hofmann, Alexandre Refregier
 
 The dataset does not contain the Nbody simulations as they have a very large size. Instead, we sliced the space into 256 x 256 x 256 cubical areas and counted the number of particules in each area. The result are 3D histograms, where the number of particles is a proxy for matter density.
 
-Note that a the same Nbody simulation were used in this paper, but with a different way of building the histogram.
-* Fast Cosmic Web Simulations with Generative Adversarial Networks
-Andres C Rodriguez, Tomasz Kacprzak, Aurelien Lucchi, Adam Amara, Raphael Sgier, Janis Fluri, Thomas Hofmann, Alexandre Réfrégier
-https://arxiv.org/abs/1801.09070v1
+## 3DCosmo benchmark
+This dataset can be used to evaluate 2D and 3D generative model. It is particularly suitable for large scale 3D images. Please check https://github.com/nperraud/3DcosmoGAN for more information.
 
+Please consider citing our paper if you use it.
+
+```
+@inproceedings{perraudin2019cosmological,
+  title = {Cosmological N-body simulations: a challenge for scalable generative models},
+  author = {Nathana\"el, Perraudin and Ankit, Srivastava and Kacprzak, Tomasz and Lucchi, Aurelien and Hofmann, Thomas and R{\'e}fr{\'e}gier, Alexandre},
+  year = {2019},
+  archivePrefix = {arXiv},
+  eprint = {1908.05519},
+  url = {https://arxiv.org/abs/1908.05519},
+}
+```
+
+While this data is associated to the paper *Cosmological N-body simulations: a challenge for scalable generative models*, note that a the same Nbody simulation were used in the paper *Fast Cosmic Web Simulations with Generative Adversarial Networks* (https://arxiv.org/abs/1801.09070v1), but with a different way of building the histogram. You may want to cite this work as well.
+
+```
+@article{rodriguez2018fast,
+  title={Fast cosmic web simulations with generative adversarial networks},
+  author={Rodr{\'\i}guez, Andres C and Kacprzak, Tomasz and Lucchi, Aurelien and Amara, Adam and Sgier, Rapha{\"e}l and Fluri, Janis and Hofmann, Thomas and R{\'e}fr{\'e}gier, Alexandre},
+  journal={Computational Astrophysics and Cosmology},
+  volume={5},
+  number={1},
+  pages={4},
+  year={2018},
+  publisher={Springer}
+}
+```
 
 N-body simulation evolves a cosmological matter distribution over time, starting from soon after the big bang.
 It represents matter density distribution as a finite set of massive particles, typically order of trillions.
 The positions of these particles are modified due to gravitational forces and expansion of the cosmological volume due to cosmic acceleration.
 N-body simulations use periodic boundary condition, where particles leaving the volume on one face enter it back from the opposite side.
 
-## Short description of the data generation from Rordiguez et al. 2018:
+## Short description of the data generation:
 
 We created N-body simulations of cosmic structures in boxes of size 100 Mpc and 500 Mpc with 512^3 and 1,024^3 particles respectively.
 We used L-PICOLA [21] to create 10 and 30 independent simulation boxes for both box sizes.
-The cosmological model used was ΛCDM (Cold Dark Matter) with Hubble constant H0 = 100, h = 70 km s−1 Mpc−1,
+The cosmological model used was ΛCDM (Cold Dark Matter) with Hubble constant H0 = 500, h = 350 km s−1 Mpc−1,
 dark energy density Omega_Lambda = 0.72 and matter density Omega_m = 0.28.
 We used the particle distribution at redshift z = 0.
 

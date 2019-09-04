@@ -1,16 +1,15 @@
-numpy==1.14.5
-tensorflow==1.9.0
+numpy==1.16.4
+tensorflow==1.13.2
 pillow
-pynbody
 h5py
 sklearn
 scikit-image
 pyyaml
--e .
--e tfnntools
+-e gantools
+-e gantools/tfnntools
 matplotlib
-jupyter
+jupyterlab
 moviepy
 requests
-astropy
 lenstools
+
