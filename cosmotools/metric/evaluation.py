@@ -20,7 +20,7 @@ from gantools.model import *
 from gantools.gansystem import *
 from gantools.plot import plot_img, plot_cmp, plot_heatmap, plot_single
 from .score import safe_fd,fd2score, lim_hist, lim_peak
-
+from gantools.regressor import load_regressor, get_regressor_outputs
 
 def generate_samples(obj, N=None, checkpoint=None, **kwards):
     """Generate sample from gan object."""
