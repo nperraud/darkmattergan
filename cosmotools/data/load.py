@@ -20,7 +20,7 @@ def load_samples_raw(ncubes=None, resolution=256, Mpch=70):
     * Mpch : [70, 350]
 
     '''
-    rootpath = os.paht.join(path.root_path(), 'pre_processed_data')
+    rootpath = os.path.join(path.root_path(), 'pre_processed_data')
     input_pattern = '{}_nbody_{}Mpc'.format(resolution, Mpch)
     file_ext = '.h5'
     queue = []
