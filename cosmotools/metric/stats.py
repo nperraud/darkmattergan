@@ -1,6 +1,6 @@
 """This module contains the different statistic functions."""
 
-import numpy as np
+import numpy as np, sys
 from . import power_spectrum_phys as ps
 import scipy.ndimage.filters as filters
 from skimage.measure import compare_ssim
@@ -9,6 +9,7 @@ from gantools import utils
 import functools
 import multiprocessing as mp
 import tensorflow as tf
+from cosmotools.utils import printt
 
 
 def wrapper_func(x, bin_k=50, box_l=100 / 0.7,
@@ -417,13 +418,15 @@ def ms_ssim(X, gaussian_weights=True, sigma=1.5, ncopm=100):
     assert(len(X) >= 2)
     if len(X.shape) > 3:
         X = X[:, :, :, 0]
-    msssim = 0
+    msssim = np.zeros(ncopm)
     for i in range(ncopm):
         a, b = np.random.randint(0, len(X)), np.random.randint(0, len(X))
         while a == b:
             b = np.random.randint(0, len(X))
-        msssim = msssim + compare_ssim(X[a], X[b])
-    return msssim / ncopm
+        msssim[i] = compare_ssim(X[a], X[b])
+    return msssim
+
+
 
 # Compute frechet inception distance from activations
 def compute_fid_from_activations(f1, f2):
@@ -434,6 +437,45 @@ def compute_fid_from_activations(f1, f2):
 # TODO: remove once correlation code is fixed
 import lenstools
 import astropy
+
+
+def bispectrum_single_lenstools(img, angle=(5*np.pi/180), l_edges=[200, 6000, 50]):
+    if len(img.shape) > 2:
+        img = img[:, :, 0]
+    c = lenstools.ConvergenceMap(data=img, angle=angle * astropy.units.rad)
+    l, bispectrum = c.bispectrum(l_edges, ratio=0.5, configuration="folded", scale=None)
+    return bispectrum, l
+
+
+def bispectrum_lenstools(data, box_l=(5*np.pi/180), bin_k=50, cut=[200, 6000]):
+    bispec = []
+    l_edges = np.linspace(cut[0], cut[1], bin_k)
+    for i, img in enumerate(data):
+        printt('bispectrum image {}/{}'.format(i, len(data)))
+        b, t = bispectrum_single_lenstools(img, angle=box_l, l_edges=l_edges)
+        bispec.append(b)
+    printt()
+    return np.array(bispec), t
+
+
+def minkowski_single_lenstools(img, thresholds, angle=(5*np.pi/180)):
+    if len(img.shape) > 2:
+        img = img[:, :, 0]
+    c = lenstools.ConvergenceMap(data=img, angle=angle * astropy.units.rad)
+    t, v0, v1, v2 = c.minkowskiFunctionals(thresholds,norm=False)
+    mink = v0,v1,v2
+    return mink, t
+
+
+def minkowski_lenstools(data, thresholds, box_l=(5*np.pi/180), bin_k=50):
+    mink = []
+    for i, img in enumerate(data):
+        printt('minkowski image {}/{}'.format(i, len(data)))
+        m, t = minkowski_single_lenstools(img, thresholds, angle=box_l)
+        mink.append(m)
+    printt()
+    return np.array(mink), t
+
 
 def psd_single_lenstools(img, angle=(5*np.pi/180), l_edges=[200, 6000, 50], multiply=False):
     if len(img.shape) > 2:
@@ -449,11 +491,17 @@ def psd_lenstools(data, box_l=(5*np.pi/180), bin_k=50, cut=None, multiply=False)
     if cut is None:
         cut = [200, 6000]
     l_edges = np.linspace(cut[0], cut[1], bin_k)
-    for img in data:
+    for i, img in enumerate(data):
+        printt('psd image {}/{}'.format(i, len(data)))
         p, l = psd_single_lenstools(img, angle=box_l, l_edges=l_edges, multiply=multiply)
         psd.append(p)
+    printt()
     return np.array(psd), l
 
 def psd_correlation_lenstools(x, box_l=(5*np.pi/180), bin_k=50, cut=None):
     psd, k = psd_lenstools(x, box_l=box_l, bin_k=bin_k, cut=cut)
-    return np.corrcoef(psd, rowvar=False), k
+    corr = np.corrcoef(psd, rowvar=False)
+    covmat = np.cov(psd, rowvar=False)
+    corr[~np.isfinite(corr)] = 0.
+    covmat[~np.isfinite(covmat)]
+    return corr, covmat, k
