@@ -19,3 +19,5 @@ Plots and video can then be produced. Every notebook is a summary of an experime
 - WGAN Toy.ipynb: WGAN trained on a fixed parameter set of toy dataset.
 				  Checkpoint used to produce the results: 129050
 				  Commit used to train: 3d804ea
+
+- paper_plot_journal.ipynb: notebook used to make plots for the journal version of the paper.
