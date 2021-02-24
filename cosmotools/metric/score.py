@@ -19,6 +19,54 @@ lim_hist = [np.log10(2), np.log10(raw_max/3)]
 
 lim_peak = [1.5, 13]
 
+def KS_dist_1d(x,y):
+    """Compute the KS distance between x and y."""
+    assert(x.shape==y.shape)
+    assert(len(x.shape)==1)
+    np.testing.assert_almost_equal(np.sum(x),1)
+    np.testing.assert_almost_equal(np.sum(y),1)
+    return np.max(np.abs(np.cumsum(x)-np.cumsum(y)))
+
+def ks_histogram(real, fake):
+    """Compute the mass histogram Kolmogorov–Smirnov distance from real and fake image."""
+    
+    assert(np.squeeze(real).shape==np.squeeze(fake).shape)
+    
+    # B) Compute the histograms
+    y_real, x_real, lim_real = mass_hist(real, log=True, mean=False, lim=lim_hist)
+    y_fake, x_fake, lim_fake = mass_hist(fake, log=True, mean=False, lim=lim_hist)
+    
+    # C) Do some testing
+    np.testing.assert_allclose(x_real,x_fake)
+    np.testing.assert_allclose(lim_real,lim_fake)
+    assert(np.sum(y_real)==np.sum(y_fake))
+    y_real = np.sum(y_real, axis=0)/np.sum(y_real)
+    y_fake = np.sum(y_fake, axis=0)/np.sum(y_fake)
+    d = KS_dist_1d(y_real, y_fake)
+    
+    return d
+
+def ks_peak_histogram(real, fake):
+    """Compute the peak histogram Kolmogorov–Smirnov distance from real and fake image."""
+    
+    assert(np.squeeze(real).shape==np.squeeze(fake).shape)
+    
+    # B) Compute the histograms
+    y_real, x_real, lim_real = peak_count_hist(real, log=True, mean=False, lim=lim_peak)
+    y_fake, x_fake, lim_fake = peak_count_hist(fake, log=True, mean=False, lim=lim_peak)
+    
+    # C) Do some testing
+    np.testing.assert_allclose(x_real,x_fake)
+    np.testing.assert_allclose(lim_real,lim_fake)
+    # This time the histogram is computed over the peak and their number may vary depending on the image
+    # assert(np.sum(y_real)==np.sum(y_fake))
+    
+    y_real = np.sum(y_real, axis=0)/np.sum(y_real)
+    y_fake = np.sum(y_fake, axis=0)/np.sum(y_fake)
+    d = KS_dist_1d(y_real, y_fake)
+    
+    return d
+
 def fd_histogram(real, fake):
     """Compute the mass histogram Frechet distance from real and fake image."""
     
