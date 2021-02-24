@@ -820,4 +820,36 @@ def plot_images_psd(images, title, filename=None, sigma_smooth=None):
         )  # bbox_extra_artists=(txt_top)) #, txt_left))  # Save Image
     plt.show()
 
+def wasserstein_distance_norm(p, q):
 
+    from scipy.stats import wasserstein_distance
+    mu, sig = p.mean(), p.std()
+    p_norm = (p.flatten() - mu)/sig        
+    q_norm = (q.flatten() - mu)/sig        
+    return wasserstein_distance(p_norm, q_norm)
+
+def get_1D_sample_tests(params, real_imgs, fake_imgs):
+
+    from functools import partial
+    
+    wass_pixel = np.zeros(len(params))
+    wass_peaks = np.zeros(len(params))
+    for i, p in enumerate(params):
+        printt('computing Wasserstein-1 for param {}/{}'.format(i, len(params)))
+
+        # get images
+        imf = fake_imgs[i]().squeeze()
+        imr = real_imgs[i]().squeeze()
+        n_img = imf.shape[0]
+        print(imf.shape, imr.shape, n_img)
+
+        # get wasserstein 1d normalized mass
+        wass_pixel[i] = wasserstein_distance_norm(p=imr, q=imf)
+
+        # get wasserstein 1d normalized peaks
+        func_pc = partial(stats.peak_count, neighborhood_size=5, threshold=0)
+        pcr = np.concatenate( [func_pc(im) for im in imr] )
+        pcf = np.concatenate( [func_pc(im) for im in imf] )
+        wass_peaks[i] = wasserstein_distance_norm(p=pcr, q=pcf)
+
+    return wass_pixel, wass_peaks
