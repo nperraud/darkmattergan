@@ -20,6 +20,7 @@ FROM ${RENKU_BASE_IMAGE}
 # install the python dependencies
 COPY Pipfile Pipfile.lock /tmp/
 RUN cd /tmp/
+RUN pip install pipenv
 RUN pipenv install --system --deploy --ignore-pipfile
 
 # RENKU_VERSION determines the version of the renku CLI
