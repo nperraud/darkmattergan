@@ -1,0 +1,26 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+numpy = "*"
+tensorflow-gpu = "<1.15.0"
+h5py = "*"
+sklearn = "*"
+scikit-image = "*"
+gantools = {editable = true,file = "./gantools"}
+tfnntools = {editable = true,file = "./gantools/tfnntools"}
+matplotlib = "*"
+jupyterlab = "*"
+moviepy = "*"
+requests = "*"
+Pillow = "*"
+PyYAML = "*"
+lenstools = "*"
+renku = "*"
+
+[requires]
+python_version = "3.6"
