@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "af8dd2b8c7830be2158ff5c9049e2376ff57c8d7b0a328752368701b42064ec5"
+            "sha256": "7bcdf14389112e329b491c6fbee9b59f6ec4ee7f340187682ff4da4ddfe282e7"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "3.6"
+            "python_version": "3.7"
         },
         "sources": [
             {
@@ -391,7 +391,8 @@
         },
         "gantools": {
             "editable": true,
-            "file": "./gantools"
+            "git": "https://github.com/nperraud/gantools.git",
+            "ref": "7162e216dc83e7cef8a10b8a38cbe60446b91456"
         },
         "gast": {
             "hashes": [
@@ -552,11 +553,11 @@
         },
         "importlib-metadata": {
             "hashes": [
-                "sha256:080d666daa2faedcc2e96c0c87d3cdb76325261c51650016784834733faa7897",
-                "sha256:144acbe6ec34f170c4a362f52c2d03e82db7d012668ba57ff8f1e668905889b0"
+                "sha256:24499ffde1b80be08284100393955842be4a59c7c16bbf2738aad0e464a8e0aa",
+                "sha256:c6af5dbf1126cd959c4a8d8efd61d4d3c83bddb0459a17e554284a077574b614"
             ],
             "markers": "python_version < '3.8'",
-            "version": "==3.6.0"
+            "version": "==3.7.0"
         },
         "ipykernel": {
             "hashes": [
@@ -810,10 +811,10 @@
         },
         "markdown": {
             "hashes": [
-                "sha256:5d9f2b5ca24bc4c7a390d22323ca4bad200368612b5aaa7796babf971d2b2f18",
-                "sha256:c109c15b7dc20a9ac454c9e6025927d44460b85bd039da028d85e2b6d0bcc328"
+                "sha256:31b5b491868dcc87d6c24b7e3d19a0d730d59d3e46f4eea6430a321bed387a49",
+                "sha256:96c3ba1261de2f7547b46a00ea8463832c921d3f9d6aba3f255a6f71386db20c"
             ],
-            "version": "==3.3.3"
+            "version": "==3.3.4"
         },
         "markupsafe": {
             "hashes": [
@@ -1705,7 +1706,8 @@
         },
         "tfnntools": {
             "editable": true,
-            "file": "./gantools/tfnntools"
+            "git": "https://github.com/nperraud/tfnntools.git",
+            "ref": "ab7c5eafae7c3c27c3f28626c2d590db6eb834c0"
         },
         "threadpoolctl": {
             "hashes": [
@@ -1847,5 +1849,16 @@
             "version": "==3.4.0"
         }
     },
-    "develop": {}
+    "develop": {
+        "gantools": {
+            "editable": true,
+            "git": "https://github.com/nperraud/gantools.git",
+            "ref": "7162e216dc83e7cef8a10b8a38cbe60446b91456"
+        },
+        "tfnntools": {
+            "editable": true,
+            "git": "https://github.com/nperraud/tfnntools.git",
+            "ref": "ab7c5eafae7c3c27c3f28626c2d590db6eb834c0"
+        }
+    }
 }

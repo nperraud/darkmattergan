@@ -18,11 +18,9 @@ FROM ${RENKU_BASE_IMAGE}
 # USER ${NB_USER}
 
 # install the python dependencies
-COPY requirements.txt environment.yml /tmp/
-RUN conda env update -q -f /tmp/environment.yml && \
-    /opt/conda/bin/pip install -r /tmp/requirements.txt && \
-    conda clean -y --all && \
-    conda env export -n "root"
+COPY Pipfile Pipfile.lock /tmp/
+RUN cd /tmp/
+RUN pipenv install --system --deploy --ignore-pipfile
 
 # RENKU_VERSION determines the version of the renku CLI
 # that will be used in this image. To find the latest version,
