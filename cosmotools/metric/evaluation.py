@@ -21,6 +21,9 @@ from gantools.gansystem import *
 from gantools.plot import plot_img, plot_cmp, plot_heatmap, plot_single
 from .score import safe_fd,fd2score, lim_hist, lim_peak
 from gantools.regressor import load_regressor, get_regressor_outputs
+from cosmotools.utils import printt
+
+
 
 def generate_samples(obj, N=None, checkpoint=None, **kwards):
     """Generate sample from gan object."""
@@ -73,15 +76,34 @@ def compute_and_plot_psd(raw_images, gen_sample_raw, multiply=False, box_l=5*np.
 #               'Fractional difference: {}'.format(logel2, l2, logel1, l1, frac_diff))
     
     # Plot the two curves
-    plot_cmp(x, psd_gen, psd_real, ax=ax, xscale='log', yscale='log', xlabel='$k$' if multiply else '$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(k)$', title="Power spectral density", shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, loc=loc)
-    if confidence is not None:
-        return score, rel_diff
-    else:
-        return score
+    
+        plot_cmp(x, psd_gen, psd_real, ax=ax, xscale='log', yscale='log', xlabel='$k$' if multiply else '$l$', ylabel='$\\frac{l(l+1)P(l)}{2\pi}$' if multiply else '$P(k)$', title="Power spectral density", shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, loc=loc)
+    
+    dict_out = dict(x=x, y_fake=psd_gen, y_real=psd_real, fractional_difference=fractional_difference, confidence=confidence, score=score)   
+    return score, dict_out
 
-def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim = lim_peak, neighborhood_size=5, threshold=0, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
+def compute_minkowski(raw_images, gen_sample_raw, thresholds_minkowski, multiply=False, box_l=5*np.pi/180, box_ll=350, bin_k=50, **kwargs):
+    
+    # Compute PSD
+
+    mink_real, thresh = stats.minkowski_lenstools(raw_images, thresholds_minkowski, box_l=box_l, bin_k=bin_k)
+    mink_gen, thresh = stats.minkowski_lenstools(gen_sample_raw, thresholds_minkowski, box_l=box_l, bin_k=bin_k)
+    dict_out = dict(thresh=thresh, mink_real=mink_real, mink_gen=mink_gen)   
+    return dict_out
+
+def compute_bispectrum(raw_images, gen_sample_raw, thresholds_minkowski, multiply=False, box_l=5*np.pi/180, box_ll=350, bin_k=50, confidence=None, ylim=None, fractional_difference=False, log_sampling=True, cut=None, display=True, ax=None, loc=1, lenstools=False, **kwargs):
+    
+    # Compute PSD
+
+    bispec_real, ell = stats.bispectrum_lenstools(raw_images, box_l=box_l, bin_k=bin_k)
+    bispec_gen, ell = stats.bispectrum_lenstools(gen_sample_raw, box_l=box_l, bin_k=bin_k)
+    dict_out = dict(ell=ell, bispec_real=bispec_real, bispec_gen=bispec_gen)   
+    return dict_out
+
+
+def compute_and_plot_peak_count(raw_images, gen_sample_raw, n_bins=20, display=True, ax=None, log=True, lim = lim_peak, neighborhood_size=5, threshold=0, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot peak count histogram from raw images."""
-    y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, neighborhood_size=neighborhood_size, threshold=threshold, mean=False)
+    y_real, y_fake, x = stats.peak_count_hist_real_fake(raw_images, gen_sample_raw, bins=n_bins, log=log, lim=lim, neighborhood_size=neighborhood_size, threshold=threshold, mean=False)
     
     if confidence is not None:
         rel_diff = stats.relative_diff(y_real, y_fake).mean()
@@ -101,18 +123,17 @@ def compute_and_plot_peak_count(raw_images, gen_sample_raw, display=True, ax=Non
         print('Peak Frechet Distance: {}\n'
               'Peak Score           : {}\n'.format(d, score))
 
-    plot_cmp(x, y_fake, y_real, title= 'Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
-    if confidence is not None:
-        return score, rel_diff
-    else:
-        return score
+        plot_cmp(x, y_fake, y_real, title= 'Peak histogram', xlabel='Size of the peaks', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
+    
+    dict_out = dict(x=x, y_fake=y_fake, y_real=y_real, confidence=confidence, fractional_difference=fractional_difference)
+    return score, dict_out
 
 
-def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None, log=True, lim=lim_hist, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
+def compute_and_plot_mass_hist(raw_images, gen_sample_raw, n_bins=20, display=True, ax=None, log=True, lim=lim_hist, confidence=None, ylim=None, fractional_difference=False, algo='relative', loc=1, **kwargs):
     """Compute and plot mass histogram from raw images."""
 #     raw_max = 250884    
 #     lim = [np.log10(1), np.log10(raw_max/3)]
-    y_real, y_fake, x = stats.mass_hist_real_fake(raw_images, gen_sample_raw, log=log, lim=lim, mean=False)
+    y_real, y_fake, x = stats.mass_hist_real_fake(raw_images, gen_sample_raw, bins=n_bins, log=log, lim=lim, mean=False)
     
     if confidence is not None:
         rel_diff = stats.relative_diff(y_real, y_fake).mean()
@@ -132,11 +153,10 @@ def compute_and_plot_mass_hist(raw_images, gen_sample_raw, display=True, ax=None
         print('Mass Frechet Distance: {}\n'
               'Mass Score           : {}\n'.format(d, score))
         
-    plot_cmp(x, y_fake, y_real, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
-    if confidence is not None:
-        return score, rel_diff
-    else:
-        return score
+        plot_cmp(x, y_fake, y_real, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', ax=ax, xscale='log' if log else 'linear', shade=True, confidence=confidence, ylim=ylim, fractional_difference=fractional_difference, algorithm=algo, loc=loc)
+    
+    dict_out = dict(x=x, y_fake=y_fake, y_real=y_real, confidence=confidence, fractional_difference=fractional_difference)
+    return score, dict_out
 
 # Compute same histogram as in mustafa (Figure 3b)
 def compute_plot_psd_mode_hists(raw_images, gen_sample_raw, modes=1, multiply=True, box_l=(5*np.pi/180), bin_k=50, log_sampling=False, cut=None, hist_bin=20, hist_batch=1, confidence=None, lenstools=False):
@@ -251,9 +271,22 @@ def equalizing_histogram(real, fake, nbins=1000, bs=2000):
 
 # Plot the statistics in the given row of the subplot for the given fake and real samples
 # fake and real can eithe be an array of samples, None (in case of real images) or a function to load the array of samples
-def plot_stats(row, fake, real=None, confidence='std', box_l=(5*np.pi/180), bin_k=50, multiply=True, cut=None, ylims=[None, None, None], fractional_difference=[False, False, False], locs=[2, 1, 1], lenstools=False, **kwargs):
-    stat = 0
+def plot_stats(row, fake, real=None, confidence='std', box_l=(5*np.pi/180), bin_k=50, multiply=True, cut=None, ylims=None, fractional_difference=None, locs=None, lenstools=False, **kwargs):
+
     scores = []
+
+    stat = 0
+    n_stats = 3
+
+    if ylims is None:
+        ylims = [None]*n_stats
+
+    if fractional_difference is None:
+        fractional_difference=[None]*n_stats
+
+    if locs is None:
+        locs=[1]*n_stats
+        locs[0] = 2 
 
     # Load the data if fake and real are functions
     if callable(fake):
@@ -261,7 +294,10 @@ def plot_stats(row, fake, real=None, confidence='std', box_l=(5*np.pi/180), bin_
     if callable(real):
         real = real()
 
+    plotdata = {}
+
     # Compute the statistics and plot
+
     for col in row:
         if real is None:
 
@@ -285,17 +321,38 @@ def plot_stats(row, fake, real=None, confidence='std', box_l=(5*np.pi/180), bin_
                 plot_cmp(x, y, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', ax=col, shade=True, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat], algorithm='relative')
                 # plot_single(x, y, color='r', ax=col, title='Mass histogram', xlabel='Number of particles', ylabel='Pixel count', xscale='linear', shade=True, confidence=confidence, ylim=ylims[stat])
         else:    
-        
+
             # Produce plots for both real and fake
             if stat == 0:
-                s = compute_and_plot_psd(real, fake, ax=col, display=False, confidence=confidence, multiply=multiply, ylim=ylims[stat], box_l=box_l, bin_k=bin_k, cut=cut, fractional_difference=fractional_difference[stat], loc=locs[stat], lenstools=lenstools, **kwargs)
+                s, do = compute_and_plot_psd(real, fake, ax=col, display=False, confidence=confidence, multiply=multiply, ylim=ylims[stat], box_l=box_l, bin_k=bin_k, cut=cut, fractional_difference=fractional_difference[stat], loc=locs[stat], lenstools=lenstools, **kwargs)
+                plotdata['psd'] = do
             elif stat == 1:
-                s = compute_and_plot_peak_count(real, fake, ax=col, display=False, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat], **kwargs)
-            else:
-                s = compute_and_plot_mass_hist(real, fake, ax=col, display=False, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat], **kwargs)
+                s, do = compute_and_plot_peak_count(real, fake, ax=col, n_bins=bin_k, display=False, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat], **kwargs)
+                plotdata['peak_count'] = do
+            elif stat == 2:
+                s, do = compute_and_plot_mass_hist(real, fake, ax=col, n_bins=bin_k, display=False, confidence=confidence, ylim=ylims[stat], fractional_difference=fractional_difference[stat], loc=locs[stat], **kwargs)
+                plotdata['mass_hist'] = do
+
+
             scores.append(s)
         stat = stat + 1
-    return scores
+
+    bispec_all = compute_bispectrum(real, fake, **kwargs)    
+    plotdata['bispectrum'] = dict(x=bispec_all['ell'], 
+                                  y_fake=bispec_all['bispec_gen']*(bispec_all['ell'])*(bispec_all['ell']+1)*(bispec_all['ell']+2)/np.pi/2., 
+                                  y_real=bispec_all['bispec_real']*(bispec_all['ell'])*(bispec_all['ell']+1)*(bispec_all['ell']+2)/np.pi/2.)
+    
+    mink_all = compute_minkowski(real, fake, **kwargs)    
+    minik_names = ['V0', 'V1', 'V2']
+    for i, m in enumerate(minik_names):
+        plotdata['minkowski_{}'.format(m)] = dict(x=mink_all['thresh'], 
+                                                  y_fake=mink_all['mink_gen'][:,i,:], 
+                                                  y_real=mink_all['mink_real'][:,i,:])
+
+    
+
+
+    return scores, plotdata
 
 # Compute all the statistic plots for a set of parameters (in 1D)
 # Produces n_params * 3 plots, where every row corresponds to a set of parameters
@@ -304,9 +361,11 @@ def compute_plots_for_params(params, real, fake, param_str=(lambda x: str(x[0])[
     fig, ax = plt.subplots(nrows=len(params), ncols=3, figsize=(15, 5 * len(params)))
     idx = 0
     score = []
-    for row in ax:
+    list_plotdata_stats = []
+    for i, row in enumerate(ax):
+        printt('computing plots for param {}/{}'.format(i, len(params)))
         stat = 0
-        s = plot_stats(row, fake[idx], real[idx], **kwargs)
+        s, plotdata_stats = plot_stats(row, fake[idx], real[idx], **kwargs)
         if idx > 0:
             for col in row:
                 col.set_title('')
@@ -315,12 +374,13 @@ def compute_plots_for_params(params, real, fake, param_str=(lambda x: str(x[0])[
                 col.set_xlabel('')
         idx = idx + 1
         score.append(s)
+        list_plotdata_stats.append(plotdata_stats)
     for a, param in zip(ax[:,2], params):
         ar = a.twinx()
         ar.set_ylabel(param_str(param), labelpad=50, fontsize=14)
         ar.set_yticks([])
     fig.tight_layout()
-    return fig, np.array(score)
+    return fig, np.array(score), list_plotdata_stats
 
 
 # Returns the frames to create a video with moviepy
@@ -331,13 +391,17 @@ def compute_plots_for_params(params, real, fake, param_str=(lambda x: str(x[0])[
 # returns a list of frames
 def make_frames(X, title_func=(lambda x: x), display_loss=False, vmin=None, vmax=None, params_grid=None, transform=(lambda x: x), save_frames_dir=None, dpi=150, **kwargs):
     from moviepy.video.io.bindings import mplfig_to_npimage
+    from collections import OrderedDict
     if save_frames_dir is not None and not os.path.exists(save_frames_dir):
         os.makedirs(save_frames_dir)
 
     # Precompute frames
     frames = []
+    dict_plotdata = OrderedDict()
+    dict_plotdata['X'] = X
     for i in range(len(X)):
         
+        dict_plotdata[i] = OrderedDict()
         dic = X[i]
 
         # Load images if they were not loaded
@@ -352,19 +416,25 @@ def make_frames(X, title_func=(lambda x: x), display_loss=False, vmin=None, vmax
 
         fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(20, 10))
         row_idx = 0
-        for row in ax:
+        for j, row in enumerate(ax):
+            dict_plotdata[i][j] = {}
             if row_idx == 0:
-                stats_txt = plot_stats(row, fake, real, **kwargs)
+                stats_txt, plotdata = plot_stats(row, fake, real, **kwargs)
+                dict_plotdata[i][j]['plotdata'] = plotdata
             else:
                 col_idx = 0
                 for col in row:
                     col.axis('off')
                     if col_idx == 0:
                         col.set_title("Fake")
-                        plot_img(transform(fake[np.random.randint(0, len(fake))]), vmin=transform(vmin), vmax=transform(vmax), ax=col)
+                        img_fake = fake[np.random.randint(0, len(fake))]
+                        plot_img(transform(img_fake), vmin=transform(vmin), vmax=transform(vmax), ax=col)
+                        dict_plotdata[i][j]['fake_img'] = img_fake
                     elif col_idx == 1 and real is not None:
                         col.set_title("Real")
-                        plot_img(transform(real[np.random.randint(0, len(real))]), vmin=transform(vmin), vmax=transform(vmax), ax=col)
+                        img_real = real[np.random.randint(0, len(real))]
+                        plot_img(transform(img_real), vmin=transform(vmin), vmax=transform(vmax), ax=col)
+                        dict_plotdata[i][j]['real_img'] = img_real
                     elif col_idx == 2 and params_grid is not None:
                         col.scatter(params_grid[:, 0], params_grid[:, 1])
                         col.scatter(dic['params'][0], dic['params'][1], color='r', s=80)
@@ -387,7 +457,7 @@ def make_frames(X, title_func=(lambda x: x), display_loss=False, vmin=None, vmax
         # Save memory
         del real
         del fake
-    return frames
+    return frames, dict_plotdata
 
 
 # Returns the make_frame function to create a video with moviepy
@@ -583,13 +653,15 @@ def compute_ssim_score(fake, real=None, gaussian_weights=True, sigma=1.5, ncopm=
 
     # Local function to compute scores of either fake or real
     def compute_single(X):
-        scores = []
+        mssim_all = []
         for i in range(len(X)):
+            printt('computing ssim {}/{}'.format(i, len(X)))
             imgs = X[i]
             if callable(X[i]):
                 imgs = X[i]()
-            scores.append(stats.ms_ssim(imgs, gaussian_weights=gaussian_weights, sigma=sigma, ncopm=ncopm))
-        return np.array(scores)
+            mssim_i = stats.ms_ssim(imgs, gaussian_weights=gaussian_weights, sigma=sigma, ncopm=ncopm)
+            mssim_all.append(mssim_i)
+        return np.array(mssim_all)
 
     # Return scores for real and fake
     return [compute_single(fake), None if real is None else compute_single(real)]
@@ -604,7 +676,7 @@ def compute_fids_from_activations(real, fake):
     return np.array(fids)
 
 # TODO: impossible to load images dynamically after regressor is instantiated
-def compute_plot_fid(real_images, fake_images, params, regressor_path, reg_class="Regressor", axes=['$\Omega_M$', '$\sigma_8$'], lims=[None, None], batch_size=None, checkpoint=None, alpha=0.05):
+def compute_plot_fid(real_images, fake_images, params, regressor_path, reg_class="Regressor", axes=['$\Omega_M$', '$\sigma_8$'], lims=[None, None], batch_size=None, checkpoint=None, alpha=0.05, display=True):
 
     # Load regressor
     reg = load_regressor(regressor_path, reg_class=reg_class)
@@ -619,6 +691,7 @@ def compute_plot_fid(real_images, fake_images, params, regressor_path, reg_class
     features = []
     pred_params = []
     for i in range(len(params)):
+        printt('params {}/{}'.format(i, len(params)))
         imgs = load_imgs(real_images[i])
         curr_params = np.tile(params[i], [len(imgs), 1])
         ro = get_regressor_outputs(reg, imgs, curr_params, batch_size=batch_size, checkpoint=checkpoint)
@@ -630,40 +703,44 @@ def compute_plot_fid(real_images, fake_images, params, regressor_path, reg_class
     pred_params = np.array(pred_params)
 
     # Compute frechet inception distances
+    printt('computing FID')
     fids = compute_fids_from_activations(features[:, 0], features[:, 1])
 
     # Plot predicted params
-    if len(params) == 1:
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(15, 15))
-        get_subplot = lambda x: ax
-    elif np.sqrt(len(params)).is_integer():
-        inter = int(np.sqrt(len(params)))
-        fig, ax = plt.subplots(nrows=inter, ncols=inter, figsize=(15, 15))
-        get_subplot = lambda x: ax[x//inter][x%inter]
-    elif len(params) % 2 == 0:
-        inter = int(np.sqrt(len(params)))
-        fig, ax = plt.subplots(nrows=len(params)//2, ncols=2, figsize=(10, 5 * (len(params)//2)))
-        get_subplot = lambda x: ax[x//2][x%2]
+    if display:
+        if len(params) == 1:
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(15, 15))
+            get_subplot = lambda x: ax
+        elif np.sqrt(len(params)).is_integer():
+            inter = int(np.sqrt(len(params)))
+            fig, ax = plt.subplots(nrows=inter, ncols=inter, figsize=(15, 15))
+            get_subplot = lambda x: ax[x//inter][x%inter]
+        elif len(params) % 2 == 0:
+            inter = int(np.sqrt(len(params)))
+            fig, ax = plt.subplots(nrows=len(params)//2, ncols=2, figsize=(10, 5 * (len(params)//2)))
+            get_subplot = lambda x: ax[x//2][x%2]
+        else:
+            fig, ax = plt.subplots(nrows=len(params), ncols=1, figsize=(5, 5 * len(params)))
+            get_subplot = lambda x: ax[x]
+        for i in range(len(params)):
+            a = get_subplot(i)
+            a.scatter(pred_params[i, 0, :, 0], pred_params[i, 0, :, 1], label="Real", alpha=alpha)
+            a.scatter(pred_params[i, 1, :, 0], pred_params[i, 1, :, 1], label="Fake", color="r", alpha=alpha)
+            a.set_title(axes[0] + ': ' + str(params[i][0]) + ', ' + axes[1] + ': ' + str(params[i][1]), fontsize=14)
+            a.set_xlabel(axes[0], fontsize=12)
+            a.set_ylabel(axes[1], fontsize=12)
+            if lims[0] is not None:
+                a.set_xlim(lims[0])
+            if lims[1] is not None:
+                a.set_ylim(lims[1])
+            leg = a.legend(fontsize=12)
+            for lh in leg.legendHandles: 
+                lh.set_alpha(1)
+        fig.tight_layout()
     else:
-        fig, ax = plt.subplots(nrows=len(params), ncols=1, figsize=(5, 5 * len(params)))
-        get_subplot = lambda x: ax[x]
-    for i in range(len(params)):
-        a = get_subplot(i)
-        a.scatter(pred_params[i, 0, :, 0], pred_params[i, 0, :, 1], label="Real", alpha=alpha)
-        a.scatter(pred_params[i, 1, :, 0], pred_params[i, 1, :, 1], label="Fake", color="r", alpha=alpha)
-        a.set_title(axes[0] + ': ' + str(params[i][0]) + ', ' + axes[1] + ': ' + str(params[i][1]), fontsize=14)
-        a.set_xlabel(axes[0], fontsize=12)
-        a.set_ylabel(axes[1], fontsize=12)
-        if lims[0] is not None:
-            a.set_xlim(lims[0])
-        if lims[1] is not None:
-            a.set_ylim(lims[1])
-        leg = a.legend(fontsize=12)
-        for lh in leg.legendHandles: 
-            lh.set_alpha(1)
-    fig.tight_layout()
+        fig = None
 
-    return fids, fig
+    return fids, fig, pred_params, params, features
 
 
 

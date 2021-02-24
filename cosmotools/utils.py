@@ -9,6 +9,31 @@ import zipfile
 import h5py
 import numpy as np
 
+def printt(s=''):
+
+    global PRINT_TEMP_STR_LEN
+    try:
+        PRINT_TEMP_STR_LEN
+    except:
+        PRINT_TEMP_STR_LEN=0
+    print('\r'+PRINT_TEMP_STR_LEN*' '+'\r'+s, end='')
+    PRINT_TEMP_STR_LEN=len(s)
+
+
+def read_pickle(filename):
+
+    import pickle
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
+
+
+def write_pickle(filename, obj):
+
+    import pickle
+    with open(filename, 'wb') as f:
+        pickle.dump(obj, f)
+    print('wrote {}'.format(filename))
+
 def require_dir(path):
     if not os.path.exists(path):
         os.makedirs(path)
