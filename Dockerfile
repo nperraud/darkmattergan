@@ -7,9 +7,19 @@ FROM ${RENKU_BASE_IMAGE}
 # COPY src /code/src
 
 # install the python dependencies
-COPY Pipfile Pipfile.lock /tmp/
-RUN pip install pipenv
-RUN cd /tmp/ && pipenv install --system --deploy --ignore-pipfile
+COPY Pipfile Pipfile.lock environment.yml /tmp/
+RUN cd /tmp/ && \
+    conda env update -q -f environment.yml && \
+    /opt/conda/bin/pip install pipenv
+    
+RUN cd /tmp/ && pipenv --python=$(conda run which python) 
+RUN cd /tmp/ && pipenv install
+    
+RUN conda clean -y --all && \
+    conda env export -n "root"
+    
+# RUN pip install pipenv
+# RUN cd /tmp/ && pipenv install --system --deploy --ignore-pipfile
 
 # RENKU_VERSION determines the version of the renku CLI
 # that will be used in this image. To find the latest version,
