@@ -12,8 +12,8 @@ RUN cd /tmp/ && \
     conda env update -q -f environment.yml && \
     /opt/conda/bin/pip install pipenv
     
-RUN cd /tmp/ && pipenv --python=$(conda run which python) 
-RUN cd /tmp/ && pipenv install
+RUN cd /tmp/ && pipenv --python=$(conda run which python) --site-packages
+RUN cd /tmp/ && pipenv install --python=$(conda run which python)
     
 RUN conda clean -y --all && \
     conda env export -n "root"
