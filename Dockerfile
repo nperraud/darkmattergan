@@ -9,11 +9,16 @@ FROM ${RENKU_BASE_IMAGE}
 # install the python dependencies
 COPY Pipfile Pipfile.lock environment.yml /tmp/
 RUN cd /tmp/ && \
-    conda env update -q -f environment.yml && \
-    /opt/conda/bin/pip install pipenv
-
-RUN cd /tmp/ && pipenv install --python=$(conda run which python) --system --deploy
+    conda env update -q -f environment.yml 
     
+    
+# Make RUN commands use the new environment:
+SHELL ["conda", "run", "-n", "base", "/bin/bash", "-c"]
+RUN pip install pipenv
+
+RUN cd /tmp/ && \
+    pipenv install --python=$(conda run which python) --system --deploy
+
 RUN conda clean -y --all && \
     conda env export -n "root"
     
