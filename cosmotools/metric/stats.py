@@ -202,9 +202,10 @@ def peak_count(X, neighborhood_size=5, threshold=0.5):
     # PEAK COUNTS
     data_max = filters.maximum_filter(X, neighborhood_size)
     maxima = (X == data_max)
-    data_min = filters.minimum_filter(X, neighborhood_size)
-    diff = ((data_max - data_min) > threshold)
-    maxima[diff == 0] = 0
+    if threshold != 0:
+        data_min = filters.minimum_filter(X, neighborhood_size)
+        diff = ((data_max - data_min) > threshold)
+        maxima[diff == 0] = 0
 
     return np.extract(maxima, X)
 
@@ -311,12 +312,12 @@ def peak_count_hist(dat, bins=20, lim=None, neighborhood_size=5, threshold=0, lo
         x = np.exp(x)-np.e
     if mean:
         y = np.mean(y, axis=0)
-    return y, x, lim
+    return y, x, lim, peak
 
 
 def peak_count_hist_real_fake(real, fake, bins=20, lim=None, log=True, neighborhood_size=5, threshold=0, mean=True):
-    y_real, x, lim = peak_count_hist(real, bins=bins, lim=lim, log=log, neighborhood_size=neighborhood_size, threshold=threshold, mean=mean)
-    y_fake, _, _ = peak_count_hist(fake, bins=bins, lim=lim, log=log, neighborhood_size=neighborhood_size, threshold=threshold, mean=mean)
+    y_real, x, lim, _ = peak_count_hist(real, bins=bins, lim=lim, log=log, neighborhood_size=neighborhood_size, threshold=threshold, mean=mean)
+    y_fake, _, _, _ = peak_count_hist(fake, bins=bins, lim=lim, log=log, neighborhood_size=neighborhood_size, threshold=threshold, mean=mean)
     return y_real, y_fake, x
 
 def unbounded_histogram(dat, range=None, **kwargs):
