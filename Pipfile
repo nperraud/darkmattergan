@@ -6,6 +6,7 @@ verify_ssl = true
 [dev-packages]
 gantools = {editable = true,file = "./gantools"}
 tfnntools = {editable = true,file = "./gantools/tfnntools"}
+renku = "*"
 
 [packages]
 numpy = "*"
@@ -22,7 +23,6 @@ requests = "*"
 Pillow = "*"
 PyYAML = "*"
 lenstools = "*"
-renku = "*"
 
 [requires]
 python_version = "3.7"

@@ -1,4 +1,49 @@
-# 3Dcosmo: a benchmark dataset for large 3-dimensional generative models (and 2-dimensional as well)
+# Dark Matter GAN
+Generative adeversarial network for cosmology. This repository contains the code associated to two papers:
+* 3Dcosmo: a benchmark dataset for large 3-dimensional generative models [Here](#1.-3Dcosmo:-a-benchmark dataset-for-large-3-dimensional-generative-models-(and 2-dimensional-as-well))
+* Emulation of cosmological mass maps with conditional generative adversarial networks [click on this link](#2.-Emulation-of-cosmological-mass-maps-with-conditional-generative-adversarial-networks)
+
+Sections for each of these contributions are availlable after the installation subsection.
+
+## Installation
+
+For a local installation, follow the instructions below.
+
+1. Clone this repository.
+   ```sh
+   git clone https://renkulab.io/gitlab/nathanael.perraudin/darkmattergan.git
+   cd darkmattergan
+   ```
+2. Initialize all the submodules (submodules are git repositories within the git repositories).
+    ```sh
+   git submodule update --init --recursive
+   ```
+
+
+### Required packages
+
+*We highly recommend working in a virtual environment.*
+
+You can simply install those packages with the following command:
+   ```sh
+   pip install -r requirements.txt
+   ```
+or if you have no gpu:
+   ```sh
+   pip install -r requirements_nogpu.txt
+   ```
+
+For some operations, you may require `pynbody` as it was used to preprocess the simulation. If so, you need to install it separately.
+
+You can also use pipenv:
+   ```sh
+   pipenv shell
+   pipenv install
+   ```
+
+
+
+# 1. 3Dcosmo: a benchmark dataset for large 3-dimensional generative models (and 2-dimensional as well)
 
 [Nathanaël Perraudin][nath], Ankit Srivastava, [Tomasz Kacprzak][tomek], [Aurelien Lucchi][aurelien], [Thomas Hofmann][thomas], [Alexandre Réfrégier][alex]
 
@@ -14,35 +59,8 @@ This code is assotiated with the paper *[Cosmological N-body simulations: a chal
 
 [linkpaper]: https://arxiv.org/abs/1908.05519
 
-## Installation
-
-For a local installation, follow the instructions below.
-
-1. Clone this repository.
-   ```sh
-   git clone https://github.com/nperraud/3DcosmoGAN
-   cd cosmotools
-   ```
-2. Initialize all the submodules (submodules are git repositories within the git repositories).
-    ```sh
-   git submodule update --init --recursive
-   ```
 
 
-### Required packages
-
-*We highly recommend working in a virtual environment.*
-
-You can simply install those packages with the following command:
-   ```
-   pip install -r requirements.txt
-   ```
-or if you have no gpu:
-   ```
-   pip install -r requirements_nogpu.txt
-   ```
-
-For some operations, you may require `pynbody` as it was used to preprocess the simulation. If so, you need to install it separately.
 
 
 
@@ -139,26 +157,90 @@ Can you differentiate | between real and fake?|
 ## Example
 The best way to get started is to start with this [this demo notebook](https://github.com/nperraud/CodeGAN/blob/master/WGAN%20demo.ipynb)
 
+
+# 2. Emulation of cosmological mass maps with conditional generative adversarial networks
+
+[Nathanaël Perraudin][nath], Sandro Marcon, [Aurelien Lucchi][aurelien], [Tomasz Kacprzak][tomek]
+
+[nath]: https://perraudin.info
+[tomek]: http://www.ipa.phys.ethz.ch/people/person-detail.MjEyNzM5.TGlzdC82NjQsNTkxMDczNDQw.html
+[aurelien]:http://people.inf.ethz.ch/alucchi/
+
+
+This code is assotiated with the paper *[Emulation of cosmological mass maps with conditional generative adversarial networks][linkpaper2]*  that focuses mostly on conditioning GAN to generate cosmological mass maps with different paramters.
+
+[linkpaper2]: https://arxiv.org/abs/2004.08139
+
+
+## Abstract
+Weak gravitational lensing mass maps play a crucial role in understanding the evolution of structures in the universe and our ability to constrain cosmological models. The prediction of these mass maps is based on expensive N-body simulations, which can create a computational bottleneck for cosmological analyses. Simulation-based emulators of map summary statistics, such as the matter power spectral and its covariance, are starting to play increasingly important role, as the analytical predictions are expected to reach their precision limits for upcoming experiments. Creating an emulator of the cosmological mass maps themselves, rather than their summary statistics, is a more challenging task. Modern deep generative models, such as Generative Adversarial Networks (GAN), have demonstrated their potential to achieve this goal. Most existing GAN approaches produce simulations for a fixed value of the cosmological parameters, which limits their practical applicability. We propose a novel conditional GAN model that is able to generate mass maps for arbitrary sets of cosmological parameters $\Omega_m$ and $\sigma_8$, for a given source galaxy redshift distribution $n(z)$. Our results show that our conditional GAN can interpolate efficiently within the space of simulated cosmologies, and generate maps anywhere inside this space with good visual quality high statistical accuracy. We perform an quantitative comparison of the N-body and GAN -generated maps using a range of metrics: the pixel histograms, peak counts, power spectra, bispectra, Minkowski functionals, correlation matrices of the power spectra, the Multi-Scale Structural Similarity Index (MS-SSIM) and our equivalent of the Fréchet Inception Distance (FID). We find a very good agreement on these metrics, with typical differences are $<$5\% at the centre of the simulation grid, and slightly worse for cosmologies at the grid edges. The agreement for the bispectrum is slightly worse, on the $<$20\% level. This contribution is a step towards building emulators of mass maps directly, capturing both the cosmological signal and its variability.
+
+
+
+## Dataset
+
+The dataset consists of 57 sets of 12'000 sky convergence maps for a total of $684'000$ samples. It is available on Zenodo at: 
+https://zenodo.org/record/4564408
+
+This dataset was first proposed in the paper *Cosmological constraints with deep learning from KiDS-450 weak lensing maps* from Fluri et al. Please be kind and cite their work if you use it:
+```
+    @article{fluri2019cosmological,
+      title={Cosmological constraints with deep learning from KiDS-450 weak lensing maps},
+      author={Fluri, Janis and Kacprzak, Tomasz and Lucchi, Aurelien and Refregier, Alexandre and Amara, Adam and Hofmann, Thomas and Schneider, Aurel},
+      journal={Physical Review D},
+      volume={100},
+      number={6},
+      pages={063514},
+      year={2019},
+      publisher={APS}
+    }
+```
+If you use this code, please also cite our papers (see the citation section bellow).
+
+To download the dataset, you can simply execute the code:
+```sh
+python download_kids.py 
+```
+
+This script will download the data in the folder `data/KiDs450_maps` as a list of `npy` files. 
+
+You can then use the function `load_samples_raw` or `load_nbody_dataset` from `cosmotools/data/load.py` to access it easily.
+
+
+3D visualization           |  A slice of the cube
+:-------------------------:|:-------------------------:
+![](images/particle_in_space.png "3D visualization" )  |  ![](images/slice.png "A slice of the cube")
+
+
+
+
+# License & citation
+
+The content of this repository is released under the terms of the [MIT license](LICENCE.txt).
+Please consider citing our papers if you use it.
+    ```
+    @inproceedings{perraudin2019cosmological,
+      title = {Cosmological N-body simulations: a challenge for scalable generative models},
+      author = {Nathana\"el, Perraudin and Ankit, Srivastava and Kacprzak, Tomasz and Lucchi, Aurelien and Hofmann, Thomas and R{\'e}fr{\'e}gier, Alexandre},
+      year = {2019},
+      archivePrefix = {arXiv},
+      eprint = {1908.05519},
+      url = {https://arxiv.org/abs/1908.05519},
+    }
+    ```
+and 
+    ```
+    @article{perraudin2020emulation,
+      title={Emulation of cosmological mass maps with conditional generative adversarial networks},
+      author={Perraudin, Nathana{\"e}l and Marcon, Sandro and Lucchi, Aurelien and Kacprzak, Tomasz},
+      journal={arXiv preprint arXiv:2004.08139},
+      year={2020}
+    }
+    ```
+
+
 ## Contributors
 
 The main contributor is Perraudin Nathanaël. He was helped by Rosenthal Jonathan, Srivastava Ankit and Sandro Marcon. Some of the code is based on the work of Andres Rodriguez Escallon ([this repository][repository]).
 
 [repository]:https://github.com/dalab/msc_andres
-
-## License & citation
-
-The content of this repository is released under the terms of the [MIT license](LICENCE.txt).
-Please consider citing our papers if you use it.
-
-```
-@inproceedings{perraudin2019cosmological,
-  title = {Cosmological N-body simulations: a challenge for scalable generative models},
-  author = {Nathana\"el, Perraudin and Ankit, Srivastava and Kacprzak, Tomasz and Lucchi, Aurelien and Hofmann, Thomas and R{\'e}fr{\'e}gier, Alexandre},
-  year = {2019},
-  archivePrefix = {arXiv},
-  eprint = {1908.05519},
-  url = {https://arxiv.org/abs/1908.05519},
-}
-```
-
-
