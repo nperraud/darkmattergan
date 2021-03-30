@@ -180,7 +180,7 @@ Weak gravitational lensing mass maps play a crucial role in understanding the ev
 ## Dataset
 
 The dataset consists of 57 sets of 12'000 sky convergence maps for a total of $684'000$ samples. It is available on Zenodo at: 
-https://zenodo.org/record/4564408
+https://zenodo.org/record/4646764
 
 This dataset was first proposed in the paper *Cosmological constraints with deep learning from KiDS-450 weak lensing maps* from Fluri et al. Please be kind and cite their work if you use it:
 ```
@@ -201,15 +201,22 @@ To download the dataset, you can simply execute the code:
 ```sh
 python download_kids.py 
 ```
+This script will download the data in the folder `data/KiDs450_maps` as a list of 684 `npy` files. 
 
-This script will download the data in the folder `data/KiDs450_maps` as a list of `npy` files. 
+The next step is to build the training/testing/validation sets. You can run the script `preprocess_datasets.py` in the folder `cwgan_experiments`. 
+```sh
+cd cwgan_experiments
+python preprocess_datasets.py
+```
+Alternatively, you can run all the cell in the notebook `cwgan_notebooks/kids_dataset.ipynb`. Once the dataset are pre-processed, you can then use the function `load_params_dataset` from `cosmotools/data/load.py` to access them easily.
+```
+dataset1 = load_params_dataset('kids.h5', batch=12000, sorted=True, shape=[128, 128])
+dataset2 = load_params_dataset('kids_train_shuffled.h5', batch=15000, shape=[ns, ns], transform=random_transpose_2d)
+```
 
-You can then use the function `load_samples_raw` or `load_nbody_dataset` from `cosmotools/data/load.py` to access it easily.
+The network can be trained using the script `train.py` from the folder `cwgan_experiments` and model selection can be performed using `model_selection_kids.py`. Finally the script `train_regressor.py` can be used to train the regressor used to compute the FID score.
 
-
-3D visualization           |  A slice of the cube
-:-------------------------:|:-------------------------:
-![](images/particle_in_space.png "3D visualization" )  |  ![](images/slice.png "A slice of the cube")
+Training the network will take days. Instead, you can simply use the provided checkpoints (the one used for all plots in the paper). Simply download them using:
 
 
 
@@ -233,8 +240,10 @@ and
     @article{perraudin2020emulation,
       title={Emulation of cosmological mass maps with conditional generative adversarial networks},
       author={Perraudin, Nathana{\"e}l and Marcon, Sandro and Lucchi, Aurelien and Kacprzak, Tomasz},
-      journal={arXiv preprint arXiv:2004.08139},
       year={2020}
+      archivePrefix = {arXiv},
+      eprint = {2004.08139},
+      url = {https://arxiv.org/abs/2004.08139},
     }
     ```
 

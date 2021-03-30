@@ -18,3 +18,25 @@ Nathanaël Perraudin, Ankit Srivastava, Aurelien Lucchi, Tomasz Kacprzak, Thoma
 
 
 Please check the assotiated github page https://github.com/nperraud/3DcosmoGAN for additional information.
+
+
+# Tensorflow checkpoints: Emulation of cosmological mass maps with conditional generative adversarial networks
+
+This corresponds to the Tensorflow checkpoints for the experiments in the paper 
+**Emulation of cosmological mass maps with conditional generative adversarial networks** by
+Nathanaël Perraudin, Sandro Marcon, Aurelien Lucchi, Tomasz Kacprzak.
+
+
+```
+@article{perraudin2020emulation,
+  title={Emulation of cosmological mass maps with conditional generative adversarial networks},
+  author={Perraudin, Nathana{\"e}l and Marcon, Sandro and Lucchi, Aurelien and Kacprzak, Tomasz},
+  year={2020}
+  archivePrefix = {arXiv},
+  eprint = {2004.08139},
+  url = {https://arxiv.org/abs/2004.08139},
+}
+```
+
+
+Please check the assotiated github page https://renkulab.io/gitlab/nathanael.perraudin/darkmattergan for additional information.

@@ -99,23 +99,24 @@ def append_h5(file, X, params=None, X_key="train_maps", params_key="train_labels
                 f[params_key][-params.shape[0]:] = params
                 
                 
-# Note: can be memory expensive
 def shuffle_h5(filein, fileout, key_data="train_maps", key_params="train_labels"):
 
     # Load file
-    with h5py.File(filein, 'r') as f:
-        data = np.array(f[key_data][:])
-        params = np.array(f[key_params][:])
-
-    # Shuffle data
-    perm = np.random.permutation(len(params))
-    data = data[perm]
-    params = params[perm]
-
-    # Write file
-    with h5py.File(fileout, 'w') as f:
-        f.create_dataset(key_data, data=data)
-        f.create_dataset(key_params, data=params)
+    with h5py.File(filein, 'r') as fin:
+        with h5py.File(fileout, 'w') as fout:
+            
+            # Shuffle data
+            n = len(fin[key_data])
+            s1 = fin[key_data][0].shape
+            s2 = fin[key_params][0].shape
+            perm = np.random.permutation(n)
+            
+            # Write file
+            fout.create_dataset(key_data, (n,*s1))
+            fout.create_dataset(key_params, (n,*s2))
+            for i, ind in enumerate(perm):
+                fout[key_data][i] = fin[key_data][ind]
+                fout[key_params][i] = fin[key_params][ind]
 
 
 # Compute the maximum and minimum of a big dataset

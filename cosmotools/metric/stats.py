@@ -3,13 +3,19 @@
 import numpy as np, sys
 from . import power_spectrum_phys as ps
 import scipy.ndimage.filters as filters
-from skimage.measure import compare_ssim
+
 import itertools
 from gantools import utils
 import functools
 import multiprocessing as mp
 import tensorflow as tf
 from cosmotools.utils import printt
+
+import skimage
+if float(skimage.__version__[:4]) < 0.16:
+    from skimage.measure import compare_ssim
+else:
+    from skimage.metrics import structural_similarity as compare_ssim
 
 
 def wrapper_func(x, bin_k=50, box_l=100 / 0.7,
