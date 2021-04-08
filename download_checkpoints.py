@@ -56,7 +56,7 @@ def unzip(file, targetdir):
 
 
 if __name__ == '__main__':
-    # The checkpoints can be downloaded at https://zenodo.org/record/3350871
+    # The checkpoints can be downloaded at https://zenodo.org/record/3369581
     
     url_checkpoints = 'https://zenodo.org/record/3369581/files/saved_results.zip?download=1'
     url_readme = 'https://zenodo.org/record/3369581/files/README.md?download=1'

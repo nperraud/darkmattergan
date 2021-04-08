@@ -6,6 +6,7 @@ import os
 from cosmotools.utils import append_h5, require_dir, find_minmax_large, histogram_large, shuffle_h5
 from cosmotools.data.load import load_params_dataset
 from cosmotools.data.path import root_path_kids
+import numpy as np
 
 def get_params(filename):
     words = filename.split('_')
@@ -20,25 +21,26 @@ if __name__== "__main__":
 
     
     # 2. Make a big file with all the data  
+    print("1. Make full dataset")
     folder_out = path_dataset
     fileout = os.path.join(folder_out,'kids.h5')
-    files = os.listdir(path_dataset)
-    files.sort()
-    first = True
-    for file in files:
-        if file[-4:]=='.npy':
-            print(file)
-            maps = np.load(path_dataset + file) # Load maps
-            params = get_params(file) # Parse parameters
-            params = np.tile(np.array(params), [len(maps), 1])
-            append_h5(fileout, maps, params=params, overwrite=first)
-            first = False
+#     files = os.listdir(path_dataset)
+#     files.sort()
+#     first = True
+#     for file in files:
+#         if file[-4:]=='.npy':
+#             maps = np.load(path_dataset + file) # Load maps
+#             params = get_params(file) # Parse parameters
+#             params = np.tile(np.array(params), [len(maps), 1])
+#             append_h5(fileout, maps, params=params, overwrite=first)
+#             first = False
     
     dataset = load_params_dataset('kids.h5', batch=12000, sorted=True, shape=[128, 128])
     assert(dataset.N==684000)
     diff_params = dataset.get_different_params()
     
     # 3. Divide into test and training set
+    print("2. Divide train/testing set")
     
     test_params = [[0.137, 1.23],
                    [0.196, 1.225], # extr
@@ -62,15 +64,6 @@ if __name__== "__main__":
         if str(p) in params_map.keys():
             test_dic[params_map[str(p)]] = True
 
-    nr_test_params = 11
-
-    test_dic = dict()
-    for i in range(nr_test_params):
-        idx = np.random.randint(0, len(diff_params))
-        while idx in test_dic.keys():
-            idx = np.random.randint(0, len(diff_params))
-        test_dic[idx] = True
-
 
     test_params = []
     train_params = []
@@ -81,8 +74,6 @@ if __name__== "__main__":
             train_params.append(diff_params[i])
     test_params = np.array(test_params)
     train_params = np.array(train_params)
-    print(test_params.shape)
-    print(train_params.shape)
 
     with h5py.File(os.path.join(folder_out, 'train_test_params_kids.h5'), 'w') as f:
         f.create_dataset('train', data=train_params)
@@ -101,14 +92,14 @@ if __name__== "__main__":
         X, par = dataset.get_data_for_params(p)
         append_h5(os.path.join(folder_out, 'kids_train.h5'), X, par, overwrite=first)
         first = False
-        
 
     # 4. Shuffle dataset
+    print("3. Shuffle training set")
 
     shuffle_h5(os.path.join(folder_out,'kids_train.h5'), os.path.join(folder_out, 'kids_train_shuffled.h5'))
     
     # 5. Regressor
-    
+    print("4. Build dataset set for the regressor")    
     dataset = load_params_dataset('kids_train_shuffled.h5', batch=12000, shape=[128, 128])
     
     batch_size = 12000
@@ -143,3 +134,5 @@ if __name__== "__main__":
         append_h5(test_file, np.array(X_test), np.array(p_test), overwrite=first)
     if len(X_train) > 0:
         append_h5(train_file, np.array(X_train), np.array(p_train), overwrite=first)
+        
+    print("=== All done! ===")    

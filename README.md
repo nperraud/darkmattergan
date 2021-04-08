@@ -217,6 +217,31 @@ dataset2 = load_params_dataset('kids_train_shuffled.h5', batch=15000, shape=[ns,
 The network can be trained using the script `train.py` from the folder `cwgan_experiments` and model selection can be performed using `model_selection_kids.py`. Finally the script `train_regressor.py` can be used to train the regressor used to compute the FID score.
 
 Training the network will take days. Instead, you can simply use the provided checkpoints (the one used for all plots in the paper). Simply download them using:
+```sh
+python download_kids_checkpoints.py
+```
+
+
+- CGAN Kids.ipynb: conditional GAN on cosmological dataset.
+				   Checkpoint used to produce the results: 349163
+				   Commit used to train: d264448
+- CWGAN Toy.ipynb: conditional GAN on toy dataset with one input parameter.
+				   Checkpoint used to produce the results: 143430
+			       Commit used to train: 09a835d
+- CWGAN Toy two params.ipynb: conditional GAN on toy dataset with two input parameters:
+				 			  Checkpoint used to produce the results: 156422
+							  Commit used to train: bd4534f
+- kids_dataset.ipynb: contains a tutorial about the cosmological dataset and how to create and preprocess the dataset files.
+- Regressor Kids.ipynb: train and test the regressor on cosmological dataset.
+- WGAN Kids.ipynb: WGAN trained on single cosmology.
+				   Checkpoint used to produce the results: 37501
+				   Commit used to train: c29ecab
+- WGAN Toy.ipynb: WGAN trained on a fixed parameter set of toy dataset.
+				  Checkpoint used to produce the results: 129050
+				  Commit used to train: 3d804ea
+
+- paper_plot_journal.ipynb: notebook used to make plots for the journal version of the paper.
+
 
 
 

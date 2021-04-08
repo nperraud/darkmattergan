@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a65378c2735f58d169d199868238f3bb89ee3fead62388e9e64f735f2177c8cc"
+            "sha256": "a864d40a19d06b4ecdd2f174a24f47ec90697cc08520a059ebe86a905c04edd9"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -216,8 +216,7 @@
         },
         "gantools": {
             "editable": true,
-            "git": "https://github.com/nperraud/gantools.git",
-            "ref": "7162e216dc83e7cef8a10b8a38cbe60446b91456"
+            "file": "./gantools"
         },
         "gast": {
             "hashes": [
@@ -1197,8 +1196,7 @@
         },
         "tfnntools": {
             "editable": true,
-            "git": "https://github.com/nperraud/tfnntools.git",
-            "ref": "ab7c5eafae7c3c27c3f28626c2d590db6eb834c0"
+            "file": "./gantools/tfnntools"
         },
         "threadpoolctl": {
             "hashes": [
@@ -1559,11 +1557,6 @@
                 "sha256:774179f22db2ef8a106e9c38d4d1f8503864603db08de2e33be5b778230f6e45"
             ],
             "version": "==1.2"
-        },
-        "gantools": {
-            "editable": true,
-            "git": "https://github.com/nperraud/gantools.git",
-            "ref": "7162e216dc83e7cef8a10b8a38cbe60446b91456"
         },
         "gitdb": {
             "hashes": [
@@ -2100,11 +2093,6 @@
                 "sha256:db2723a20d04bcda8522165c73eea7c300eda74e0ce852d9022e0159d7895007"
             ],
             "version": "==0.8.7"
-        },
-        "tfnntools": {
-            "editable": true,
-            "git": "https://github.com/nperraud/tfnntools.git",
-            "ref": "ab7c5eafae7c3c27c3f28626c2d590db6eb834c0"
         },
         "tqdm": {
             "hashes": [

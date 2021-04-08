@@ -56,17 +56,22 @@ def unzip(file, targetdir):
 
 
 if __name__ == '__main__':
-    # The checkpoints can be downloaded at https://zenodo.org/record/3350871
+    # The checkpoints can be downloaded at https://zenodo.org/record/4651586
     
-    url_checkpoints = 'https://zenodo.org/record/3369581/files/saved_results.zip?download=1'
+    url_checkpoints = 'https://zenodo.org/record/4651586/files/kids_checkpoints.zip?download=1'
+    url_readme = 'https://zenodo.org/record/4651586/files/README.md?download=1'
 
     md5_checkpoints = 'c49df80d4067a4ca6744e3ff0af67ca7'
-
+    md5_readme = '666da8da6ae55f2f35c4c186ef53ed1d'
 
 
     print('Download checkpoints')
-#     download(url_checkpoints, './')
-    assert(check_md5('saved_results.zip', md5_checkpoints))
+    download(url_checkpoints, './')
+    assert(check_md5('kids_checkpoints.zip', md5_checkpoints))
     print('Extract checkpoints')
     unzip('kids_checkpoints.zip', 'saved_results/')
     os.remove('kids_checkpoints.zip')
+    
+    print('Download README')
+    download(url_readme, 'saved_results/Kids')
+    assert (check_md5('saved_results/Kids/README.md', md5_readme))
