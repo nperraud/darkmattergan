@@ -24,16 +24,16 @@ if __name__== "__main__":
     print("1. Make full dataset")
     folder_out = path_dataset
     fileout = os.path.join(folder_out,'kids.h5')
-#     files = os.listdir(path_dataset)
-#     files.sort()
-#     first = True
-#     for file in files:
-#         if file[-4:]=='.npy':
-#             maps = np.load(path_dataset + file) # Load maps
-#             params = get_params(file) # Parse parameters
-#             params = np.tile(np.array(params), [len(maps), 1])
-#             append_h5(fileout, maps, params=params, overwrite=first)
-#             first = False
+    files = os.listdir(path_dataset)
+    files.sort()
+    first = True
+    for file in files:
+        if file[-4:]=='.npy':
+            maps = np.load(path_dataset + file) # Load maps
+            params = get_params(file) # Parse parameters
+            params = np.tile(np.array(params), [len(maps), 1])
+            append_h5(fileout, maps, params=params, overwrite=first)
+            first = False
     
     dataset = load_params_dataset('kids.h5', batch=12000, sorted=True, shape=[128, 128])
     assert(dataset.N==684000)
