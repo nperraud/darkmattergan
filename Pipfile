@@ -4,6 +4,8 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+gantools = {editable = true,file = "./gantools"}
+tfnntools = {editable = true,file = "./gantools/tfnntools"}
 
 [packages]
 numpy = "*"
@@ -11,8 +13,8 @@ tensorflow-gpu = "<1.15.0"
 h5py = "*"
 sklearn = "*"
 scikit-image = "*"
-gantools = {editable = true,file = "./gantools"}
-tfnntools = {editable = true,file = "./gantools/tfnntools"}
+gantools = {editable = true, git = "https://github.com/nperraud/gantools.git" }
+tfnntools = {editable = true, git = "https://github.com/nperraud/tfnntools.git" }
 matplotlib = "*"
 jupyterlab = "*"
 moviepy = "*"
@@ -23,4 +25,4 @@ lenstools = "*"
 renku = "*"
 
 [requires]
-python_version = "3.6"
+python_version = "3.7"
