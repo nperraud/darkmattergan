@@ -1,7 +1,8 @@
 # Dark Matter GAN
 Generative adeversarial network for cosmology. This repository contains the code associated to two papers:
-* 3Dcosmo: a benchmark dataset for large 3-dimensional generative models [Here](#1.-3Dcosmo:-a-benchmark dataset-for-large-3-dimensional-generative-models-(and 2-dimensional-as-well))
-* Emulation of cosmological mass maps with conditional generative adversarial networks [click on this link](#2.-Emulation-of-cosmological-mass-maps-with-conditional-generative-adversarial-networks)
+
+* 3Dcosmo: a benchmark dataset for large 3-dimensional generative models (Section 1 just bellow)
+* Emulation of cosmological mass maps with conditional generative adversarial networks (Section 2 further bellow)
 
 Sections for each of these contributions are availlable after the installation subsection.
 
@@ -10,11 +11,13 @@ Sections for each of these contributions are availlable after the installation s
 For a local installation, follow the instructions below.
 
 1. Clone this repository.
+
    ```sh
    git clone https://renkulab.io/gitlab/nathanael.perraudin/darkmattergan.git
    cd darkmattergan
    ```
 2. Initialize all the submodules (submodules are git repositories within the git repositories).
+
     ```sh
    git submodule update --init --recursive
    ```
@@ -77,6 +80,7 @@ The positions of these particles are modified due to gravitational forces and ex
 N-body simulations use periodic boundary condition, where particles leaving the volume on one face enter it back from the opposite side.
 
 To download the dataset, you can simply execute the code:
+
 ```sh
 python download_nbody.py
 ```
@@ -119,6 +123,7 @@ These scripts will create checkpoints and tensorboard summaries in the folder `s
 Alternatively, you can avoid training the model and download the checkpoints on https://zenodo.org/record/3257564
 
 The easiest way is to use the script: `download_checkpoints.py`.
+
 ```sh
 python download_checkpoints.py
 ```
@@ -135,6 +140,7 @@ Check the samples in video [here](https://www.youtube.com/watch?v=nWXP6DVEalA).
 
 ## Training and evaluation (2D)
 While the paper focuses on the 3d case, we also made some benchmark in 2D. To train our base architecture, you can use the scripts in the folder `nbody-2d`. To launch the training for a GAN generating images of size 128, you can use
+
 ```sh
 python experiment.py 128
 ```
