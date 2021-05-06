@@ -183,6 +183,7 @@ The dataset consists of 57 sets of 12'000 sky convergence maps for a total of $6
 https://zenodo.org/record/4646764
 
 This dataset was first proposed in the paper *Cosmological constraints with deep learning from KiDS-450 weak lensing maps* from Fluri et al. Please be kind and cite their work if you use it:
+
 ```
     @article{fluri2019cosmological,
       title={Cosmological constraints with deep learning from KiDS-450 weak lensing maps},
@@ -195,20 +196,24 @@ This dataset was first proposed in the paper *Cosmological constraints with deep
       publisher={APS}
     }
 ```
+
 If you use this code, please also cite our papers (see the citation section bellow).
 
 To download the dataset, you can simply execute the code:
+
 ```sh
 python download_kids.py 
 ```
 This script will download the data in the folder `data/KiDs450_maps` as a list of 684 `npy` files. 
 
 The next step is to build the training/testing/validation sets. You can run the script `preprocess_datasets.py` in the folder `cwgan_experiments`. 
+
 ```sh
 cd cwgan_experiments
 python preprocess_datasets.py
 ```
 Alternatively, you can run all the cell in the notebook `cwgan_notebooks/kids_dataset.ipynb`. Once the dataset are pre-processed, you can then use the function `load_params_dataset` from `cosmotools/data/load.py` to access them easily.
+
 ```
 dataset1 = load_params_dataset('kids.h5', batch=12000, sorted=True, shape=[128, 128])
 dataset2 = load_params_dataset('kids_train_shuffled.h5', batch=15000, shape=[ns, ns], transform=random_transpose_2d)
@@ -217,30 +222,32 @@ dataset2 = load_params_dataset('kids_train_shuffled.h5', batch=15000, shape=[ns,
 The network can be trained using the script `train.py` from the folder `cwgan_experiments` and model selection can be performed using `model_selection_kids.py`. Finally the script `train_regressor.py` can be used to train the regressor used to compute the FID score.
 
 Training the network will take days. Instead, you can simply use the provided checkpoints (the one used for all plots in the paper). Simply download them using:
+
 ```sh
 python download_kids_checkpoints.py
 ```
 
+Once you have a model, you can use the notebooks inside `cwgan_notebooks` to reproduce all results. In particular, the notebook `paper_plot_journal.ipynb` will reproduce all figures from the journal.
 
-- CGAN Kids.ipynb: conditional GAN on cosmological dataset.
-				   Checkpoint used to produce the results: 349163
+* `CGAN Kids.ipynb`: conditional GAN on cosmological dataset.
+				   Checkpoint used to produce the results: 349163.
 				   Commit used to train: d264448
-- CWGAN Toy.ipynb: conditional GAN on toy dataset with one input parameter.
-				   Checkpoint used to produce the results: 143430
+* `CWGAN Toy.ipynb`: conditional GAN on toy dataset with one input parameter.
+				   Checkpoint used to produce the results: 143430.
 			       Commit used to train: 09a835d
-- CWGAN Toy two params.ipynb: conditional GAN on toy dataset with two input parameters:
-				 			  Checkpoint used to produce the results: 156422
+* `CWGAN Toy two params.ipynb`: conditional GAN on toy dataset with two input parameters:
+				 			  Checkpoint used to produce the results: 156422.
 							  Commit used to train: bd4534f
-- kids_dataset.ipynb: contains a tutorial about the cosmological dataset and how to create and preprocess the dataset files.
-- Regressor Kids.ipynb: train and test the regressor on cosmological dataset.
-- WGAN Kids.ipynb: WGAN trained on single cosmology.
-				   Checkpoint used to produce the results: 37501
+* `kids_dataset.ipynb`: contains a tutorial about the cosmological dataset and how to create and preprocess the dataset files.
+* `Regressor Kids.ipynb`: train and test the regressor on cosmological dataset.
+* `WGAN Kids.ipynb`: WGAN trained on single cosmology.
+				   Checkpoint used to produce the results: 37501.
 				   Commit used to train: c29ecab
-- WGAN Toy.ipynb: WGAN trained on a fixed parameter set of toy dataset.
-				  Checkpoint used to produce the results: 129050
+* `WGAN Toy.ipynb`: WGAN trained on a fixed parameter set of toy dataset.
+				  Checkpoint used to produce the results: 129050.
 				  Commit used to train: 3d804ea
+* `paper_plot_journal.ipynb`: notebook used to make plots for the journal version of the paper.
 
-- paper_plot_journal.ipynb: notebook used to make plots for the journal version of the paper.
 
 
 
@@ -250,6 +257,7 @@ python download_kids_checkpoints.py
 
 The content of this repository is released under the terms of the [MIT license](LICENCE.txt).
 Please consider citing our papers if you use it.
+
     ```
     @inproceedings{perraudin2019cosmological,
       title = {Cosmological N-body simulations: a challenge for scalable generative models},
@@ -261,6 +269,7 @@ Please consider citing our papers if you use it.
     }
     ```
 and 
+
     ```
     @article{perraudin2020emulation,
       title={Emulation of cosmological mass maps with conditional generative adversarial networks},
