@@ -22,16 +22,17 @@ For a local installation, follow the instructions below.
    git submodule update --init --recursive
    ```
 
-
 ### Required packages
 
 *We highly recommend working in a virtual environment.*
 
 You can simply install those packages with the following command:
+   
    ```sh
    pip install -r requirements.txt
    ```
 or if you have no gpu:
+   
    ```sh
    pip install -r requirements_nogpu.txt
    ```
@@ -39,10 +40,13 @@ or if you have no gpu:
 For some operations, you may require `pynbody` as it was used to preprocess the simulation. If so, you need to install it separately.
 
 You can also use pipenv:
+   
    ```sh
    pipenv shell
    pipenv install
    ```
+
+For the `Emulation of cosmological mass maps with conditional generative adversarial networks` paper, please jump to section 2.
 
 
 
