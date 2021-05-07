@@ -18,7 +18,7 @@ For a local installation, follow the instructions below.
    ```
 2. Initialize all the submodules (submodules are git repositories within the git repositories).
 
-    ```sh
+   ```sh
    git submodule update --init --recursive
    ```
 
